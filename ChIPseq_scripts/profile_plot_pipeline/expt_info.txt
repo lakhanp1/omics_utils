@@ -1,0 +1,4 @@
+Sample_ID	IP_tag	profileName	matFile	polIIExpFile	clusterFile	TF
+H2A.Z_Kmeans_0	HA	H2A.Z_Kmeans_0	chris_mix43_h3k27ac_normalized.mat	NA	H2A.Z_Kmeans_0.txt	NA
+H2A.Z_Kmeans_1	HA	H2A.Z_Kmeans_1	chris_mix43_h3k27ac_normalized.mat	NA	H2A.Z_Kmeans_1.txt	NA
+H2A.Z_Kmeans_2	HA	H2A.Z_Kmeans_2	chris_mix43_h3k27ac_normalized.mat	NA	H2A.Z_Kmeans_2.txt	NA

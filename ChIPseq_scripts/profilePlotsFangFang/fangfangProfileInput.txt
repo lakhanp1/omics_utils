@@ -1,0 +1,4 @@
+Sample_ID	IP_tag	profileName	matFile	expressionFile	clusterFile
+37_fresh_spores	polII	37_fresh_spores_profile	gfffilefangfangwant.txt-with-37_fresh_spores_normalized.bdg.merge.mat	NA	37_fresh_spores.kmeans.clusters.txt
+38_fresh_spores	polII	38_fresh_spores_profile	gfffilefangfangwant.txt-with-38_fresh_spores_germination_30min_normalized.bdg.merge.mat	NA	NA
+39_fresh_spores	polII	39_fresh_spores_profile	gfffilefangfangwant.txt-with-39_fresh_spores_germination_3h_normalized.bdg.merge.mat	NA	NA

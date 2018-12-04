@@ -1,0 +1,3 @@
+Sample_ID	IP_tag	profileName	matFile	polIIExpFile	clusterFile	TF
+An_cclA_20h_HA_1	HA	An_cclA_20h_HA_1	E:/Chris_UM/Analysis/21_CL2017_ChIPmix_ULAS_MIX/ULAS_AN/data/TF_data/An_cclA_20h_HA_1/An_cclA_20h_HA_1_normalized_profile.tab.gz	NA	E:/Chris_UM/Analysis/21_CL2017_ChIPmix_ULAS_MIX/ULAS_AN/data/TF_data/An_cclA_20h_HA_1/An_cclA_20h_HA_1.kmeans.clusters.txt	cclA
+An_cclA_20h_HA_2	HA	An_cclA_20h_HA_2	E:/Chris_UM/Analysis/21_CL2017_ChIPmix_ULAS_MIX/ULAS_AN/data/TF_data/An_cclA_20h_HA_2/An_cclA_20h_HA_2_normalized_profile.tab.gz	NA	E:/Chris_UM/Analysis/21_CL2017_ChIPmix_ULAS_MIX/ULAS_AN/data/TF_data/An_cclA_20h_HA_2/An_cclA_20h_HA_2.kmeans.clusters.txt	cclA
