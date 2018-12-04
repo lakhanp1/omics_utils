@@ -1,0 +1,55 @@
+ID	Name	Lab
+koonhowong	Dr. Chris	Dr. Chris Wong
+yychen	Yingying Chen	Dr. Chris Wong
+lakhanp	Lakhansing Pardeshi	Dr. Chris Wong
+yb67621	Dong Liguo	Dr. Chris Wong
+zqmiao	Miao Zhengqiang	Dr. Chris Wong
+nshirgaonkar	Niranjan Shirgaonkar	Dr. Chris Wong
+yb57662	Pooja Sethiya	Dr. Chris Wong
+yb57653	Chirag Parsania	Dr. Chris Wong
+yb47612	Li Ang	Dr. Chris Wong
+cb32904	Michael	Dr. Chris Wong
+yb57626	Li yantao	Dr. Jun Zheng
+yb67615	Xie Ruiqiang	Dr. Jun Zheng
+jianmingzeng	Jianming Zeng	Dr. Li GANG
+yb47615	Daniel Hao Dapeng	Dr. LiJun Di
+yb57633	Wang Yuan Danae	Dr. LiJun Di
+yb47604	Yubin	Dr. Yuan ZHEN
+qiaofangqi	Qiaofang QI	Dr. Yuan ZHEN
+hiseq	HISeq	HISeq
+jimmyngai	Jimmy Ngai	Jimmy Ngai
+rbaranikumar	R.Barani Kumar	Prof. Chuxia Deng
+kaimiao	Kai Miao	Prof. Chuxia Deng
+monicav	Monica	Prof. Chuxia Deng
+haitaowang	Haitao Wang	Prof. Chuxia Deng
+fhscancer	FHS Cancer	Prof. Chuxia Deng
+hengsun	Sun Heng	Prof. Chuxia Deng
+echeung	Prof. Edwin Cheung	Prof. Edwin Cheung
+yb47601	Shreyas	Prof. Edwin Cheung
+yb47613	Xianglan	Prof. Edwin Cheung
+yb47616	Ling Ling	Prof. Edwin Cheung
+mdivate	Mayur Divate	Prof. Edwin Chong Wing CHEUNG
+sjadhao	Sudhir Jadhao	Prof. Edwin Chong Wing CHEUNG
+gangli	Prof. Gang Li	Prof. Gang Li
+yb57630	Menglei Zhang	Prof. Garry Wong
+yb57628	Frank Yang Yang	Prof. Garry Wong
+lliangchen	Liang CHEN	Prof. Garry Wong
+yb67610	Wang Changliang	Prof. Garry Wong
+wtchen	Weiting Chen	Prof. Ge Wei
+yb67607	Chao Bian	Prof. Ge Wei
+yb57622	Zhili Ren	Prof. Guokai Chen
+yb57651	Baoyuan Zhang	Prof. Joong Sup SHIM
+yb57658	Roma Borkar	Prof. Ren-He Xu
+huiyansun	Huiyan SUN 	Prof. Ren-He Xu
+sanmingwang	San Ming Wang	Prof. San Ming Wang
+hemgupta	Hemant Gupta	Prof. San Ming Wang
+kchandratre	Khyati Chandrate	Prof. San Ming Wang
+bspriya	Priya Bhaskaran	Prof. San Ming Wang
+douglaszhang	Prof. Xiaohua Douglas ZHANG	Prof. Xiaohua Douglas ZHANG
+shixuesun	Shixue Sun	Prof. Xiaohua Douglas ZHANG
+chenhuang	Chen HUANG	Prof. Xiaohua Douglas ZHANG
+radhav	Ragini Adhav	Prof. Xiaoling XU
+yb57629	Jianlin Liu	Prof. Xiaoling XU
+yb47433	Unknown	Unknown
+whpang	William	ICTO
+jackyc	Jacky	ICTO

@@ -1,0 +1,91 @@
+Queue	type	Lab	User	Name	Apr	Aug	Jul	Jun	Mar	May	Oct	Sep
+FHS_LONG	Total queue time	Dr. Chris Wong	cb32904	Michael	104677	0	0	0	8133	3	0	0
+FHS_LONG	Total queue time	Dr. Chris Wong	lakhanp	Lakhansing Pardeshi	0	7	0	944	2429	21	0	25388
+FHS_LONG	Total queue time	Dr. Chris Wong	yb47612	Li Ang	0	0	0	0	0	263	0	0
+FHS_LONG	Total queue time	Dr. Chris Wong	yb57653	Chirag Parsania	3503	1633	135231	7784	0	2	6076	612
+FHS_LONG	Total queue time	Dr. Chris Wong	yb57662	Pooja Sethiya	592	0	0	116	61	498	0	0
+FHS_LONG	Total queue time	Dr. Chris Wong	yb67621	Dong Liguo	0	0	0	0	0	0	1300	355
+FHS_LONG	Total queue time	Dr. Jun Zheng	yb67615	Xie Ruiqiang	0	0	38	0	0	0	0	245
+FHS_LONG	Total queue time	Dr. Li GANG	jianmingzeng	Jianming Zeng	258	14	4	348	3360	461	0	1491
+FHS_LONG	Total queue time	Dr. LiJun Di	yb47615	Daniel Hao Dapeng	0	0	0	0	137	666	0	0
+FHS_LONG	Total queue time	Dr. LiJun Di	yb57633	Wang Yuan Danae	8363	0	0	0	0	0	0	0
+FHS_LONG	Total queue time	Dr. Yuan ZHEN	qiaofangqi	Qiaofang QI	0	836	0	359	0	144	764	9525
+FHS_LONG	Total queue time	HISeq	hiseq	HISeq	0	0	0	0	0	0	0	0
+FHS_LONG	Total queue time	ICTO	whpang	William	0	0	0	0	21	0	0	0
+FHS_LONG	Total queue time	Prof. Chuxia Deng	fhscancer	FHS Cancer	33595	19658	1181	0	29793	15055	11779	4939
+FHS_LONG	Total queue time	Prof. Chuxia Deng	haitaowang	Haitao Wang	16335	0	0	14424	0	353	0	0
+FHS_LONG	Total queue time	Prof. Chuxia Deng	kaimiao	Kai Miao	0	0	0	0	48	0	0	0
+FHS_LONG	Total queue time	Prof. Chuxia Deng	monicav	Monica	0	0	0	0	0	0	0	0
+FHS_LONG	Total queue time	Prof. Chuxia Deng	rbaranikumar	R.Barani Kumar	203	25	0	0	0	0	0	2
+FHS_LONG	Total queue time	Prof. Edwin Cheung	yb47601	Shreyas	0	592	0	0	0	0	0	120
+FHS_LONG	Total queue time	Prof. Edwin Cheung	yb47613	Xianglan	22	6	0	0	18999	0	0	0
+FHS_LONG	Total queue time	Prof. Edwin Chong Wing CHEUNG	sjadhao	Sudhir Jadhao	16276	163	12	470	7623	0	957	5373
+FHS_LONG	Total queue time	Prof. Garry Wong	lliangchen	Liang CHEN	0	0	2978	0	0	4	0	5996
+FHS_LONG	Total queue time	Prof. Garry Wong	yb57630	Menglei Zhang	0	0	0	0	0	0	0	0
+FHS_LONG	Total queue time	Prof. Garry Wong	yb67610	Wang Changliang	0	5	0	0	0	0	0	272
+FHS_LONG	Total queue time	Prof. Ge Wei	wtchen	Weiting Chen	14407	0	11	0	0	7116	0	0
+FHS_LONG	Total queue time	Prof. Ge Wei	yb67607	Chao Bian	31678	0	0	0	1286	2355	0	0
+FHS_LONG	Total queue time	Prof. San Ming Wang	hemgupta	Hemant Gupta	0	0	0	0	18	0	0	0
+FHS_LONG	Total queue time	Prof. San Ming Wang	kchandratre	Khyati Chandrate	0	4612	234	0	0	0	1931	18214
+FHS_LONG	Total queue time	Prof. Xiaoling XU	radhav	Ragini Adhav	244	26	2	8	0	200	0	8948
+FHS_LONG	Total queue time	Prof. Xiaoling XU	yb57629	Jianlin Liu	0	0	0	0	0	0	1	10696
+FHS_LONG	Average queue time	Dr. Chris Wong	cb32904	Michael	375	0	0	0	120	0	0	0
+FHS_LONG	Average queue time	Dr. Chris Wong	lakhanp	Lakhansing Pardeshi	0	1	0	8	270	2	0	4231
+FHS_LONG	Average queue time	Dr. Chris Wong	yb47612	Li Ang	0	0	0	0	0	263	0	0
+FHS_LONG	Average queue time	Dr. Chris Wong	yb57653	Chirag Parsania	389	20	1454	556	0	0	760	47
+FHS_LONG	Average queue time	Dr. Chris Wong	yb57662	Pooja Sethiya	42	0	0	15	31	83	0	0
+FHS_LONG	Average queue time	Dr. Chris Wong	yb67621	Dong Liguo	0	0	0	0	0	0	217	18
+FHS_LONG	Average queue time	Dr. Jun Zheng	yb67615	Xie Ruiqiang	0	0	4	0	0	0	0	61
+FHS_LONG	Average queue time	Dr. Li GANG	jianmingzeng	Jianming Zeng	129	5	1	11	480	31	0	88
+FHS_LONG	Average queue time	Dr. LiJun Di	yb47615	Daniel Hao Dapeng	0	0	0	0	137	133	0	0
+FHS_LONG	Average queue time	Dr. LiJun Di	yb57633	Wang Yuan Danae	929	0	0	0	0	0	0	0
+FHS_LONG	Average queue time	Dr. Yuan ZHEN	qiaofangqi	Qiaofang QI	0	30	0	359	0	36	109	107
+FHS_LONG	Average queue time	HISeq	hiseq	HISeq	0	0	0	0	0	0	0	0
+FHS_LONG	Average queue time	ICTO	whpang	William	0	0	0	0	7	0	0	0
+FHS_LONG	Average queue time	Prof. Chuxia Deng	fhscancer	FHS Cancer	700	65	5	0	346	201	310	59
+FHS_LONG	Average queue time	Prof. Chuxia Deng	haitaowang	Haitao Wang	237	0	0	125	0	9	0	0
+FHS_LONG	Average queue time	Prof. Chuxia Deng	kaimiao	Kai Miao	0	0	0	0	4	0	0	0
+FHS_LONG	Average queue time	Prof. Chuxia Deng	monicav	Monica	0	0	0	0	0	0	0	0
+FHS_LONG	Average queue time	Prof. Chuxia Deng	rbaranikumar	R.Barani Kumar	203	2	0	0	0	0	0	0
+FHS_LONG	Average queue time	Prof. Edwin Cheung	yb47601	Shreyas	0	74	0	0	0	0	0	13
+FHS_LONG	Average queue time	Prof. Edwin Cheung	yb47613	Xianglan	5	2	0	0	253	0	0	0
+FHS_LONG	Average queue time	Prof. Edwin Chong Wing CHEUNG	sjadhao	Sudhir Jadhao	8138	8	12	470	1089	0	319	283
+FHS_LONG	Average queue time	Prof. Garry Wong	lliangchen	Liang CHEN	0	0	229	0	0	1	0	2998
+FHS_LONG	Average queue time	Prof. Garry Wong	yb57630	Menglei Zhang	0	0	0	0	0	0	0	0
+FHS_LONG	Average queue time	Prof. Garry Wong	yb67610	Wang Changliang	0	0	0	0	0	0	0	10
+FHS_LONG	Average queue time	Prof. Ge Wei	wtchen	Weiting Chen	626	0	1	0	0	1779	0	0
+FHS_LONG	Average queue time	Prof. Ge Wei	yb67607	Chao Bian	990	0	0	0	71	393	0	0
+FHS_LONG	Average queue time	Prof. San Ming Wang	hemgupta	Hemant Gupta	0	0	0	0	9	0	0	0
+FHS_LONG	Average queue time	Prof. San Ming Wang	kchandratre	Khyati Chandrate	0	149	21	0	0	0	193	424
+FHS_LONG	Average queue time	Prof. Xiaoling XU	radhav	Ragini Adhav	122	6	0	0	0	3	0	229
+FHS_LONG	Average queue time	Prof. Xiaoling XU	yb57629	Jianlin Liu	0	0	0	0	0	0	1	369
+FHS_LONG	#in queue	Dr. Chris Wong	cb32904	Michael	279	0	0	0	68	14	0	0
+FHS_LONG	#in queue	Dr. Chris Wong	lakhanp	Lakhansing Pardeshi	2	9	2	123	9	11	0	6
+FHS_LONG	#in queue	Dr. Chris Wong	yb47612	Li Ang	0	0	0	0	0	1	0	0
+FHS_LONG	#in queue	Dr. Chris Wong	yb57653	Chirag Parsania	9	81	93	14	0	11	8	13
+FHS_LONG	#in queue	Dr. Chris Wong	yb57662	Pooja Sethiya	14	0	0	8	2	6	0	0
+FHS_LONG	#in queue	Dr. Chris Wong	yb67621	Dong Liguo	0	0	0	1	3	1	6	20
+FHS_LONG	#in queue	Dr. Jun Zheng	yb67615	Xie Ruiqiang	0	1	9	1	0	0	0	4
+FHS_LONG	#in queue	Dr. Li GANG	jianmingzeng	Jianming Zeng	2	3	6	33	7	15	0	17
+FHS_LONG	#in queue	Dr. LiJun Di	yb47615	Daniel Hao Dapeng	0	0	0	0	1	5	0	0
+FHS_LONG	#in queue	Dr. LiJun Di	yb57633	Wang Yuan Danae	9	0	0	0	0	8	0	0
+FHS_LONG	#in queue	Dr. Yuan ZHEN	qiaofangqi	Qiaofang QI	0	28	0	1	0	4	7	89
+FHS_LONG	#in queue	HISeq	hiseq	HISeq	0	0	0	3	0	2	0	0
+FHS_LONG	#in queue	ICTO	whpang	William	0	0	0	0	3	0	0	0
+FHS_LONG	#in queue	Prof. Chuxia Deng	fhscancer	FHS Cancer	48	302	223	5	86	75	38	84
+FHS_LONG	#in queue	Prof. Chuxia Deng	haitaowang	Haitao Wang	69	0	9	115	0	41	0	0
+FHS_LONG	#in queue	Prof. Chuxia Deng	kaimiao	Kai Miao	0	0	0	0	13	0	0	0
+FHS_LONG	#in queue	Prof. Chuxia Deng	monicav	Monica	0	0	6	0	0	0	0	0
+FHS_LONG	#in queue	Prof. Chuxia Deng	rbaranikumar	R.Barani Kumar	1	14	4	0	0	0	0	19
+FHS_LONG	#in queue	Prof. Edwin Cheung	yb47601	Shreyas	0	8	0	0	0	0	0	9
+FHS_LONG	#in queue	Prof. Edwin Cheung	yb47613	Xianglan	4	4	0	0	75	0	0	2
+FHS_LONG	#in queue	Prof. Edwin Chong Wing CHEUNG	sjadhao	Sudhir Jadhao	2	20	1	1	7	0	3	19
+FHS_LONG	#in queue	Prof. Garry Wong	lliangchen	Liang CHEN	0	2	13	9	0	6	0	2
+FHS_LONG	#in queue	Prof. Garry Wong	yb57630	Menglei Zhang	6	0	0	0	0	0	0	0
+FHS_LONG	#in queue	Prof. Garry Wong	yb67610	Wang Changliang	4	11	1	0	0	0	0	28
+FHS_LONG	#in queue	Prof. Ge Wei	wtchen	Weiting Chen	23	0	8	0	0	4	0	0
+FHS_LONG	#in queue	Prof. Ge Wei	yb67607	Chao Bian	32	0	0	0	18	6	0	0
+FHS_LONG	#in queue	Prof. San Ming Wang	hemgupta	Hemant Gupta	1	0	0	0	2	1	0	0
+FHS_LONG	#in queue	Prof. San Ming Wang	kchandratre	Khyati Chandrate	0	31	11	0	0	0	10	43
+FHS_LONG	#in queue	Prof. Xiaoling XU	radhav	Ragini Adhav	2	4	38	75	0	66	0	39
+FHS_LONG	#in queue	Prof. Xiaoling XU	yb57629	Jianlin Liu	0	5	0	0	0	0	1	29
