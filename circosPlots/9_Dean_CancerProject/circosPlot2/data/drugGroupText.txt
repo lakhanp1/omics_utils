@@ -1,0 +1,9 @@
+3	0	1000	Topoisomerase	ln=l
+26	0	1000	DNA/RNA_Synthesis	ln=l
+61	0	1000	Receptor	ln=s
+81	0	1000	metabolism	ln=m
+86	0	1000	Channel	ln=s
+92	0	1000	Microtubule	ln=m
+107	0	1000	Others	ln=s
+130	0	1000	Kinase-Phosphatase	ln=l
+146	0	1000	Transcription_Factor	ln=l

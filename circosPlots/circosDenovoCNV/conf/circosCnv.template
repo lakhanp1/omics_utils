@@ -1,0 +1,78 @@
+<<include etc/colors_fonts_patterns.conf>> 
+
+<<include ideogram.conf>>
+
+<<include ticks.conf>>
+
+<image>
+<<include etc/image.conf>>                
+</image>
+
+
+karyotype = [% karyotype %]
+chromosomes_units = [% chromosomes_units %]
+
+<plots>
+# glyph character mappings
+#
+# small
+# | medium
+# | | large
+# | | |
+# a b c   square
+# d e f   rhombus
+# g h i   triangle up
+# j k l   triangle down
+# m n o   circle
+#
+# lower case - hollow
+# upper case - solid
+
+type       = text
+label_font = glyph
+
+#plot for duplications
+<plot>
+file       = [% glyphFile %]
+r0    = 0.65r
+r1    = 0.99r
+<rules>
+flow       = continue
+<rule>
+condition  = var(value) =~ /duplication/
+color      = eval(var(color))
+label_size = eval(remap_int(var(label_size),[% shortestCnv %],[% longestCnv %],15,80))
+value = O
+</rule>
+
+<rule>
+condition  = var(value) =~ /deletion/
+show       = no
+</rule>
+</rules>
+</plot>
+
+#plot for deletions
+<plot>
+file       = [% glyphFile %]
+r0    = 0.25r
+r1    = 0.63r
+orientation = in
+<rules>
+<rule>
+condition  = var(value) =~ /deletion/
+color      = eval(var(color))
+label_size = eval(remap_int(var(label_size),[% shortestCnv %],[% longestCnv %],15,80))
+value = F
+</rule>
+<rule>
+condition  = var(value) =~ /duplication/
+show       = no
+</rule>
+</rules>
+</plot>
+
+</plots>
+
+
+<<include etc/housekeeping.conf>>

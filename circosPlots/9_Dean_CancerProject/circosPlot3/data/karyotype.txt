@@ -1,0 +1,9 @@
+chr -	8	Kinase-Phosphatase	0	20000	chr1
+chr -	9	TF	0	4000	chr4
+chr -	4	Metabolism	0	5000	chr8
+chr -	2	DNA/RNA_Synthesis	0	40000	chr11
+chr -	1	Topoisomerase	0	7000	chr15
+chr -	3	Receptor	0	31000	chr18
+chr -	5	Channel	0	6000	chr21
+chr -	6	Microtubule	0	6000	chrx
+chr -	7	Others	0	27000	chry

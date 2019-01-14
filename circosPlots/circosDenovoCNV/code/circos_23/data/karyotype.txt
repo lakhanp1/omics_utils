@@ -1,0 +1,17 @@
+chr - I I 0 230218 chr1
+chr - II II 0 813184 chr2
+chr - III III 0 316620 chr3
+chr - IV IV 0 1531933 chr4
+chr - IX IX 0 439888 chr5
+chr - MT MT 0 85779 chr6
+chr - V V 0 576874 chr7
+chr - VI VI 0 270161 chr8
+chr - VII VII 0 1090940 chr9
+chr - VIII VIII 0 562643 chr10
+chr - X X 0 745751 chr11
+chr - XI XI 0 666816 chr12
+chr - XII XII 0 1078177 chr13
+chr - XIII XIII 0 924431 chr14
+chr - XIV XIV 0 784333 chr15
+chr - XV XV 0 1091291 chr16
+chr - XVI XVI 0 948066 chr17

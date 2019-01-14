@@ -1,0 +1,60 @@
+for i in BRC201* LYM20160202*
+do
+cd $i
+samtools index $i"_dedup_reads.bam"
+cd ..
+done
+
+
+#1_pre_process.sh
+Completed successfully
+
+#2_realign_to_bqsr.sh
+Completed successfully
+
+#3_call_variants_and_filter.sh
+All samples failed at the last step
+
+#Rerun the last step for each sample individually
+
+{
+
+for i in `cat sample.list`
+do
+cp generalJob.sh $i/
+cd $i
+printf "java -Xmx50g -Xms50g -Djava.io.tmpdir=../tmp -jar /share/apps/gatk/src/GenomeAnalysisTK.jar \\
+-T ApplyRecalibration \\
+-R \${ref} \\
+-input %s_dedup_reads.bam_recal_reads.bam_recalibrated_snps_raw_indels.vcf \\
+-mode INDEL \\
+--ts_filter_level 99.0 \\
+-recalFile %s_dedup_reads.bam_recal_reads.bam_recalibrate_SNP.recal \\
+-tranchesFile %s_dedup_reads.bam_recal_reads.bam_recalibrate_SNP.tranches \\
+-o %s_dedup_reads.bam_recal_reads.bam_recalibrated_variants.vcf\n\n" $i $i $i $i >> generalJob.sh
+cd ..
+done
+
+}
+
+##miaokai-20151204:
+#Done: BRC20151105, ALL20150311, BRC20150826-1, Col20151106, BRC20151112, BRC20150824, BRC20150925
+
+
+##miaokai-20160406
+#Done: BRC20160122, BRC20160122-O, BRC20150722R, BRC20160128, BRC20151202, LYM20160202, LYM20160202-O
+##Other error: BRC20160217
+
+
+#Plot circos plot
+circos -conf ./etc/circos.conf -outputfile test
+circos -conf ./etc/circos.conf -param chromosomes_units=5000 -param ticks/multiplier=1e-5 -outputfile sample2_1256
+
+
+
+
+
+
+
+
+

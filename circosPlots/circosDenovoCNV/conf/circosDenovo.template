@@ -1,0 +1,113 @@
+<<include etc/colors_fonts_patterns.conf>> 
+
+<<include ideogram.conf>>
+
+<<include ticks.conf>>
+
+<image>
+<<include etc/image.conf>>                
+</image>
+
+
+karyotype = [% karyotype %]
+chromosomes_units = [% chromosomes_units %]
+
+
+
+<plots>
+
+# Histograms are a type of track that displays 2D data, which associates a value with a genomic position. Line plots, scatter plots and heat maps are examples of other 2D tracks. The data format for 2D data is 
+# #chr start end value [options]
+# ...
+# hs3 196000000 197999999 71.0000
+# hs3 198000000 199999999 57.0000
+# ...
+#
+# Each histogram is defined in a <plot> block within an enclosing <plots> block.
+
+[% colors = ['vdgrey', 'vdred', 'vdgreen', 'dblue'] %]
+
+[% FOREACH histogram = hist -%]
+<plot>
+
+# The type sets the format of the track.
+type = histogram
+file = [% histogram.file %]
+
+
+# The track is confined within r0/r1 radius limits. When using the relative "r" suffix, the values are relative to the position of the ideogram.
+r0   = [% histogram.r0 -%]r
+r1   = [% histogram.r1 -%]r
+
+[% colInd = loop.index %]
+
+# Histograms can have both a fill and outline. The default outline is 1px thick black. 
+fill_color = [% colors.$colInd %]
+
+# To turn off default outline, set the outline thickness to zero. If you want to permanently disable this default, edit etc/tracks/histogram.conf in the Circos distribution.
+#thickness = 0p
+
+# Do not join histogram bins that do not abut.
+extend_bin = no
+
+
+# Like for links, rules are used to dynamically alter formatting of each data point (i.e. histogram bin).
+
+# A track's background can be colored. Using y0/y1 ranges you can generate a striped track with focus on specific data ranges.
+<<include backgrounds.conf>>
+</plot>
+
+[% END -%]
+
+</plots>
+
+<links>
+
+<link>
+file          = [% linkFile %]
+radius        = [% linkRadius -%]r
+bezier_radius = 0r
+color         = black_a4
+thickness     = 2
+
+<rules>
+
+# The decision chain is composed of one or more <rule> blocks.
+
+<rule>
+
+# Each rule has a condition, formatting statements and an optional 'flow' statement. If the condition is true, the rule is applied to the data point and no further rules are checked (unless flow=continue). If the condition is false, the next rule is checked. 
+# var(X) referrs to the value of variable X for the data point. Here 'intrachr' means intra-chromosomal.
+
+condition     = var(intrachr)
+
+# Any links that are intra-chromosomal will not be shown. Further rules are not tested.
+
+show          = no
+</rule>
+
+
+<rule>
+
+# This rule is applied to all remaining links, since its condition is always true.
+
+condition     = 1
+
+# The color of the link is set to the 2nd chromosome in the link coordinate (link's end). Here eval() is required so that the expression var(chr2) is evaluated (we want the result of var(chr2), not the color named "var(chr2)"). Note that for conditions, evaluation is automatic, but required for all other parameters.
+
+color         = eval(var(color))
+
+# After this rule is applied, the rule chain continues.
+
+flow          = continue
+</rule>
+
+
+</rules>
+
+</link>
+
+</links>
+
+
+<<include etc/housekeeping.conf>> 
