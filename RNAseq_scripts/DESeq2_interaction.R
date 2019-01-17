@@ -12,13 +12,17 @@ library(tximport)
 rm(list = ls())
 source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/DESeq2_functions.R")
 
-analysisName <- "Af_AA_CCR"
-file_sampleInfo = here::here("RNAseq_data", "sampleInfo.txt")
+analysisName <- "CAur_HSP90_depletion_effect"
 
-outDir <- here::here("RNAseq_data", analysisName)
-outFilePrefix = here::here("RNAseq_data", analysisName, analysisName)
+outDir <- here::here("analysis", "CAuris_diff", analysisName)
+file_sampleInfo = paste(outDir, "sampleInfo.txt", sep = "/")
 
-file_geneInfo = "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r09_geneInfo.tab"
+outFilePrefix = paste(outDir, analysisName, sep = "/")
+
+file_geneInfo = "E:/Chris_UM/Database/Candida_auris_B8441/Candida_auris_B8441.info.tab"
+# "E:/Chris_UM/Database/Candida_auris_B8441/Candida_auris_B8441.info.tab"
+# "E:/Chris_UM/Database/C_albicans/SC5314_A21/C_albicans_SC5314_A21.info.tab"
+# "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r09_geneInfo.tab"
 
 
 if(!dir.exists(outDir)){
@@ -37,9 +41,9 @@ down_cut = lfc_cut * -1
 exptInfo = read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
 ## set the reference levels
-exptInfo$genotype = factor(exptInfo$genotype, levels = c("CEA17", "5A9"))
-exptInfo$treatment = factor(exptInfo$treatment, levels = c("Control", "AA"))
-exptInfo$condition = factor(exptInfo$condition, levels = c("CEA17_Control", "CEA17_AA", "5A9_Control", "5A9_AA"))
+exptInfo$genotype = factor(exptInfo$genotype, levels = c("WT", "tet90"))
+exptInfo$treatment = factor(exptInfo$treatment, levels = c("YPD", "YPD_DOX"))
+exptInfo$condition = factor(exptInfo$condition, levels = c("WT_YPD", "WT_YPD_DOX", "tet90_YPD", "tet90_YPD_DOX"))
 
 rownames(exptInfo) = exptInfo$sampleId
 
@@ -52,46 +56,47 @@ geneSym = data.table::fread(file = file_geneInfo, sep = "\t", header = T, string
   distinct(geneId, .keep_all = T)
 
 ###########################################################################
+## import counts data: either by tximport or as raw count matrix
+
 ## import the counts data using tximport and run DESeq2
+path_stringtie = here::here("data", "stringTie", "stringTie_CAur")
+filesStringtie = paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
+names(filesStringtie) = exptInfo$sampleId
 
-# path_stringtie = "E:/Chris_UM/Analysis/26_Cowen_CAuris_RNAseq/stringTie/stringTie_CAur"
-# filesStringtie = paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
-# names(filesStringtie) = exptInfo$sampleId
-# 
-# tmp = data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
-# tx2gene = tmp[, c("t_name", "gene_id")]
-# 
-# txi = tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene)
-# 
-# ddsTxi = DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
-# assay(ddsTxi)
-# colData(ddsTxi)
-# rowData(ddsTxi)
-# 
-# ## Run DESeq2
-# # dds = DESeq(ddsTxi)
+tmp = data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
+tx2gene = tmp[, c("t_name", "gene_id")]
 
+txi = tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene)
 
-## import raw counts data and run DESeq2
-file_rawCounts <- here::here("RNAseq_data", "MatrixCountsPerGeneBySample.txt")
-
-countsDf = readr::read_tsv(file = file_rawCounts, col_names = T) %>% 
-  as.data.frame()
-rownames(countsDf) <- countsDf$geneId
-countsDf$geneId <- NULL
-
-## select only those sample rows which are part of current comparison
-# exptInfo = droplevels(subset(exptInfo, condition %in% compare))
-countsDf = countsDf[, rownames(exptInfo)]
-
-## run DESeq2 and extract the processed data
-ddsCount = DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+ddsTxi = DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
+assay(ddsTxi)
+colData(ddsTxi)
+rowData(ddsTxi)
 
 ## Run DESeq2
-dds = DESeq(ddsCount)
+dds = DESeq(ddsTxi)
 
 
+# ## import raw counts data and run DESeq2
+# file_rawCounts <- here::here("RNAseq_data", "MatrixCountsPerGeneBySample.txt")
+# 
+# countsDf = readr::read_tsv(file = file_rawCounts, col_names = T) %>% 
+#   as.data.frame()
+# rownames(countsDf) <- countsDf$geneId
+# countsDf$geneId <- NULL
+# 
+# ## select only those sample rows which are part of current comparison
+# # exptInfo = droplevels(subset(exptInfo, condition %in% compare))
+# countsDf = countsDf[, rownames(exptInfo)]
+# 
+# ## run DESeq2 and extract the processed data
+# ddsCount = DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+# 
+# ## Run DESeq2
+# dds = DESeq(ddsCount)
 
+
+###########################################################################
 ## raw counts
 rawCounts = tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
 
