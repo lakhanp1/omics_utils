@@ -21,7 +21,7 @@ library(ggrepel)
 rm(list = ls())
 source("E:/Chris_UM/Codes/RNA_Seq/DESeq2_functions.R")
 
-path = "E:/Chris_UM/Analysis/26_Cowen_CAuris_RNAseq/CAuris_diff/"
+path = "E:/Chris_UM/Analysis/26_Cowen_CAuris_RNAseq/analysis/CAuris_diff/"
 
 ## the denominator or WT in log2(fold_change) should be first
 compare = c("WT_YPD", "WT_YPD_GdA")
