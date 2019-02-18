@@ -64,6 +64,10 @@ my $minTSS_gapForPseudo = 500;			## minimum distance required between two target
 my $confidentUpstreamCutoff = 200;		## any target gene with distance between TSS and peak < 200bp is confident target
 my $insideCutoff = 100;					## distance cutoff to decide that peak is inside the feature
 
+## any peak which is inside gene and its summit position is after 60% of gene from ATG/TSS: it is considered more near STOP codon or TES
+## if such peak is near of another gene's TSS, this "inside" feature annotation will be removed
+my $insideSkewToEndCutoff = 0.8;
+
 ## any peak which is marked as pseudo_upstream for a gene should be within 500bp from TSS.
 ## Upstream peak with distance from target gene TSS larger than this is definitely false target and no need to consider
 my $ignorePseudoUpbeyond = 500;
@@ -99,7 +103,7 @@ print STDERR '# Peak file format: ', $options{'peakFormat'}, "\n";
 
 
 ## field names
-my @narrowPeakCol = qw(peakChr peakStart peakEnd peakId peakLength peakStrand peakEnrichment peakPval peakQval peakSummit);
+my @narrowPeakCol = qw(peakChr peakStart peakEnd peakId peakScore peakStrand peakEnrichment peakPval peakQval peakSummit);
 
 my @colNames = ();
 my @outFields = ();
@@ -110,7 +114,7 @@ if($options{'peakFormat'} eq "broadpeak"){
 }
 elsif($options{'peakFormat'} eq "bed"){
 	@colNames = @narrowPeakCol[0..5];
-	@outFields = @narrowPeakCol[0..3];
+	@outFields = @narrowPeakCol[0..3,6..9];
 }
 elsif($options{'peakFormat'} eq "narrowpeak"){
 	@colNames = @narrowPeakCol;
@@ -123,7 +127,7 @@ else{
 
 
 push(@colNames, qw(gChr gStart gEnd gName gScore gStrand peakDist));
-push(@outFields, qw(gName peakDist summitDist type bidirectional featureCovFrac relativeSummitPos));
+push(@outFields, qw(gName peakDist summitDist peakType bidirectional featureCovFrac relativeSummitPos));
 
 my $tabix = Bio::DB::HTS::Tabix->new( filename => $options{'bedFile'} );
 
@@ -173,6 +177,13 @@ while(my $line = <STDIN>){
 	else{
 		## other file types where summit position is not available: BED, broadPeak etc
 		$data{peakSummit} = $data{peakStart} + $peakCenter;
+		
+		## for BED format peaks, set the other fields to 1
+		if($options{'peakFormat'} eq "bed"){
+			$data{peakEnrichment} = 1;
+			$data{peakPval} = 1;
+			$data{peakQval} = 1;
+		}
 	}
 	
 	
@@ -220,7 +231,7 @@ sub getNearest{
 	
 	my @upstreamTssTarget = ();
 	my @tssTarget = ();
-	my $tesTarget = undef;
+	my @tesTarget = ();
 	my @featureInPeakTarget = ();
 	my $peakInFeatureTarget = undef;
 	my $bidirectionalTarget = undef;
@@ -243,7 +254,7 @@ sub getNearest{
 		my $featureCovFrac = 0.00;
 		## upstream feature
 		if($target->{peakDist} < 0){
-			$target->{type} = "upstream";
+			$target->{peakType} = "upstream";
 		}
 		elsif($target->{peakDist} == 0){
 			$featureCovFrac = sprintf("%.2f", (min($target->{peakEnd}, $target->{gEnd}) - max($target->{peakStart}, $target->{gStart})) / ($target->{gEnd} - $target->{gStart}));
@@ -285,29 +296,29 @@ sub getNearest{
 				
 				## start overlap 
 				if($target->{peakStart} < $target->{gStart} && $target->{peakEnd} < $target->{gEnd}){
-					$target->{type} = "overlapStart";
+					$target->{peakType} = "overlapStart";
 				}
 				## end overlap
 				elsif($target->{peakStart} > $target->{gStart} && $target->{peakEnd} > $target->{gEnd}){
-					$target->{type} = "overlapEnd";
+					$target->{peakType} = "overlapEnd";
 				}
 				## inside gene body
 				elsif($target->{peakStart} >= $target->{gStart} && $target->{peakEnd} <= $target->{gEnd}){
-					$target->{type} = "inside";
+					$target->{peakType} = "inside";
 					
 					## inside + very near to START: insideOverlapStart
 					if(($target->{peakStart} - $target->{gStart}) <= $insideCutoff){
-						$target->{type} .= "OverlapStart";
+						$target->{peakType} .= "OverlapStart";
 					}
 					## inside + very near to END: insideOverlapEnd
 					elsif(($target->{gEnd} - $target->{peakEnd}) <= $insideCutoff){
-						$target->{type} .= "OverlapEnd";
+						$target->{peakType} .= "OverlapEnd";
 					}
 					
 				}
 				## include feature
 				elsif($target->{peakStart} <= $target->{gStart} && $target->{peakEnd} >= $target->{gEnd}){
-					$target->{type} = "includeFeature";
+					$target->{peakType} = "includeFeature";
 				}
 			}
 		}
@@ -328,34 +339,34 @@ sub getNearest{
 				
 				## start overlap 
 				if($target->{peakStart} > $target->{gStart} && $target->{peakEnd} > $target->{gEnd}){
-					$target->{type} = "overlapStart";
+					$target->{peakType} = "overlapStart";
 				}
 				## end overlap 
 				elsif($target->{peakStart} < $target->{gStart} && $target->{peakEnd} < $target->{gEnd}){
-					$target->{type} = "overlapEnd";
+					$target->{peakType} = "overlapEnd";
 				}
 				## inside gene body	
 				elsif($target->{peakStart} >= $target->{gStart} && $target->{peakEnd} <= $target->{gEnd}){
-					$target->{type} = "inside";
+					$target->{peakType} = "inside";
 					
 					## inside + very near to START: insideOverlapStart
 					if(($target->{gEnd} - $target->{peakEnd}) <= $insideCutoff){
-						$target->{type} .= "OverlapStart";
+						$target->{peakType} .= "OverlapStart";
 					}
 					## inside + very near to END: insideOverlapEnd
 					elsif(($target->{peakStart} - $target->{gStart}) <= $insideCutoff){
-						$target->{type} .= "OverlapEnd";
+						$target->{peakType} .= "OverlapEnd";
 					}
 				}
 				## include feature 
 				elsif($target->{peakStart} <= $target->{gStart} && $target->{peakEnd} >= $target->{gEnd}){
-					$target->{type} = "includeFeature";
+					$target->{peakType} = "includeFeature";
 				}
 			}
 		}
 		
 		
-		if(!exists($target->{type})){
+		if(!exists($target->{peakType})){
 			print STDERR "ERROR: Could not assign target type to peak-target pair:\n", join("\t", @{$target}{@colNames[0..3,6..13,15], qw(peakDist summitDist)}),"\n";
 			die;
 		}
@@ -363,35 +374,62 @@ sub getNearest{
 		
 		## to handle peaks for factor like cclA. cclA has peaks all over the gene body. 
 		if($featureCovFrac >= 0.7){
-			if($options{bindingInGene} && ($target->{type} eq "overlapStart" || $target->{type} eq "overlapEnd" || $target->{type} =~m/^inside/)){
-				$target->{type} = "includeFeature";
+			if($options{bindingInGene} && ($target->{peakType} eq "overlapStart" || $target->{peakType} eq "overlapEnd" || $target->{peakType} =~m/^inside/)){
+				$target->{peakType} = "includeFeature";
 			}
-			elsif(!$options{bindingInGene} && ($target->{type} eq "overlapStart" || $target->{type} =~m/^inside/ || $target->{type} eq "overlapEnd")){
-				$target->{type} = "includeFeature";
+			elsif(!$options{bindingInGene} && ($target->{peakType} eq "overlapStart" || $target->{peakType} =~m/^inside/ || $target->{peakType} eq "overlapEnd")){
+				$target->{peakType} = "includeFeature";
 			}
 			
 		}
+
+
+		## for the peaks which are inside the gene body, $summitRelativePos w.r.t. peak does not make sense
+		## instead, report the relative summit position w.r.t. gene
+		if($target->{peakType} =~m/^inside/){
+			$summitRelativePos = sprintf("%.2f", ($target->{peakSummit} - $target->{gStart}) / ($target->{gEnd} - $target->{gStart}));		
+		}
+		
+		## if the target gene is on -ve strand, summitRelativePos = 1 - summitRelativePos
+		if($target->{gStrand} eq '-'){
+			$summitRelativePos = 1 - $summitRelativePos;
+		}
+		
+		$target->{relativeSummitPos} = $summitRelativePos;			
+		
+		## change the target type based on summit position if peak in inside gene body
+		if($target->{peakType} eq "inside" && !$options{bindingInGene}){
+			if($target->{relativeSummitPos} < (1 - $insideSkewToEndCutoff)){
+					## peak summit is near the begining of the gene
+					$target->{peakType} .= "OverlapStart";
+				}
+				elsif($target->{relativeSummitPos} > $insideSkewToEndCutoff){
+					## peak summit is near the end region of gene
+					$target->{peakType} .= "OverlapEnd";
+				}
+		}
+		
 		
 		## for each target type, decide whether to finalize the target or not
 		## for overlapping peaks
-		if($target->{type} eq "overlapStart" || $target->{type} eq "insideOverlapStart"){
+		if($target->{peakType} eq "overlapStart" || $target->{peakType} eq "insideOverlapStart"){
 			## overlap near TSS
 			push(@tssTarget, $target);
 			$foundPeakNearTSS = 1;
 			
 			## search for bidirectional peaks only if the current found target is of type "overlapStart"
-			if($target->{type} eq "overlapStart"){
+			if($target->{peakType} eq "overlapStart"){
 				$searchBidirectional = 1;
 			}
 			
 			## if a peak near TES was found before this, set it to undef
 			if($foundPeakNearTES){
 				$foundPeakNearTES = 0;
-				$tesTarget = undef;
+				@tesTarget = ();
 			}
 		}
 		## for gene in peak
-		elsif($target->{type} eq "includeFeature"){
+		elsif($target->{peakType} eq "includeFeature"){
 			push(@featureInPeakTarget, $target);
 			$foundFeatureInPeak = 1;
 
@@ -401,7 +439,7 @@ sub getNearest{
 			}
 		}
 		## for overlap near TES
-		elsif($target->{type} eq "overlapEnd" || $target->{type} eq "insideOverlapEnd"){
+		elsif($target->{peakType} eq "overlapEnd" || $target->{peakType} eq "insideOverlapEnd"){
 			## update summit distance with respect to the CDS end
 			if($target->{gStrand} eq '+'){
 				$target->{summitDist} = $target->{peakSummit} - $target->{gEnd};
@@ -412,7 +450,7 @@ sub getNearest{
 			
 			## if previous peak at TSS has not been found, then only consider the peak near TES
 			if(!$foundPeakNearTSS){
-				$tesTarget = $target;
+				push(@tesTarget, $target);
 				$foundPeakNearTES = 1;
 				
 				## exception for the factors like cclA which have binding over gene body. 
@@ -421,15 +459,15 @@ sub getNearest{
 					## This is good peak even though it is at TES. So upstream peaks wont be searched
 					$minDist = $target->{peakDist};
 				}
-				# # elsif(!$options{bindingInGene}){
-					# # # search bidirectional peaks only for the factor which is not expected to bind in gene body
-					# # $minDist = $biDirectionCutoff;
-				# # }
+				elsif(!$options{bindingInGene} && $target->{peakType} eq "insideOverlapEnd"){
+					# search bidirectional peaks only for the factor which is not expected to bind in gene body
+					$minDist = $biDirectionCutoff * 2;
+				}
 			}
 			
 		}
 		## for peak in gene
-		elsif($target->{type} eq "inside"){ 
+		elsif($target->{peakType} eq "inside"){
 			$peakInFeatureTarget = $target;
 			$foundPeakInFeature = 1;
 			
@@ -440,39 +478,39 @@ sub getNearest{
 				## This is good peak even though it is at TES. So upstream peaks wont be searched
 				$minDist = $target->{peakDist};
 			}
+			## in other case, decide whether to look for other targets based on peak position in gene body
 			elsif(!$options{bindingInGene}){
-				# other upstream targets will be searched with distance less than this
-				$minDist = $biDirectionCutoff;
+				$minDist = $target->{peakDist};
+
+				## change minDist for the peaks which are near to the gene end or gene start
+				# if($target->{relativeSummitPos} < (1 - $insideSkewToEndCutoff)){
+					# ## peak summit is near the begining of the gene. restrict the upstream peak detection to $biDirectionCutoff distance
+					# $minDist = $biDirectionCutoff;					
+				# }
+				# elsif($target->{relativeSummitPos} > $insideSkewToEndCutoff){
+					# ## peak summit is near the end region of gene: try to identify the gene downstream peak
+					# $minDist = $biDirectionCutoff * 2;
+					# # $minDist = undef;					
+				# }
+
 			}
 
 		}
-		elsif($target->{type} eq "insideOverlapStartOverlapEnd"){
+		elsif($target->{peakType} eq "insideOverlapStartOverlapEnd"){
 			push(@tssTarget, $target);
 		}
 	
 		
-		## for the peaks which are inside the gene body, $summitRelativePos w.r.t. peak does not make sense
-		## instead, report the relative summit position w.r.t. gene
-		if($target->{type} =~m/^inside/){
-			$summitRelativePos = sprintf("%.2f", ($target->{peakSummit} - $target->{gStart}) / ($target->{gEnd} - $target->{gStart}));		
-		}
-		
-		
-		## if the target gene is on -ve strand, summitRelativePos = 1 - summitRelativePos
-		if($target->{gStrand} eq '-'){
-			$summitRelativePos = 1 - $summitRelativePos;
-		}
-		
-		$target->{relativeSummitPos} = $summitRelativePos;			
-		
+
 		
 		## for upstream peaks,
 		## if first upstream peak i.e. foundPeakUpTss == 0: add this target to @upstreamTssTarget, set searchBidirectional = 1 for next upstream peaks
 		## if foundPeakUpTss == 1 OR searchBidirectional == 1: check if this peak is upstream of other gene too
-		if($target->{type} eq "upstream"){
+		if($target->{peakType} eq "upstream"){
+			
+			# print STDERR "#**",join("\t", @{$target}{@outFields}),"*\n";
 			
 			if(!defined($minDist) || abs($minDist) > abs($target->{summitDist})){
-				
 				## upstream peaks with dist <= $biDirectionCutoff: confident targets 
 				if(abs($target->{peakDist}) <= $biDirectionCutoff){
 					
@@ -521,7 +559,6 @@ sub getNearest{
 						
 						push(@upstreamTssTarget, $target);
 						$foundPeakUpTss = 1;
-						# print STDERR "#**#",join("\t", @{$featureInPeakTarget[0]}{@outFields}),"*\n";
 						# print STDERR "#**",join("\t", @{$target}{@outFields}),"*\n";
 					}
 					## normal upstream peak which is closer to the target
@@ -541,9 +578,7 @@ sub getNearest{
 					if($noGeneInbetween){
 						$minDist = $target->{peakDist};
 					}
-					
-					# print STDERR "##**",join("\t", @{$target}{@outFields}),"*$noGeneInbetween\n";
-					
+										
 					## final filter: there should not be any other gene in between the peak and its target					
 					if($noGeneInbetween && !$foundPeakNearTSS && !$foundFeatureInPeak){
 						
@@ -567,7 +602,7 @@ sub getNearest{
 
 	#@upstreamTssTarget       $foundPeakUpTss          upstream
 	#@tssTarget               $foundPeakNearTSS        overlapStart, insideOverlapStart, insideOverlapStartOverlapEnd
-	#$tesTarget               $foundPeakNearTES        overlapEnd, insideOverlapEnd
+	#@tesTarget               $foundPeakNearTES        overlapEnd, insideOverlapEnd
 	#$featureInPeakTarget     $foundFeatureInPeak      includeFeature
 	#$peakInFeatureTarget     $foundPeakInFeature      inside
 	#$bidirectionalTarget     $foundBidirectional      
@@ -592,7 +627,7 @@ sub getNearest{
 			## if the distance between TSS of two genes < 500 : can't decide the other target as pseudo
 			## if upstream peak is within $confidentUpstreamCutoff (300bp) of target: do not set it to pseudo
 			## if the distance between TSS of two genes > 500 : mark other upstream target as pseudo
-			if($distBetween > $minTSS_gapForPseudo && abs($upstreamTssTarget[0]->{peakDist}) > $confidentUpstreamCutoff){
+			if(abs($upstreamTssTarget[0]->{peakDist}) > $confidentUpstreamCutoff){
 				@upstreamTssTarget = map{&setTargetToPesudo($_)} @upstreamTssTarget;
 			}
 		}
@@ -604,13 +639,13 @@ sub getNearest{
 	## (overlapEnd, insideOverlapEnd) = pseudo if (upstream|overlapStart|insideOverlapStart|insideOverlapStartOverlapEnd|includeFeature) 
 	if($foundPeakNearTSS){
 		## mark the tesTarget targets as pseudo targets
-		$tesTarget = &setTargetToPesudo($tesTarget);
+		@tesTarget = map{&setTargetToPesudo($_)} @tesTarget;
 	}
 	
 	## remove tesTarget if a foundFeatureInPeak and  a peak near TES is found
 	if($foundFeatureInPeak){		
 		$foundPeakNearTES = 0;
-		$tesTarget = undef;
+		@tesTarget = ();
 	}
 	
 	
@@ -618,10 +653,10 @@ sub getNearest{
 	if($options{bindingInGene}){
 		## preference is for "includeFeature". all other targets are pseudo
 		if($foundFeatureInPeak){
-			## $tesTarget = &setTargetToPesudo($tesTarget);
+			# @tesTarget = map{&setTargetToPesudo($_)} @tesTarget;
 			# @tssTarget = map{&setTargetToPesudo($_)} @tssTarget;
 			@upstreamTssTarget = map{&setTargetToPesudo($_)} @upstreamTssTarget;
-			## $bidirectionalTarget = &setTargetToPesudo($bidirectionalTarget);
+			# $bidirectionalTarget = &setTargetToPesudo($bidirectionalTarget);
 		}
 	}
 	## for the TFs with normal binding near promoter region
@@ -629,12 +664,40 @@ sub getNearest{
 		## for normal TFs, preference is for binding near TSS
 		if($foundPeakNearTSS){
 			## mark the "inside" targets as pseudo targets
-			$peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);	
+			$peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);
+			# print STDERR "#**",join("\t", @{$peakInFeatureTarget}{@outFields}),"*\n";
+			
+			## if the peak is inside the gene and near gene end, this is not the right target.
+			## set peakInFeatureTarget = NULL
+			## IMP: summitRelativePos for a peak which is "inside" is a position w.r.t. gene and not peak. see above for details
+			if($foundPeakInFeature && $peakInFeatureTarget->{relativeSummitPos} > $insideSkewToEndCutoff){
+				$foundPeakInFeature = 0;
+				$peakInFeatureTarget = undef;
+			}
 		}
 		
-		if($foundPeakUpTss && abs($upstreamTssTarget[0]->{peakDist}) <= $biDirectionCutoff){
-			$tesTarget = &setTargetToPesudo($tesTarget);
-			$peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);
+		if($foundPeakUpTss){
+			if(abs($upstreamTssTarget[0]->{peakDist}) <= $biDirectionCutoff){
+				@tesTarget = map{&setTargetToPesudo($_)} @tesTarget;
+				# $peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);
+			}
+			
+			# print STDERR "#**",join("\t", @{$peakInFeatureTarget}{@outFields}),"*\n";
+			## if the peak is inside the gene and near gene end, this is not the right target.
+			## set peakInFeatureTarget = NULL
+			## IMP: summitRelativePos for a peak which is "inside" is a position w.r.t. gene and not peak. see above for details
+			if($foundPeakInFeature && $peakInFeatureTarget->{relativeSummitPos} > $insideSkewToEndCutoff){
+				## for distance <= ($biDirectionCutoff * 2)		: set to pseudo_inside
+				if(abs($upstreamTssTarget[0]->{peakDist}) <= ($biDirectionCutoff * 2)){
+					$peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);
+				}
+				## for distance <= $biDirectionCutoff		: remove
+				elsif(abs($upstreamTssTarget[0]->{peakDist}) <= $biDirectionCutoff){
+					$foundPeakInFeature = 0;
+					$peakInFeatureTarget = undef;
+				}
+				
+			}
 		}
 	
 	}
@@ -646,7 +709,7 @@ sub getNearest{
 		push(@otherTargets, @featureInPeakTarget);
 	}
 	if($foundPeakNearTES){
-		push(@otherTargets, $tesTarget);
+		push(@otherTargets, @tesTarget);
 	}
 	if($foundPeakInFeature){
 		push(@otherTargets, $peakInFeatureTarget);
@@ -666,7 +729,7 @@ sub getNearest{
 	## if nothing found, print the NA values
 	if(!$foundPeakUpTss && !$foundPeakNearTSS && !$foundPeakNearTES && !$foundFeatureInPeak && !$foundPeakInFeature){
 		my $t = $_[0];
-		@{$t}{qw(gName peakDist summitDist type bidirectional featureCovFrac)} = qw(NA NA NA NA NA NA);
+		@{$t}{qw(gName peakDist summitDist peakType bidirectional featureCovFrac)} = qw(NA NA NA NA NA NA);
 		print join("\t", @{$t}{@outFields}),"\n";
 	}
 	# print "\n";
@@ -728,8 +791,8 @@ sub nearestFromBidirectional{
 		}
 		else{
 			print STDERR "ERROR: Unexpected strand for bidirectional targets:\n";
-			print STDERR 'target1: ', join("\t", @{$t1}{@colNames[0..3], qw(gChr gStart gEnd gName gStrand peakDist type)}),"\n";
-			print STDERR 'target2: ', join("\t", @{$t2}{@colNames[0..3], qw(gChr gStart gEnd gName gStrand peakDist type)}),"\n";
+			print STDERR 'target1: ', join("\t", @{$t1}{@colNames[0..3], qw(gChr gStart gEnd gName gStrand peakDist peakType)}),"\n";
+			print STDERR 'target2: ', join("\t", @{$t2}{@colNames[0..3], qw(gChr gStart gEnd gName gStrand peakDist peakType)}),"\n";
 			die;
 		}
 		
@@ -771,7 +834,7 @@ sub setTargetToPesudo{
 	my $t = shift @_;
 	if(defined $t){
 		# print "marking pseudo: $t\n";
-		$t->{type} = 'pseudo_'.$t->{type};
+		$t->{peakType} = 'pseudo_'.$t->{peakType};
 	}
 	
 	return($t);
@@ -790,7 +853,7 @@ sub geneBetweenPeakAndTarget(){
 	##       target                   middle gene         peak
 	##     |<====<====<====<|     |>====>====>====>|	 --------
 	##
-	if($target->{type} ne "upstream"){
+	if($target->{peakType} ne "upstream"){
 		return 1;
 	}
 	else{
