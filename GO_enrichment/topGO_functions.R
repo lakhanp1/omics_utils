@@ -172,7 +172,7 @@ topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term
 
 
 ##################################################################################
-#' GO enrichment using topGO and scatter plot
+#' Perform GO enrichment using topGO and scatter plot
 #'
 #' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
 #' @param goToGeneFile gene to GO term assignment file

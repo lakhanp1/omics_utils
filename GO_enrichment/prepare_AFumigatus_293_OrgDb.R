@@ -1,7 +1,7 @@
 library(tidyverse)
 library(data.table)
 library(AnnotationForge)
-
+library(GenomicFeatures)
 
 
 rm(list = ls())
@@ -122,6 +122,39 @@ install.packages("E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fum
 library(org.AFumigatus293.eg.db)
 
 
+
+
+##############################################################################
+file_gff <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r06_features.gff"
+
+afuMetadata <- data.frame(
+  name = "Resource URL",
+  value = "http://www.aspgd.org/"
+)
+
+txdbData <- GenomicFeatures::makeTxDbFromGFF(file = file_gff,
+                                             dataSource = "Af293 AspGD GFF",
+                                             organism = "Aspergillus fumigatus",
+                                             metadata = afuMetadata,
+                                             taxonomyId = 746128)
+
+makePackageName(txdbData)
+
+makeTxDbPackage(txdb = txdbData,
+                version = "03.05.06",
+                maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
+                author = "Lakhansing Pardeshi Chris Lab",
+                destDir = ".",
+                pkgname = "TxDb.Afumigatus.Af293.AspGD.GFF"
+                )
+
+
+
+columns(txdbData)
+exons(txdbData)
+transcripts(txdbData, columns = c("TXID", "TXNAME", "TXTYPE"))
+genes(txdbData)
+fiveUtrs <- fiveUTRsByTranscript(txdbData)
 
 
 
