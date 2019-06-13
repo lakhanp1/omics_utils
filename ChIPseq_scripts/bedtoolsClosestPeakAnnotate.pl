@@ -89,8 +89,8 @@ if($options{'bidirectionCut'}){
 }
 
 if($options{'tssRegion'}){
-	$confidentUpstreamCutoff = $options{'bidirectionCut'}->[0];
-	$insideCutoff = $options{'bidirectionCut'}->[1];
+	$confidentUpstreamCutoff = $options{'tssRegion'}->[0];
+	$insideCutoff = $options{'tssRegion'}->[1];
 }
 
 
@@ -624,12 +624,23 @@ sub getNearest{
 		if($foundPeakNearTSS){			
 			my $distBetween = max($upstreamTssTarget[0]->{gStart}, $tssTarget[0]->{gStart}) - min($upstreamTssTarget[0]->{gEnd}, $tssTarget[0]->{gEnd});
 			
-			## if the distance between TSS of two genes < 500 : can't decide the other target as pseudo
-			## if upstream peak is within $confidentUpstreamCutoff (300bp) of target: do not set it to pseudo
-			## if the distance between TSS of two genes > 500 : mark other upstream target as pseudo
-			if(abs($upstreamTssTarget[0]->{peakDist}) > $confidentUpstreamCutoff){
-				@upstreamTssTarget = map{&setTargetToPesudo($_)} @upstreamTssTarget;
+			## decide pseudo_upstream based on nearestFromBidirectional()
+			my @bidirect1Decision = &nearestFromBidirectional($tssTarget[0], $upstreamTssTarget[0]);
+			
+			## only update upstreamTssTarget. if it is marked as pseudo, it will be overwritten
+			if($bidirect1Decision[0]->{peakType} =~m/upstream/){
+				$upstreamTssTarget[0] = $bidirect1Decision[0];
+				# $tssTarget[0] = $bidirect1Decision[1];
 			}
+			elsif($bidirect1Decision[1]->{peakType} =~m/upstream/){
+				$upstreamTssTarget[0] = $bidirect1Decision[1];
+				# $tssTarget[0] = $bidirect1Decision[0];
+			}
+			
+			## if upstream peak is within $confidentUpstreamCutoff (200bp) of target: do not set it to pseudo
+			# if(abs($upstreamTssTarget[0]->{peakDist}) > $confidentUpstreamCutoff){
+				# @upstreamTssTarget = map{&setTargetToPesudo($_)} @upstreamTssTarget;
+			# }
 		}
 	}
 	
@@ -677,9 +688,17 @@ sub getNearest{
 		}
 		
 		if($foundPeakUpTss){
-			if(abs($upstreamTssTarget[0]->{peakDist}) <= $biDirectionCutoff){
-				@tesTarget = map{&setTargetToPesudo($_)} @tesTarget;
-				# $peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);
+
+			## peak at TES and also upstream of other gene
+			if($foundPeakNearTES){
+				if(abs($upstreamTssTarget[0]->{peakDist}) <= $biDirectionCutoff){
+					@tesTarget = map{&setTargetToPesudo($_)} @tesTarget;
+					# $peakInFeatureTarget = &setTargetToPesudo($peakInFeatureTarget);
+				}
+				elsif(abs($upstreamTssTarget[0]->{peakDist}) > $biDirectionCutoff * 2){
+					$foundPeakUpTss = 0;
+					@upstreamTssTarget = ();
+				}
 			}
 			
 			# print STDERR "#**",join("\t", @{$peakInFeatureTarget}{@outFields}),"*\n";
@@ -804,7 +823,7 @@ sub nearestFromBidirectional{
 		
 		# print STDERR "from = $from | to = $to | center = $center | 20% = ", ($t1->{peakStart} + $fraction) , " | 80% = ",($t1->{peakEnd} - $fraction),"\n";
 		
-		## if the distance between the TSS of two bidirectional targets < $minTSS_gapForPseudo: CANNOT decide the pseudo target confidently
+		## if the distance between the TSS of two bidirectional targets > $minTSS_gapForPseudo: use fraction based
 		if($distBetweenTragets > $minTSS_gapForPseudo){
 			## negative strand target is true; set positive strand target to pseudo
 			if(($t1->{peakEnd} - $fraction) <= $center){
@@ -813,6 +832,19 @@ sub nearestFromBidirectional{
 			}
 			## positive strand target is true; set negative strand target to pseudo
 			elsif(($t1->{peakStart} + $fraction) >= $center){
+				$negative = &setTargetToPesudo($negative);
+				# print STDERR "*farthestFromBidirectional*\t",join("\t", @{$negative}{@outFields}),"*\n";
+			}
+		}
+		## if the distance between the TSS of two bidirectional targets < $minTSS_gapForPseudo: peak has to be clearly on target side from center
+		elsif($distBetweenTragets < $minTSS_gapForPseudo){
+			## negative strand target is true; set positive strand target to pseudo
+			if($t1->{peakEnd} <= $center){
+				$positive = &setTargetToPesudo($positive);
+				# print STDERR "*farthestFromBidirectional*\t",join("\t", @{$positive}{@outFields}),"*\n";
+			}
+			## positive strand target is true; set negative strand target to pseudo
+			elsif($t1->{peakStart} >= $center){
 				$negative = &setTargetToPesudo($negative);
 				# print STDERR "*farthestFromBidirectional*\t",join("\t", @{$negative}{@outFields}),"*\n";
 			}

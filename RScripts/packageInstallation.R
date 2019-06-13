@@ -36,56 +36,72 @@ install.packages(c("installr", "Rcpp", "tidyverse", "ggplot2", "ggpubr", "dplyr"
                    "tidyr", "data.table", "tibble", "purrr", "stringr", "readxl",
                    "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
                    "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram",
-                   "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram"), dependencies = T)
+                   "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram", "here",
+                   "matrixStats", "NbClust"),
+                 dependencies = T)
 
 
 if (!requireNamespace("BiocManager"))
   install.packages("BiocManager")
+
 BiocManager::install()
 
-BiocManager::install(c("BiocGenerics", "IRanges", "GenomicRanges", "BiocGenerics", "S4Vectors", "rtracklayer",
-           "Rsamtools", "BSgenome", "BiocParallel", "GenomeInfoDbData", "DESeq2", "ballgown",
-           "pathview", "DO.db", "clusterProfiler", "topGO", "GenomicAlignments", "GenomicFeatures",
-           "DiffBind", "ChIPComp", "regioneR", "tximport", "apeglm", "AnnotationHub", "Gviz",
-           "KEGGREST", "KEGG.db", "KEGGprofile", "preprocessCore"))
-
-
-install.packages(c("devtools"), dependencies = T)
-library(devtools)
-devtools::install_github("jokergoo/circlize")
-# devtools::install_github("jokergoo/ComplexHeatmap")
-# devtools::install_github("jokergoo/EnrichedHeatmap")
-
-BiocManager::install("ComplexHeatmap")
-BiocManager::install("EnrichedHeatmap")
-
+BiocManager::install(
+  c("BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings", "GenomeInfoDbData",
+    "AnnotationHub", "AnnotationDbi", "GenomicFeatures", "rtracklayer", "BSgenome",
+    "GenomicAlignments", "BiocParallel", "SummarizedExperiment", "Rsamtools", "DESeq2",
+    "ballgown", "pathview", "DO.db", "clusterProfiler", "topGO", "DiffBind", "regioneR",
+    "tximport", "apeglm", "Gviz", "KEGGREST", "KEGG.db", "KEGGprofile", "preprocessCore",
+    "plyranges")
+)
 
 
 #Time series data imputation
 install.packages("imputeTS", dependencies = T)
 
+install.packages(c("devtools"), dependencies = T)
+library(devtools)
+devtools::install_github("jokergoo/circlize")
+devtools::install_github("jokergoo/ComplexHeatmap")
+devtools::install_github("jokergoo/EnrichedHeatmap")
+
+# BiocManager::install("ComplexHeatmap")
+# BiocManager::install("EnrichedHeatmap")
+
 
 ## install my own packages
 library(devtools)
 devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
-devtools::install("E:/Chris_UM/GitHub/chipmine")
+devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
+# devtools::install("E:/Chris_UM/GitHub/chipmine")
 # devtools::install_github("lakhanp1/chipmine")
 
 ##########################################################################
 ###############         Org.Db packages            #######################
 ##########################################################################
 ## A. nidulans
-library(devtools)
 devtools::install_github("lakhanp1/fungal_resources/A_nidulans/org.Anidulans.eg.db")
+devtools::install_github("lakhanp1/fungal_resources/A_nidulans/TxDb.Anidulans.AspGD.GFF")
 
 ## C. albicans
-library(devtools)
 devtools::install_github("lakhanp1/fungal_resources/C_albicans/org.Calbicans.eg.db")
 
 ## C. auris
-library(devtools)
 devtools::install_github("lakhanp1/fungal_resources/C_auris/org.Cauris.eg.db")
 
+## A. fumigatus
+devtools::install_github("lakhanp1/fungal_resources/A_fumigatus/org.AFumigatus293.eg.db")
+devtools::install_github("lakhanp1/fungal_resources/A_fumigatus/TxDb.Afumigatus.Af293.AspGD.GFF")
+devtools::install_github("lakhanp1/fungal_resources/A_fumigatus/BSgenome.Afumigatus.AspGD.Af293")
+
+## Human
+devtools::install(
+  "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/GRCh38p12.OrgDb/TxDb.Hsapiens.GRCh38p12.gencodev30.basic",
+  upgrade = "never")
+
+devtools::install(
+  pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.Hsapiens.eg.db",
+  upgrade = "never")
 
 ############################################################################
 ###############         BSgenome packages            #######################
@@ -100,9 +116,6 @@ forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 # R.exe CMD build BSgenome.Afumigatus.AspGD.Af293
 # R.exe CMD check BSgenome.Afumigatus.AspGD.Af293_03.05.06.tar.gz
 # R.exe CMD INSTALL BSgenome.Afumigatus.AspGD.Af293_03.05.06.tar.gz
-
-library(BSgenome.Afumigatus.AspGD.Af293)
-
 
 
 

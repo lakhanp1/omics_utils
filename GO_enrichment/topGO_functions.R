@@ -15,22 +15,26 @@ library(clusterProfiler)
 #' This function performs GO enrichment using Fisher's exact test on gene counts using \code{topGO} package.
 #'
 #' @param goMapFile gene to GO term assignment file
-#' @param genesOfInterest a vector of geneIds. These geneIds should be present in the first column of goMapFile
+#' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
 #' @param type GO type to use for enrichment. One of BP, MF, CC. Default: BP
 #' @param goNodeSize default: 1
 #' @param algo One of the algorithm for topGO: "classic", "elim", "weight", "weight01", "lea", "parentchild".
 #' Default: "weight01"
+#' @param bgNodeLimit Any GO term with more than this number of genes in background is removed from the
+#' topGO output. Default: 500. If NULL, no such limit is used.
 #'
 #' @return A topGO enrichment result table
 #' @export
 #'
-#' @examples topGO_enrichment(goMapFile = goToGeneFile, genesOfInterest = genes)
+#' @examples topGO_enrichment(goMapFile = goToGeneFile, genes = genes)
 #' 
-topGO_enrichment <- function(goMapFile, genesOfInterest, type = "BP", goNodeSize = 1, algo = "weight01"){
+topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1, algo = "weight01", bgNodeLimit = 500){
   geneID2GO <- topGO::readMappings(file = goMapFile)
   geneNames <- names(geneID2GO)
   
-  geneList <- factor(as.integer(geneNames %in% genesOfInterest))
+  genes <- unique(genes)
+  
+  geneList <- factor(as.integer(geneNames %in% genes))
   names(geneList) <- geneNames
   
   goData <- new(Class = "topGOdata",
@@ -63,6 +67,9 @@ topGO_enrichment <- function(goMapFile, genesOfInterest, type = "BP", goNodeSize
     ) %>%
     dplyr::select(GO.ID,Term, weightedFisher, everything())
   
+  if(!is.null(bgNodeLimit)){
+    resultTab <- dplyr::filter(.data = resultTab, Annotated <= bgNodeLimit)
+  }
   
   if(nrow(resultTab) == 0){
     return(resultTab)
@@ -75,17 +82,22 @@ topGO_enrichment <- function(goMapFile, genesOfInterest, type = "BP", goNodeSize
   
   enrichedGenes <- as.data.frame(
     do.call(rbind,
-            lapply(X = ann.genes, FUN = function(x){paste(x[x %in% genesOfInterest], sep = ",", collapse = ",") })
+            lapply(X = ann.genes, FUN = function(x){paste(x[x %in% genes], sep = ",", collapse = ",") })
     ),
     stringsAsFactors = F
   )
   
   enrichedGenes <- enrichedGenes %>% 
     tibble::rownames_to_column(var = "GO_ID") %>% 
-    dplyr::rename(Genes = V1)
+    dplyr::rename(genes = V1)
   
-  resultTab <- dplyr::left_join(x = resultTab, y = enrichedGenes, by = c("GO.ID" = "GO_ID"))
+  resultTab <- dplyr::left_join(x = resultTab, y = enrichedGenes, by = c("GO.ID" = "GO_ID")) %>% 
+    dplyr::group_by(genes) %>% 
+    dplyr::arrange(desc(log10_pval), .by_group = TRUE) %>% 
+    dplyr::slice(1L) %>% 
+    dplyr::ungroup()
   
+  resultTab$inputGenes <- length(genes)
   return(resultTab)
 }
 
@@ -111,56 +123,57 @@ topGO_enrichment <- function(goMapFile, genesOfInterest, type = "BP", goNodeSize
 #'
 #' @examples topGO_scatterPlot(df = goData, title = "topGO enrichment")
 #' 
-topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term", richCol = "richFactor", geneCountCol = "Significant"){
-  ## df = topGO df returned by get_GO_enrichment()
-  ## title = plot title
+topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term",
+                              richCol = "richFactor", geneCountCol = "Significant"){
+
   
-  goData <- arrange(df, !!as.name(pvalCol))
-  
+  goData <- dplyr::arrange(df, !!as.name(pvalCol))
+  wrap_80 <- wrap_format(80)
+  goData[[termCol]] <- wrap_80(goData[[termCol]])
+  goData[[termCol]] <- sprintf(fmt = "%80s", goData[[termCol]])
   goData[[termCol]] <- factor(goData[[termCol]], levels = unique(goData[[termCol]][ order( goData[[pvalCol]] ) ] ) )
   
   ## color scales
-  scaleLim <- ceiling(min(5, max(goData[[pvalCol]])))
-  brk = c(1, 1.30103, 2:scaleLim, scaleLim+1)
-  scaleLabels <- c(format(1/(10^c(1, 1.30103, 2:scaleLim)), drop0trailing = T, scientific = F), "smaller")
+  # scaleLim <- ceiling(min(5, max(goData[[pvalCol]])))
+  scaleLim <- 5
+  brk = c(1.30103, 2:scaleLim, scaleLim+1)
+  scaleLabels <- c(format(1/(10^c(1.30103, 2:scaleLim)), drop0trailing = T, scientific = F), "smaller")
+  
+  # structure(l10Vals, names = format(1/(10^seq(1, 3, by = 0.1)), drop0trailing = T, scientific = F))
   
   ## size parameters
   sizeBreaks <- ceiling(seq(from = 1, to = max( max( goData[[geneCountCol]] ) + 1, 5), length.out = 5) )
   
   ## ggplot object
   goScatter <- ggplot(data = goData) +
-    geom_point(mapping = aes_string(x = termCol, 
-                                    y = richCol, 
-                                    size = geneCountCol, 
-                                    color = pvalCol)) +
+    geom_point(mapping = aes(x = !! as.name(termCol), 
+                             y = !! as.name(richCol),
+                             size = !! as.name(geneCountCol),
+                             color = !! as.name(pvalCol))) +
     scale_color_gradientn(name = "p-value",
-                          values = rescale(c(1, 
-                                             mean(c(1, scaleLim)), 
-                                             scaleLim, 
-                                             max(goData[[pvalCol]], scaleLim+0.1))
-                          ),
-                          colours = c("red", "green", "blue", "darkblue"),
+                          values = rescale(c(1, 2.5, scaleLim, max(goData[[pvalCol]], scaleLim+0.1))),
+                          colours = c("green", "red", "blue", "darkblue"),
                           breaks = brk,
                           labels = scaleLabels,
                           guide = guide_colorbar(barheight = 10, draw.llim = FALSE, order = 1),
                           oob = squish,
                           limits = c(1, scaleLim + 1)
     ) +
-    scale_size_continuous(name = "Gene count",
-                          breaks = sizeBreaks,
+    scale_size_continuous(breaks = sizeBreaks,
+                          name = "Gene count",
                           limits = c(0, max( goData[[geneCountCol]] ) + 1),
                           range = c(1, 15)) +
-    scale_x_discrete(labels = wrap_format(80)) +
-    ggtitle(title) +
-    ylab("Rich factor") + xlab("Biological Process GO Terms") +
+    ggtitle(title) + 
+    coord_flip() +
+    ylab("Rich factor") +
     theme_bw() +
     theme(plot.title = element_text(hjust = 0.8, size = 16, face = "bold"),
-          axis.text.x = element_text(size = 14),
+          axis.text.x = element_text(size = 20),
           axis.text.y = element_text(size = 14),
-          axis.title = element_text(face = "bold"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_text(face = "bold"),
           legend.text = element_text(size = 14),
-          legend.title = element_text(size = 14, face = "bold")) + 
-    coord_flip()
+          legend.title = element_text(size = 14, face = "bold"))
   
   return(goScatter)
   
@@ -186,12 +199,13 @@ topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term
 #' @examples NA
 go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
   
-  goData <- topGO_enrichment(goMapFile = goToGeneFile, genesOfInterest = genes, ...)
+  goData <- topGO_enrichment(goMapFile = goToGeneFile, genes = genes, ...)
   topGoScatter <- topGO_scatterPlot(df = goData, title = goTitle)
   
   # draw Heatmap and add the annotation name decoration
   ht <- max(nrow(goData) * 80, 1500)
-  wd <- (min(max(nchar(as.character(goData$Term))), 80) * 30) * 1.5
+  # wd <- (min(max(nchar(as.character(goData$Term))), 80) * 30) * 1.5
+  wd <- 3600
   rs <- max(min(wd, ht) / 12, 200)
   
   png(filename = plotOut, width = wd, height = ht, res = rs)
@@ -223,7 +237,7 @@ go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
 #' @examples NA
 topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
   
-  goData <- topGO_enrichment(goMapFile = mapFile, genesOfInterest = genes, ...)
+  goData <- topGO_enrichment(goMapFile = mapFile, genes = genes, ...)
   
   if(nrow(goData) == 0){
     return(data.frame(height = NA, width = NA, title = NA, res = NA, png = NA, stringsAsFactors = F))
@@ -330,7 +344,7 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggOrg, pvalCut = 0.0
   ## need to add a modification to return original gene IDs instead of KEGG gene IDs
   
   ## a final result dataframe
-  keggDf <- tibble::rownames_to_column(df = kp$stastic, var = "pathway_id") %>% 
+  keggDf <- tibble::rownames_to_column(.data = kp$stastic, var = "pathway_id") %>% 
     dplyr::left_join(y = assignedDf, by = c("pathway_id" = "pathway_id")) %>% 
     dplyr::arrange(pvalue)
   
