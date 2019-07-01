@@ -224,6 +224,15 @@ summary(resShrink_inter_gt21_BA)
 mcols(resShrink_inter_gt21_BA)
 
 
+hist(x = pmin(pmax(resInter_gt21_BA$log2FoldChange, -5), 5),
+     breaks = 50,
+     main = "log2(fold-change) distribution")
+
+hist(x = resInter_gt21_BA$pvalue, breaks = 100, main = "p-value distribution")
+hist(x = resInter_gt21_BA$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0.11,1, by = 0.01)),
+     main = "p-value distribution")
+
+hist(x = resInter_gt21_BA$padj, breaks = 100, main = "q-value distribution")
 
 
 ###########################################################################

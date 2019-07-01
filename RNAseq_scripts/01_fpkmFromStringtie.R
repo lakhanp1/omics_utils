@@ -1,34 +1,42 @@
-
 # library(ballgown)
+library(here)
 library(tidyverse)
 library(FactoMineR)
 library(factoextra)
 library(corrplot)
 library(ggrepel)
+library(GGally)
 library(data.table)
 library(DESeq2)
 library(tximport)
+library(matrixStats)
+library(org.Hsapiens.eg.db)
 
 ## This script uses ballgown to extract the FPKM matrix from the stringTie output
 ## It also perform PCA analysis using FPKM values
 rm(list = ls())
 
-path <- "E:/Chris_UM/Analysis/CoreData/34_Roma_RNAseq"
+outDir <- here("analysis", "01_count_data")
 
-setwd(path)
-
-file_sampleInfo <- "sampleInfo_hs.txt"
-path_stringtie <- "stringTie"
+analysisName <- "count_data"
 
 
-geneInfoFile <- "E:/Chris_UM/Database/Human/GRCh38.84/Homo_sapiens.GRCh38.84.geneInfo.tab"
-## "E:/Chris_UM/Database/Mouse/GRCm38.84/Mus_musculus.GRCm38.84.geneinfo.tab"
-outPrefix <- "fat_EMSC_hs"
+if(!dir.exists(outDir)){
+  dir.create(path = outDir)
+}
 
+outPrefix <- paste(outDir, "/", analysisName, sep = "")
 
-exptInfo <- readr::read_tsv(file = file_sampleInfo)
+file_sampleInfo <- here::here("data", "sample_info.txt")
+path_stringtie <- here::here("data", "stringTie")
 
-# rownames(exptInfo) <- exptInfo$sampleId
+orgDb <- org.Hsapiens.eg.db
+
+###########################################################################
+exptInfo <- readr::read_tsv(file = file_sampleInfo) %>% 
+  as.data.frame()
+
+rownames(exptInfo) <- exptInfo$sampleId
 
 ## set the factor levels.
 ## control levels should be first
@@ -36,8 +44,12 @@ exptInfo <- readr::read_tsv(file = file_sampleInfo)
 # exptInfo$treatment <- factor(exptInfo$treatment, levels = c("YPD", "YPD_DOX", "YPD_GdA"))
 exptInfo$condition <- factor(exptInfo$condition, levels = unique(exptInfo$condition))
 
-geneSym <- readr::read_tsv(file = geneInfoFile) %>%
-  distinct(geneId, .keep_all = T)
+geneInfo <- AnnotationDbi::select(x = orgDb,
+                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
+                                  columns = c("GENE_NAME", "DESCRIPTION"),
+                                  keytype = "ENSEMBL_VERSION") %>% 
+  dplyr::rename(geneId = ENSEMBL_VERSION)
+
 
 ###########################################################################
 ## import the counts data using tximport and run DESeq2
@@ -51,24 +63,16 @@ names(filesStringtie) <- exptInfo$sampleId
 tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
 tx2gene <- tmp[, c("t_name", "gene_id")]
 
-txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene)
+txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene, readLength = 100)
 
 
 ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
 
-
-fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(ddsTxi)), var = "geneId")
-
-if(all(fpkmCounts$geneId %in% geneSym$geneId)){
-  fpkmCounts <- dplyr::left_join(x = fpkmCounts, y = geneSym, by = c("geneId" = "geneId")) %>% 
-    dplyr::select(colnames(geneSym), everything()) %>% 
-    dplyr::filter(!is.na(geneId))
-}
-
-readr::write_tsv(x = fpkmCounts, path = paste(outPrefix, "_FPKM.tab", sep = ""))
-
-
-rawCounts <- tibble::rownames_to_column(as.data.frame(counts(ddsTxi, normalized = FALSE)), var = "geneId")
+# fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(ddsTxi)), var = "geneId")
+# 
+# readr::write_tsv(x = fpkmCounts, path = paste(outPrefix, ".FPKM.tab", sep = ""))
+# 
+# rawCounts <- tibble::rownames_to_column(as.data.frame(counts(ddsTxi, normalized = FALSE)), var = "geneId")
 
 
 
@@ -82,26 +86,32 @@ dds <- DESeq(ddsTxi)
 ## raw counts
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
 
-fwrite(x = rawCounts, file = paste(outPrefix, "_rawCounts.tab", sep = ""),
+fwrite(x = rawCounts, file = paste(outPrefix, ".rawCounts.tab", sep = ""),
        sep = "\t", row.names = F, col.names = T, quote = F)
 
 ## FPKM
 fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
 
-fwrite(x = fpkmCounts, file = paste(outPrefix, "_FPKM.tab", sep = ""),
+# if(all(fpkmCounts$geneId %in% geneInfo$geneId)){
+  fpkmCounts <- dplyr::left_join(x = fpkmCounts, y = geneInfo, by = c("geneId" = "geneId")) %>% 
+    dplyr::select(geneId, exptInfo$sampleId, everything()) %>% 
+    dplyr::filter(!is.na(geneId))
+# }
+
+fwrite(x = fpkmCounts, file = paste(outPrefix, ".FPKM.tab", sep = ""),
        sep = "\t", row.names = F, col.names = T, quote = F)
 
 
 ## r-log normalized counts
 rld <- rlog(dds)
-rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneID")
+rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
 
-fwrite(x = rldCount, file = paste(outPrefix, "_rlogCounts.tab", sep = ""),
+fwrite(x = rldCount, file = paste(outPrefix, ".rlogCounts.tab", sep = ""),
        sep = "\t", row.names = F, col.names = T, quote = F)
 
 
 ## PCA based on rld
-plotPCA(rld, intgroup=c("condition"))
+plotPCA(rld, intgroup=c("condition"), ntop = nrow(rld))
 
 pcaData <- plotPCA(rld, intgroup=c("condition"), returnData = TRUE)
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
@@ -131,7 +141,7 @@ p1 <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   )
 
 
-png(filename = paste(outPrefix, "_PCA.png", sep = ""), width = 2000, height = 2000, res = 250)
+png(filename = paste(outPrefix, ".deseq2_PCA.png", sep = ""), width = 2000, height = 2000, res = 250)
 p1
 dev.off()
 
@@ -168,23 +178,21 @@ dev.off()
 
 
 ###########################################################################
-## PCA based on FPKM
+## PCA based on rld counts
 
-exprMat <- fpkmCounts[, c("geneId", exptInfo$sampleId), drop = FALSE]
+normCountMat <- rldCount[, c("geneId", exptInfo$sampleId), drop = FALSE] %>% 
+  tibble::column_to_rownames(var = "geneId")
+
 ## transform the data such that the genes are columns and each sample is a row
 ## also append the additional information for each sample using left_join()
-df2 <- data.table::dcast.data.table(
-  data = data.table::melt.data.table(as.data.table(exprMat), id.vars = "geneId"),
-  formula = variable ~ geneId) %>% 
-  dplyr::rename(sampleId = variable) %>% 
-  dplyr::mutate(sampleId = as.character(sampleId)) %>% 
+df2 <- as.data.frame(t(normCountMat)) %>% 
+  tibble::rownames_to_column(var = "sampleId") %>% 
   dplyr::left_join(y = exptInfo, by = c("sampleId" = "sampleId")) %>% 
-  dplyr::select(sampleId, time, cell, condition, replicate, dplyr::everything())
-
+  dplyr::select(sampleId, condition, replicate, treatment, dplyr::everything())
 
 row.names(df2) <- df2$sampleId
 
-res.pca <- PCA(df2, graph = FALSE, scale.unit = TRUE, quali.sup = 1:5)
+res.pca <- PCA(df2, graph = FALSE, scale.unit = TRUE, quali.sup = 1:5, ncp = 10)
 
 eig.val <- get_eigenvalue(res.pca)
 
@@ -210,10 +218,15 @@ plotData <- as.data.frame(ind$coord) %>%
   tibble::rownames_to_column(var = "sampleId") %>%
   dplyr::left_join(y = exptInfo, by = c("sampleId" = "sampleId"))
 
+pairs(x = plotData[, 2:6],
+      pch = 19,  cex = 1,
+      col = plotData$condition,
+      lower.panel=NULL)
+
+
 ## set the factor levels
 plotData$condition <- factor(plotData$condition, levels = unique(exptInfo$condition))
-plotData$cell <- factor(plotData$cell, levels = unique(exptInfo$cell))
-plotData$time <- factor(plotData$time, levels = sort(unique(exptInfo$time)))
+plotData$treatment <- factor(plotData$treatment, levels = sort(unique(exptInfo$treatment)))
 
 pltTitle <- "Principal Component Analysis"
 
@@ -221,13 +234,16 @@ pltTitle <- "Principal Component Analysis"
 ## decide which PCs to use for plotting
 pcToPlot <- c(1, 2)
 pcCols <- grep(pattern = "Dim.", x = colnames(plotData), value = T)[pcToPlot]
+fillColumn <- "condition"
+shapeColumn <- "genotype"
 
 pcaPlot <- ggplot(data = plotData,
                   mapping = aes(x = !!as.name(pcCols[1]), y = !!as.name(pcCols[2]), label = sampleId)) +
-  geom_point(mapping = aes(fill = time, shape = cell), color = "black", size = 4, stroke = 1) +
-  scale_shape_manual(values = c(21, 24)) +
+  geom_point(mapping = aes(color = !!as.name(fillColumn), shape = !!as.name(shapeColumn)),
+             size = 4, stroke = 1, shape = 19) +
+  # scale_shape_manual(values = c(21, 24)) +
   guides(fill=guide_legend(override.aes=list(shape=21))) +
-  scale_fill_manual(values = rainbow(length(levels(plotData$time)))) +
+  scale_color_manual(values = rainbow(length(levels(plotData[[fillColumn]])))) +
   geom_text_repel(size = 3, point.padding = 0.5) +
   geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) + 
   geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
@@ -244,10 +260,28 @@ pcaPlot <- ggplot(data = plotData,
 
 
 
-pdf(file = paste(outPrefix, "_PCA.pdf", sep = ""), width = 10, height = 10)
+# pdf(file = paste(outPrefix, ".rld_PCA.pdf", sep = ""), width = 10, height = 10)
+png(filename = paste(outPrefix, ".rld_PCA.png", sep = ""), width = 2000, height = 2000, res = 250)
 print(pcaPlot)
 dev.off()
 
+#############################################################################
+## correlation scatter plot
+pt <- ggpairs(data = normCountMat[(rowSums2(as.matrix(normCountMat)) > 1), ],
+              upper = list(continuous = wrap("points", size = 0.1)),
+              lower = list(continuous = wrap("cor", size = 10)),
+              diag = list(continuous = "densityDiag")) +
+  theme_bw() +
+  theme(
+    strip.text.y = element_text(size = 18, angle = 0, hjust = 0, face = "bold"),
+    strip.text.x = element_text(size = 18, angle = 90, hjust = 0, face = "bold")
+  )
+
+png(filename = paste(outPrefix, ".scatter_matrix.png", sep = ""),
+    width = 6000, height = 6000, res = 300)
+
+pt
+dev.off()
 
 # ###########################################################################
 # ## calculate mean FPKM

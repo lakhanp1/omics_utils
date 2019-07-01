@@ -3,8 +3,8 @@ library(tidyverse)
 library(data.table)
 library(ggrepel)
 library(tximport)
-library(org.AFumigatus293.eg.db)
 library(here)
+library(org.Hsapiens.eg.db)
 
 
 ## This script:
@@ -19,20 +19,18 @@ library(here)
 
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/DESeq2_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/02_DESeq2_functions.R")
 
-analysisName <- "5A9_AA_vs_CEA17_AA"
+analysisName <- "WT_ang_vs_WT"
 
-file_sampleInfo <- here::here("RNAseq_data", "sampleInfo.txt")
+file_sampleInfo <- here::here("data", "sample_info.txt")
 
 ## the denominator or WT in log2(fold_change) should be second
-compare <- c("5A9_AA", "CEA17_AA")
+compare <- c("WT_ang", "WT")
 
-outDir <- here::here("RNAseq_data", analysisName)
+outDir <- here::here("analysis", analysisName)
 outPrefix <- paste(outDir, analysisName, sep = "/")
-
-file_geneInfo <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r09_geneInfo.tab"
-orgDb <- org.AFumigatus293.eg.db
+orgDb <- org.Hsapiens.eg.db
 
 
 if(!dir.exists(outDir)){
@@ -51,9 +49,13 @@ down_cut <- lfc_cut * -1
 exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
 ## set the reference levels
-exptInfo$genotype <- factor(exptInfo$genotype, levels = c("CEA17", "5A9"))
-exptInfo$treatment <- factor(exptInfo$treatment, levels = c("C", "AA"))
-exptInfo$condition <- factor(exptInfo$condition, levels = c("CEA17_C", "5A9_C", "CEA17_AA", "5A9_AA"))
+exptInfo$genotype <- factor(exptInfo$genotype, levels = c("pcdna", "grk2_OE", "grk6_OE"))
+exptInfo$treatment <- factor(exptInfo$treatment, levels = c("no", "ang"))
+## "WT", "WT_ang", "grk2_OE", "grk2_OE_ang", "grk6_OE", "grk6_OE_ang"
+exptInfo$condition <- factor(
+  x = exptInfo$condition,
+  levels = c("WT", "WT_ang", "grk2_OE", "grk2_OE_ang", "grk6_OE", "grk6_OE_ang")
+)
 
 rownames(exptInfo) <- exptInfo$sampleId
 
@@ -66,69 +68,70 @@ design <- ~ condition
 ###########################################################################
 ## import counts data: either by tximport or as raw count matrix
 
-# ## import the counts data using tximport and run DESeq2
-# path_stringtie <- here::here("data", "stringTie", "stringTie_CAur")
-# filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
-# names(filesStringtie) <- exptInfo$sampleId
-# 
-# tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
-# tx2gene <- tmp[, c("t_name", "gene_id")]
-# 
-# txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene)
-# 
-# ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
+## import the counts data using tximport and run DESeq2
+path_stringtie <- here::here("data", "stringTie")
+filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
+names(filesStringtie) <- exptInfo$sampleId
+
+tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
+tx2gene <- tmp[, c("t_name", "gene_id")]
+
+txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene,
+                readLength = 100)
+
+ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
 # assay(ddsTxi)
-# colData(ddsTxi)
+colData(ddsTxi)
 # rowData(ddsTxi)
-# 
-# ## Run DESeq2
-# dds <- DESeq(ddsTxi)
-
-
-## import raw counts data and run DESeq2
-file_rawCounts <- here::here("RNAseq_data", "MatrixCountsPerGeneBySample.txt")
-
-countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
-  as.data.frame()
-rownames(countsDf) <- countsDf$geneId
-countsDf$geneId <- NULL
-
-
-if(all(rownames(exptInfo) %in% colnames(countsDf))){
-  countsDf <- countsDf[, rownames(exptInfo)]
-} else{
-  stop("Column names in count matrix does not match with row names in experiment data")
-}
-
-## select only those sample rows which are part of current comparison
-# exptInfo <- droplevels(subset(exptInfo, condition %in% compare))
-# countsDf <- countsDf[, rownames(exptInfo)]
-
-## run DESeq2 and extract the processed data
-ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
 
 ## Run DESeq2
-dds <- DESeq(ddsCount)
+dds <- DESeq(ddsTxi)
+
+
+# ## import raw counts data and run DESeq2
+# file_rawCounts <- here::here("RNAseq_data", "MatrixCountsPerGeneBySample.txt")
+# 
+# countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
+#   as.data.frame()
+# rownames(countsDf) <- countsDf$geneId
+# countsDf$geneId <- NULL
+# 
+# 
+# if(all(rownames(exptInfo) %in% colnames(countsDf))){
+#   countsDf <- countsDf[, rownames(exptInfo)]
+# } else{
+#   stop("Column names in count matrix does not match with row names in experiment data")
+# }
+# 
+# ## select only those sample rows which are part of current comparison
+# # exptInfo <- droplevels(subset(exptInfo, condition %in% compare))
+# # countsDf <- countsDf[, rownames(exptInfo)]
+# 
+# ## run DESeq2 and extract the processed data
+# ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+# 
+# ## Run DESeq2
+# dds <- DESeq(ddsCount)
 
 ###########################################################################
 ## Add gene symbol for each Ensembl ID
 
 ## Make sure to merge the geneIds which are duplicated using group_by + summarize_all and remove the NA strings in data frame by replacing it with real <NA>
-## geneSym <- read.table(file = ensToGeneId, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
+## geneInfo <- read.table(file = ensToGeneId, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
 ##   group_by(geneId) %>% summarize_all(.funs = funs(paste0(unique(.), collapse = ","))) %>% 
 ##   mutate_all(.funs = funs(ifelse(. == "NA", NA, .)))
 ##
 ## OR just take first row in case of duplicate rows 
-# geneSym <- fread(file = geneInfoFile, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
+# geneInfo <- fread(file = geneInfoFile, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
 #   distinct(geneId, .keep_all = T)
 
 
 ## use org.db
-geneSym <- AnnotationDbi::select(x = orgDb,
-                                 keys = keys(orgDb, keytype = "GID"),
-                                 columns = c("DESCRIPTION"),
-                                 keytype = "GID") %>% 
-  dplyr::rename(geneId = GID)
+geneInfo <- AnnotationDbi::select(x = orgDb,
+                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
+                                  columns = c("GENE_NAME", "DESCRIPTION"),
+                                  keytype = "ENSEMBL_VERSION") %>% 
+  dplyr::rename(geneId = ENSEMBL_VERSION)
 
 
 ###########################################################################
@@ -224,14 +227,25 @@ summary(resShrink)
 mcols(resShrink, use.names=TRUE)
 
 
+hist(x = pmin(pmax(res$log2FoldChange, -5), 5),
+     breaks = 50,
+     main = "log2(fold-change) distribution")
+
+hist(x = res$pvalue, breaks = 100, main = "p-value distribution")
+hist(x = res$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0.11,1, by = 0.01)),
+     main = "p-value distribution")
+
+hist(x = res$padj, breaks = 100, main = "q-value distribution")
+
+
 ###########################################################################
 ## MA plot
 # png(filename = paste(outPrefix, ".MA.png", sep = ""), width = 2000, height = 3000, res = 250)
-pdf(file = paste(outPrefix, ".MA.pdf", sep = ""), width = 8, height = 8, onefile = F)
+pdf(file = paste(outPrefix, ".MA.pdf", sep = ""), width = 8, height = 10, onefile = F)
 op <- par(mfrow = c(2, 1))
 
 plotMA(res, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
-plotMA(resShrink, ylim=c(-4,4), main = "MA plot with shrunken log2 fold changes")
+plotMA(resShrink, ylim=c(-1,1), main = "MA plot with shrunken log2 fold changes")
 
 
 # ## MA plot with unshrunken LFC
@@ -294,11 +308,11 @@ resNormCounts <- normCounts %>%
 # as.data.frame(rowMeans(head(resNormCounts)[,grp1]), col.names = c("grp1_mean"))
 
 
-selCols <- colnames(geneSym)[colnames(geneSym) != "geneId"]
+selCols <- colnames(geneInfo)[colnames(geneInfo) != "geneId"]
 
 diffData <- resultTable %>% 
   left_join(y = resNormCounts, by = "geneId") %>% 
-  left_join(y = geneSym, by = c("geneId" = "geneId")) %>%
+  left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
   mutate(
     diff_l2fc = dplyr::case_when(
       padj < FDR_cut & log2FoldChange >= up_cut ~ "up",
@@ -337,13 +351,13 @@ markGenes <- c()
 # tmpDf = filter(diffData, geneName %in% markGenes)
 
 plotTitle <- paste("Volcano plot:", compare[1], "vs", compare[2], sep = " ")
-p2 <- volcanoPlot(df = diffData, 
-                  title = plotTitle, 
-                  fdr_col = "padj", 
-                  lfc_col = "shrinkLog2FC",
-                  fdr_Cut = FDR_cut, lfc_cut = lfc_cut,
-                  geneOfInterest = markGenes,
-                  ylimit = 15, xlimit = c(-5, 5))
+p2 <- volcano_plot(df = diffData, 
+                   title = plotTitle, 
+                   fdr_col = "padj", 
+                   lfc_col = "log2FoldChange",
+                   fdr_cut = FDR_cut, lfc_cut = lfc_cut,
+                   geneOfInterest = markGenes,
+                   ylimit = 15, xlimit = c(-5, 5))
 
 # png(filename = paste(outPrefix, "_volcano.png", sep = ""), width = 3000, height = 3000, res = 230)
 pdf(file = paste(outPrefix, ".volcano.pdf", sep = ""), width = 8, height = 10)
