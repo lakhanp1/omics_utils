@@ -452,3 +452,55 @@ KEGG_map <- function(genes, pathways, org){
 ##################################################################################
 
 
+#' get GO term IDs at specific level for an ontology
+#'
+#' @param ont Ontology type. One of \code{c("BP", "CC", "MF")}
+#' @param level An integer level. GO tree is traversed from level 1 node.
+#'
+#' @return A vector of GO IDs at level of interest.
+#' @export
+#'
+#' @examples
+GO_terms_at_level <- function(ont, level){
+  
+  ont <- match.arg(arg = ont, choices = c("BP", "CC", "MF"))
+  
+  switch (ont,
+          "BP" = {
+            rootNode <- "GO:0008150"
+            goChild <- GO.db::GOBPCHILDREN
+          },
+          "MF" = {
+            rootNode <- "GO:0003674"
+            goChild <- GO.db::GOMFCHILDREN
+          },
+          "CC" = {
+            rootNode <- "GO:0005575"
+            goChild <- GO.db::GOCCCHILDREN
+          }
+  )
+  
+  # GOBPCHILDREN, GOMFCHILDREN, GOCCCHILDREN are Bimap objects
+  # xx <- as.list(goChild)
+  # xx[[rootNode]]
+  
+  levelNodes <- rootNode
+  
+  if(level > 1){
+    for (i in 2:level) {
+      
+      levelNodes <- mget(x = c(levelNodes), envir = goChild, ifnotfound = NA) %>% 
+        unlist() %>% 
+        unique()
+      
+      levelNodes <- levelNodes[!is.na(levelNodes)]
+    }
+  }
+  
+  return(levelNodes)
+  
+}
+
+##################################################################################
+
+
