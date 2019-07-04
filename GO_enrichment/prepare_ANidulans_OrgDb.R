@@ -2,7 +2,7 @@ library(tidyverse)
 library(data.table)
 library(AnnotationForge)
 library(GenomicFeatures)
-
+library(BSgenome)
 
 
 rm(list = ls())
@@ -201,6 +201,7 @@ transcripts(txdbData, columns = c("TXID", "TXNAME", "TXTYPE"))
 genes(txdbData)
 fiveUtrs <- fiveUTRsByTranscript(txdbData)
 
-
-
+##############################################################################
+## create BSgenome package
+forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 
