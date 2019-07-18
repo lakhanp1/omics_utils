@@ -32,13 +32,14 @@ sapply(pkgs.to.remove, remove.packages, lib = path.lib)
 
 rm(list = ls())
 
-install.packages(c("installr", "Rcpp", "tidyverse", "ggplot2", "ggpubr", "dplyr",
-                   "tidyr", "data.table", "tibble", "purrr", "stringr", "readxl",
-                   "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
-                   "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram",
-                   "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram", "here",
-                   "matrixStats", "NbClust"),
-                 dependencies = T)
+install.packages(
+  pkgs = c("installr", "Rcpp", "tidyverse", "ggplot2", "ggpubr", "dplyr",
+           "tidyr", "data.table", "tibble", "purrr", "stringr", "readxl",
+           "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
+           "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram",
+           "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram", "here",
+           "matrixStats", "NbClust"),
+  dependencies = T)
 
 
 if (!requireNamespace("BiocManager"))
@@ -47,12 +48,13 @@ if (!requireNamespace("BiocManager"))
 BiocManager::install()
 
 BiocManager::install(
-  c("BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings", "GenomeInfoDbData",
-    "AnnotationHub", "AnnotationDbi", "GenomicFeatures", "rtracklayer", "BSgenome",
-    "GenomicAlignments", "BiocParallel", "SummarizedExperiment", "Rsamtools", "DESeq2",
-    "ballgown", "pathview", "DO.db", "clusterProfiler", "topGO", "DiffBind", "regioneR",
-    "tximport", "apeglm", "Gviz", "KEGGREST", "KEGG.db", "KEGGprofile", "preprocessCore",
-    "plyranges")
+  pkgs = c("BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings", "GenomeInfoDbData",
+           "AnnotationHub", "AnnotationDbi", "GenomicFeatures", "rtracklayer", "BSgenome",
+           "GenomicAlignments", "BiocParallel", "SummarizedExperiment", "Rsamtools", "DESeq2",
+           "ballgown", "pathview", "DO.db", "clusterProfiler", "topGO", "DiffBind", "regioneR",
+           "tximport", "apeglm", "Gviz", "KEGGREST", "KEGG.db", "KEGGprofile", "preprocessCore",
+           "plyranges"),
+  dependencies = T
 )
 
 
@@ -74,7 +76,7 @@ library(devtools)
 devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
 devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 # devtools::install("E:/Chris_UM/GitHub/chipmine")
-# devtools::install_github("lakhanp1/chipmine")
+# devtools::install_github(repo = "lakhanp1/chipmine", ref = "dev_v.2")
 
 ##########################################################################
 ###############         Org.Db packages            #######################

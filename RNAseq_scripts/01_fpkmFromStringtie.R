@@ -103,7 +103,7 @@ fwrite(x = fpkmCounts, file = paste(outPrefix, ".FPKM.tab", sep = ""),
 
 
 ## r-log normalized counts
-rld <- rlog(dds)
+rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
 
 fwrite(x = rldCount, file = paste(outPrefix, ".rlogCounts.tab", sep = ""),

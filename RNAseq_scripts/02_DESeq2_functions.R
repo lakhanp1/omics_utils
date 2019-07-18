@@ -42,10 +42,10 @@ volcano_plot <- function(df, title,
       mapping = aes(x = !! as.name(lfc_col), y = log10FDR, color = category), alpha=0.6, size=1.75
     ) +
     scale_color_manual(
-      values = c("Significant Up" = "red", "Significant Down" = "red",
-                 "Non-significant" = "grey", "Significant" = "grey"), 
+      values = c("Significant Up" = "red", "Significant Down" = "green",
+                 "Non-significant" = "black", "Significant" = "grey"), 
       name = "Significance") +
-    scale_x_continuous(name = "log2(fold_change)", limits = xlimit, expand = expand_scale(mult = 0.02)) +
+    scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expand_scale(mult = 0.02)) +
     scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expand_scale(mult = 0.02)) +
     guides(color = guide_legend(nrow = 2, byrow = T)) +
     theme_bw() +

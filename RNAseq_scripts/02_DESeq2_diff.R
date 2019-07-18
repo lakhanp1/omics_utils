@@ -21,14 +21,15 @@ rm(list = ls())
 
 source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/02_DESeq2_functions.R")
 
-analysisName <- "WT_ang_vs_WT"
+analysisName <- "MHCC97L_AB_vs_B"
+
+## the denominator or WT in log2(fold_change) should be second
+compare <- c("AB", "B")
 
 file_sampleInfo <- here::here("data", "sample_info.txt")
 
-## the denominator or WT in log2(fold_change) should be second
-compare <- c("WT_ang", "WT")
 
-outDir <- here::here("analysis", analysisName)
+outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
 outPrefix <- paste(outDir, analysisName, sep = "/")
 orgDb <- org.Hsapiens.eg.db
 
@@ -49,12 +50,11 @@ down_cut <- lfc_cut * -1
 exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
 ## set the reference levels
-exptInfo$genotype <- factor(exptInfo$genotype, levels = c("pcdna", "grk2_OE", "grk6_OE"))
-exptInfo$treatment <- factor(exptInfo$treatment, levels = c("no", "ang"))
-## "WT", "WT_ang", "grk2_OE", "grk2_OE_ang", "grk6_OE", "grk6_OE_ang"
+exptInfo$genotype <- factor(exptInfo$genotype, levels = c("MHCC97L"))
+# "WT", "A", "B", "AB"
 exptInfo$condition <- factor(
   x = exptInfo$condition,
-  levels = c("WT", "WT_ang", "grk2_OE", "grk2_OE_ang", "grk6_OE", "grk6_OE_ang")
+  levels = c("B", "A", "WT", "AB")
 )
 
 rownames(exptInfo) <- exptInfo$sampleId
@@ -81,7 +81,7 @@ txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene,
 
 ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
 # assay(ddsTxi)
-colData(ddsTxi)
+# colData(ddsTxi)
 # rowData(ddsTxi)
 
 ## Run DESeq2
@@ -155,7 +155,7 @@ readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), c
 
 
 ## r-log normalized counts
-rld <- rlog(dds)
+rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
 
 readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = ""))
@@ -171,12 +171,12 @@ plotPCA(rld, intgroup=c("condition"))
 pcaData <- plotPCA(rld, intgroup=c("condition"), returnData = TRUE)
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
-pltTitle <- "Principal Component Analysis"
+pltTitle <- paste("Principal Component Analysis:", compare[1], "vs", compare[2])
 pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$condition)), name = "Set1"),
                             names = levels(pcaData$condition))
 
 
-p1 <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
+pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   geom_point(mapping = aes(color = condition), size=4) +
   geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
   geom_hline(yintercept = 0, linetype = 2) + 
@@ -191,13 +191,14 @@ p1 <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
         axis.text.y = element_text(size = 15),
         axis.title.x = element_text(face = "bold", size = 15),
         axis.title.y = element_text(face = "bold", size = 15),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
         legend.text = element_text(size = 13),
         legend.title = element_text(face = "bold", size = 15)
   )
 
 
-pdf(file = paste(outPrefix, ".PCA.pdf", sep = ""), width = 10, height = 10)
-p1
+png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 3000, height = 3000, res = 300)
+pcaPlot
 dev.off()
 
 ###########################################################################
@@ -227,9 +228,9 @@ summary(resShrink)
 mcols(resShrink, use.names=TRUE)
 
 
-hist(x = pmin(pmax(res$log2FoldChange, -5), 5),
-     breaks = 50,
-     main = "log2(fold-change) distribution")
+fcDensity <- hist(x = pmin(pmax(res$log2FoldChange, -5), 5),
+                  breaks = 50,
+                  main = "log2(fold-change) frequency distribution")
 
 hist(x = res$pvalue, breaks = 100, main = "p-value distribution")
 hist(x = res$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0.11,1, by = 0.01)),
@@ -237,15 +238,62 @@ hist(x = res$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0.11,1, by = 0
 
 hist(x = res$padj, breaks = 100, main = "q-value distribution")
 
+lfcFreq <- ggplot(data = as.data.frame(res)) +
+  geom_histogram(
+    mapping = aes(x = pmin(pmax(log2FoldChange, -5), 5)),
+    fill = "red", bins = 50) +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1) +
+  scale_x_continuous(limits = c(-5, 5), expand = expand_scale(mult = 0.01)) +
+  scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  labs(title = paste("log2(fold change) frequency distribution:", compare[1], "vs", compare[2]),
+       x = "log2(fold change)", y = "Frequency") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 13),
+        axis.title = element_text(face = "bold", size = 15),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
+        legend.position = "none"
+  )
+
+
+pqDensity <- ggplot(data = as.data.frame(res)) +
+  geom_histogram(mapping = aes(x = pvalue, y= ..density.. , fill = "pvalue"),
+                 bins = 100, alpha = 0.5) +
+  geom_histogram(mapping = aes(x = padj, y= ..density.. , fill = "padj"),
+                 bins = 100, alpha = 0.5) +
+  geom_vline(xintercept = 0.05, linetype = "dashed", color = "red", size = 1) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("pvalue" = "#999999", "padj" = "#E69F00"), 
+    breaks = c("pvalue", "padj"),
+    labels = c("p-value", "q-value")
+  ) +
+  scale_x_continuous(expand = expand_scale(mult = 0.01)) +
+  scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  labs(title = paste("p-value and q-value density distribution:", compare[1], "vs", compare[2]),
+       x = "p-value or q-value", y = "Density") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 13),
+        axis.title = element_text(face = "bold", size = 15),
+        legend.text = element_text(size = 15),
+        legend.key.size = unit(1.2,"cm"),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
+        legend.title = element_text(face = "bold", size = 15),
+        legend.position = c(0.5,0.8)
+  )
+
 
 ###########################################################################
 ## MA plot
 # png(filename = paste(outPrefix, ".MA.png", sep = ""), width = 2000, height = 3000, res = 250)
-pdf(file = paste(outPrefix, ".MA.pdf", sep = ""), width = 8, height = 10, onefile = F)
-op <- par(mfrow = c(2, 1))
+# pdf(file = paste(outPrefix, ".MA.pdf", sep = ""), width = 8, height = 10, onefile = F)
+# op <- par(mfrow = c(2, 1))
 
 plotMA(res, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
-plotMA(resShrink, ylim=c(-1,1), main = "MA plot with shrunken log2 fold changes")
+plotMA(resShrink, ylim=c(-4,4), main = "MA plot with shrunken log2 fold changes")
 
 
 # ## MA plot with unshrunken LFC
@@ -266,8 +314,8 @@ plotMA(resShrink, ylim=c(-1,1), main = "MA plot with shrunken log2 fold changes"
 #   main = "MA plot with apeglm shrunken LFC"
 # )
 
-par(op)
-dev.off()
+# par(op)
+# dev.off()
 
 
 ###########################################################################
@@ -357,20 +405,46 @@ p2 <- volcano_plot(df = diffData,
                    lfc_col = "log2FoldChange",
                    fdr_cut = FDR_cut, lfc_cut = lfc_cut,
                    geneOfInterest = markGenes,
-                   ylimit = 15, xlimit = c(-5, 5))
+                   ylimit = 100, xlimit = c(-7, 7))
 
-# png(filename = paste(outPrefix, "_volcano.png", sep = ""), width = 3000, height = 3000, res = 230)
-pdf(file = paste(outPrefix, ".volcano.pdf", sep = ""), width = 8, height = 10)
+png(filename = paste(outPrefix, ".volcano.png", sep = ""), width = 2500, height = 3000, res = 280)
 plot(p2$plot)
 dev.off()
 
-
 ###########################################################################
 
+# plot all data in single PDF file
 
+pdf(file = paste(outPrefix, ".summary_plots.pdf", sep = ""), width = 10, height = 10, onefile = TRUE)
 
+## PCA
+plot(pcaPlot)
 
+## p-value distribution plots
+plot(pqDensity)
+plot(lfcFreq)
 
+## MA plots
+op <- par(mfrow = c(2, 1))
+plotMA(
+  object = res,
+  ylim=c(-4,4),
+  main = paste("MA plot with unshrunken LFC:", compare[1], "vs", compare[2])
+)
 
+plotMA(
+  object = resShrink,
+  ylim=c(-4,4),
+  main = paste("MA plot with shrunken LFC:", compare[1], "vs", compare[2])
+)
+
+par(op)
+
+## volcano plot
+plot(p2$plot)
+
+dev.off()
+
+###########################################################################
 
 
