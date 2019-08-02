@@ -12,9 +12,10 @@ path <- "E:/Chris_UM/Database/A_Nidulans/ANidulans_OrgDb/"
 setwd(path)
 
 
-file_chrFeature <- "A_nidulans_FGSC_A4_version_s10-m04-r08_chromosomal_feature.tab"
-file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.20190601.aspgd.tab"
-file_anGenes <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_geneClasses.txt"
+file_chrFeature <- "A_nidulans_FGSC_A4_version_s10-m04-r13_chromosomal_feature.tab"
+file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.20100721.aspgd.tab"
+file_SM <- "SM_genes.txt"
+file_tf <- "TF_genes.txt"
 
 ## ANidulans: 162425
 ## CAlbicans: 5476
@@ -23,52 +24,43 @@ file_anGenes <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_geneClasses.
 ## Aspergillus fumigatus A1163: 451804
 
 ##############################################################################
-## for ANidulans
-
-anGenes <- data.table::fread(file = file_anGenes, sep = "\t", header = T, stringsAsFactors = F) %>% 
-  dplyr::rename(GID = gene, POSITION = Pos, STRAND = Strand, SM_CLUSTER = SM_cluster)
 
 
 geneInfo <- data.table::fread(file = file_chrFeature,
                               sep = "\t", header = F, stringsAsFactors = F, na.strings = "", select = c(1:4, 9, 11),
                               col.names = c("GID", "GENE_NAME", "ALIAS", "TYPE", "ASPGD_ID", "DESCRIPTION")) %>% 
-  dplyr::mutate(ALIAS = if_else(condition = is.na(ALIAS), true = GID, false = paste(GID, ALIAS, sep = "|"))) %>% 
   dplyr::mutate(GENE_NAME = if_else(condition = is.na(GENE_NAME), true = GID, false = GENE_NAME))
 
 
-chrFeature <- dplyr::left_join(x = anGenes, y = geneInfo, by = ("GID" = "GID")) %>% 
-  dplyr::select(GID, POSITION, STRAND, GENE_NAME, ALIAS, TYPE, ASPGD_ID, DESCRIPTION)
+## SM cluster information
+smGenes <- suppressMessages(readr::read_tsv(file = file_SM)) %>% 
+  dplyr::mutate(GID = geneId,
+                SM_GENE = geneId) %>% 
+  dplyr::select(GID, SM_GENE, SM_CLUSTER, SM_ID) %>% 
+  dplyr::distinct()
 
-smGenes <- dplyr::filter(anGenes, is_SM_gene == TRUE) %>% 
-  dplyr::select(GID, SM_CLUSTER)
-
-tfGenes <- dplyr::filter(anGenes, is_TF == TRUE) %>% 
-  dplyr::mutate(TF = GID) %>% 
-  dplyr::select(GID, TF)
+## transcription factor information
+tfGenes <- suppressMessages(readr::read_tsv(file = file_tf)) %>% 
+  dplyr::mutate(TF_GENE = geneId, GID = geneId) %>% 
+  dplyr::select(GID, TF_GENE)
 
 
 ## make a table of gene and its synonyms which includes all alias as well as gene itself
-geneToAlias <- dplyr::select(chrFeature, GID, ALIAS) %>%
-  dplyr::group_by(GID) %>% 
-  dplyr::slice(1L) %>% 
-  dplyr::do(data.frame(
-    GID = .$GID,
-    synonyms = unlist(strsplit(x = .$ALIAS, split = "\\|")), stringsAsFactors = F)) %>% 
-  dplyr::ungroup() %>% 
-  dplyr::mutate(rank = if_else(GID == synonyms, true = 1, false = 2)) %>% 
-  dplyr::distinct(GID, synonyms, .keep_all = TRUE)
-
-aliasTable <- dplyr::select(geneToAlias, GID, synonyms) %>% 
-  dplyr::rename(ALIAS = synonyms) %>% 
+aliasTable <- dplyr::select(geneInfo, GID, ALIAS) %>%
+  dplyr::filter(!is.na(ALIAS)) %>% 
+  dplyr::mutate(ALIAS = strsplit(x = ALIAS, split = "\\|")) %>% 
+  tidyr::unnest() %>% 
   dplyr::distinct() %>% 
   as.data.frame()
 
-chrFeature <- dplyr::select(chrFeature, -ALIAS)
+
+geneInfo <- dplyr::select(geneInfo, -ALIAS)
+
 
 ## kegg to ncbi map
 keggMap <- fread(file = "ani_ncbi-gene.list",
                  sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
-  dplyr::mutate(GID = gsub(pattern = "\\.2", replacement = "", x = KEGG_ID))
+  dplyr::mutate(geneId = gsub(pattern = "\\.2", replacement = "", x = KEGG_ID))
 
 
 ## merge the kegg map to aspGD geneIds using gene synonyms
@@ -78,17 +70,26 @@ keggMap <- fread(file = "ani_ncbi-gene.list",
 ## IMP2: there are some genes which are merged from two genes in previous version of annotations.
 ## such aspGD gene has two different ANx and ANy synonyms. These both can have keggMapping
 ## remember to remove such AN genes during filtering (n == 1)
-keggDf <- dplyr::left_join(x = geneToAlias, y = keggMap, by = c("synonyms" = "GID")) %>% 
-  dplyr::filter(!is.na(KEGG_ID)) %>% 
+keggDf <- dplyr::bind_rows(
+  dplyr::left_join(x = aliasTable, y = keggMap, by = c("ALIAS" = "geneId")),
+  dplyr::left_join(x = aliasTable, y = keggMap, by = c("GID" = "geneId"))
+) %>% 
+  dplyr::filter(!is.na(KEGG_ID)) %>%
+  dplyr::select(-ALIAS) %>% 
+  dplyr::distinct() %>% 
   dplyr::group_by(GID) %>% 
   dplyr::mutate(n = n()) %>% 
   dplyr::ungroup() %>% 
-  dplyr::filter(rank == 1 | n == 1) %>% 
+  dplyr::filter(n == 1) %>% 
   dplyr::select(GID, KEGG_ID, NCBI_ID) %>% 
   as.data.frame()
 
+# setdiff(keggMap$NCBI_ID, keggDf$NCBI_ID)
+# setdiff(keggMap$geneId, keggDf$GID)
+# 
+# setdiff(keggDf$NCBI_ID, keggMap$NCBI_ID)
 
-geneTable <- dplyr::left_join(x = chrFeature, y = keggDf, by = c("GID" = "GID"))
+geneTable <- dplyr::left_join(x = geneInfo, y = keggDf, by = c("GID" = "GID"))
 
 
 fwrite(x = geneTable, file = "A_nidulans_FGSC_A4.geneTable.tab", sep = "\t", col.names = T, quote = F)
@@ -97,7 +98,9 @@ fwrite(x = geneTable, file = "A_nidulans_FGSC_A4.geneTable.tab", sep = "\t", col
 ##############################################################################
 ## GO data
 
-goCols <- c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference", "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by")
+goCols <- c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference",
+            "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type",
+            "taxon", "Date", "Assigned_by")
 
 goAssociations <- data.table::fread(file = file_goAssociation, sep = "\t", header = F, data.table = T,
                                     stringsAsFactors = F, na.strings = "", col.names = goCols)
@@ -109,7 +112,7 @@ goData <- goAssociations %>%
 
 
 ## GO dataframe for OrgDb package
-goDf <- dplyr::left_join(x = chrFeature, y = goData, by = c("ASPGD_ID" = "DB_Object_ID")) %>% 
+goDf <- dplyr::left_join(x = geneInfo, y = goData, by = c("ASPGD_ID" = "DB_Object_ID")) %>% 
   dplyr::select(GID, GO, EVIDENCE) %>% 
   dplyr::filter(!is.na(GO)) %>% 
   dplyr::distinct()
@@ -136,13 +139,13 @@ fwrite(x = topGoMap,
 ## makeOrgPackage
 
 makeOrgPackage(
-  geneInfo = chrFeature,
+  geneInfo = geneInfo,
   aliasInfo = aliasTable,
   smInfo = smGenes,
   tfInfo = tfGenes,
   kegg = keggDf,
   go = goDf,
-  version = "10.04.08",
+  version = "10.04.13",
   maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
   author = "Lakhansing Pardeshi Chris Lab",
   outputDir = ".",
@@ -153,12 +156,14 @@ makeOrgPackage(
   verbose = TRUE)
 
 
+## install package
+install.packages("E:/Chris_UM/Database/A_Nidulans/ANidulans_OrgDb/org.Anidulans.eg.db",
+                 repos = NULL, type = "source")
 
-# ## install package
-# install.packages("E:/Chris_UM/Database/A_Nidulans/ANidulans_OrgDb/org.Anidulans.eg.db", repos = NULL, type = "source")
-# 
-# library(org.Anidulans.eg.db)
-# 
+library(org.Anidulans.eg.db)
+
+columns(org.Anidulans.eg.db)
+
 
 ##############################################################################
 file_gff <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_version_s10-m04-r03_features.gff"
