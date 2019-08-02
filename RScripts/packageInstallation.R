@@ -38,7 +38,7 @@ install.packages(
            "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
            "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram",
            "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram", "here",
-           "matrixStats", "NbClust"),
+           "matrixStats", "NbClust", "DT", "msigdbr"),
   dependencies = T)
 
 
@@ -102,7 +102,7 @@ devtools::install(
   upgrade = "never")
 
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.Hsapiens.eg.db",
+  pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
   upgrade = "never")
 
 ############################################################################
