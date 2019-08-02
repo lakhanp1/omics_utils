@@ -92,6 +92,7 @@ ncbiData <- suppressMessages(
   dplyr::rename(GID = !!as.name("Gene stable ID"),
                 NCBI_ID = !!as.name("NCBI gene ID")) %>% 
   dplyr::filter(!is.na(NCBI_ID)) %>% 
+  dplyr::mutate(NCBI_ID = as.character(NCBI_ID)) %>% 
   dplyr::distinct() %>% 
   as.data.frame()
 
@@ -109,8 +110,8 @@ goData <- suppressMessages(
 keggData <- suppressMessages(
   readr::read_tsv(file = "GRCh38p12.ensembl_release_96.BioMart.KEGG.txt")) %>% 
   dplyr::rename(GID = !!as.name("Gene stable ID"),
-                KEGG_ID = !!as.name("KEGG Pathway and Enzyme ID")) %>% 
-  dplyr::filter(!is.na(KEGG_ID)) %>% 
+                KEGG_EC = !!as.name("KEGG Pathway and Enzyme ID")) %>% 
+  dplyr::filter(!is.na(KEGG_EC)) %>% 
   dplyr::distinct() %>% 
   as.data.frame()
 
@@ -137,7 +138,7 @@ makeOrgPackage(
   outputDir = ".",
   tax_id = "9606",
   genus = "Homo",
-  species = "sapiens",
+  species = "Sapiens.gencodev30",
   goTable = "go",
   verbose = TRUE)
 
