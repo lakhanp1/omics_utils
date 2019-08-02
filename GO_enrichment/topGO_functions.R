@@ -307,6 +307,8 @@ clusterProfiler_groupGO <- function(genes, org, goLevel = 3, type = "BP", ...){
 #'
 #' @param genes a vector of gene IDs
 #' @param orgdb OrgDB database for the organism. 
+#' @param keggIdCol Column name from org.db which has ids matching to KEGG database.
+#' Usually NCBI gene ids are used as KEGG gene ids.
 #' @param keytype Appropriate keytype for the gene list. This keytype is used to extract
 #' the geneID to KEGG_gene_id mappings
 #' @param keggOrg Three letter organism code. Please refer to KEGG website for details
@@ -319,14 +321,15 @@ clusterProfiler_groupGO <- function(genes, org, goLevel = 3, type = "BP", ...){
 #' @export
 #'
 #' @examples NA
-keggprofile_enrichment <- function(genes, orgdb, keytype, keggOrg, pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
+keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
+                                   pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
   
   ## extract KEGG gene IDs 
-  keggIds <- AnnotationDbi::select(x = orgdb, keys = genes, columns = c(keytype, "KEGG_ID"), keytype = keytype) %>% 
-    dplyr::filter(!is.na(KEGG_ID))
+  keggIds <- AnnotationDbi::select(x = orgdb, keys = genes, columns = c(keytype, keggIdCol), keytype = keytype) %>% 
+    dplyr::filter(!is.na(!!sym(keggIdCol)))
   
   ## KEGG enrichment
-  kp <- KEGGprofile::find_enriched_pathway(gene = keggIds$KEGG_ID, species = keggOrg,
+  kp <- KEGGprofile::find_enriched_pathway(gene = keggIds[[keggIdCol]], species = keggOrg,
                                            returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
                                            download_latest = TRUE, returned_genenumber = minGenes,
                                            ...)
