@@ -4,7 +4,8 @@ library(data.table)
 library(ggrepel)
 library(tximport)
 library(here)
-library(org.Hsapiens.eg.db)
+library(ComplexHeatmap)
+library(org.HSapiens.gencodev30.eg.db)
 
 
 ## This script:
@@ -19,19 +20,19 @@ library(org.Hsapiens.eg.db)
 
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/02_DESeq2_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/s02_DESeq2_functions.R")
 
-analysisName <- "MHCC97L_AB_vs_B"
+analysisName <- "MHCC97L_A_vs_WT"
 
 ## the denominator or WT in log2(fold_change) should be second
-compare <- c("AB", "B")
+compare <- c("A", "WT")
 
 file_sampleInfo <- here::here("data", "sample_info.txt")
 
 
 outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
 outPrefix <- paste(outDir, analysisName, sep = "/")
-orgDb <- org.Hsapiens.eg.db
+orgDb <- org.HSapiens.gencodev30.eg.db
 
 
 if(!dir.exists(outDir)){
@@ -52,9 +53,11 @@ exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAs
 ## set the reference levels
 exptInfo$genotype <- factor(exptInfo$genotype, levels = c("MHCC97L"))
 # "WT", "A", "B", "AB"
+
+## ensure that reference level is same as compare[2] in the factor
 exptInfo$condition <- factor(
   x = exptInfo$condition,
-  levels = c("B", "A", "WT", "AB")
+  levels = c(rev(compare), setdiff(unique(exptInfo$condition), compare))
 )
 
 rownames(exptInfo) <- exptInfo$sampleId
@@ -129,7 +132,7 @@ dds <- DESeq(ddsTxi)
 ## use org.db
 geneInfo <- AnnotationDbi::select(x = orgDb,
                                   keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
-                                  columns = c("GENE_NAME", "DESCRIPTION"),
+                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
                                   keytype = "ENSEMBL_VERSION") %>% 
   dplyr::rename(geneId = ENSEMBL_VERSION)
 
@@ -201,6 +204,28 @@ png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 3000, height = 30
 pcaPlot
 dev.off()
 
+
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+
+
+plot_dist <- ComplexHeatmap::Heatmap(
+  matrix = sampleDistMatrix,
+  col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
+  column_title = "Distance matrix of normalized read counts",
+  column_title_gp = gpar(fontface = "bold", fontsize = 14),
+  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
+                              title_position = "topcenter")
+)
+
+png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
+    width = 3000, height = 3000, res = 300)
+draw(plot_dist,
+     padding = unit(rep(0.5, 4), "cm")
+)
+dev.off()
+
+
 ###########################################################################
 
 
@@ -224,7 +249,8 @@ summary(res)
 resShrink <- lfcShrink(dds, coef = coefName,
                        res=res, type="apeglm")
 
-summary(resShrink)
+resultSummary <- paste(capture.output(summary(resShrink))[1:8], collapse = "\n")
+
 mcols(resShrink, use.names=TRUE)
 
 
@@ -238,13 +264,25 @@ hist(x = res$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0.11,1, by = 0
 
 hist(x = res$padj, breaks = 100, main = "q-value distribution")
 
-lfcFreq <- ggplot(data = as.data.frame(res)) +
+lfcFreq <- ggplot() +
   geom_histogram(
-    mapping = aes(x = pmin(pmax(log2FoldChange, -5), 5)),
-    fill = "red", bins = 50) +
+    data = as.data.frame(res),
+    mapping = aes(x = pmin(pmax(log2FoldChange, -5), 5), y = ..density.. , fill = "unshrunken"),
+    bins = 100, alpha = 0.5) +
+  geom_histogram(
+    data = as.data.frame(resShrink),
+    mapping = aes(x = pmin(pmax(log2FoldChange, -5), 5), y = ..density.. , fill = "shrunken"),
+    bins = 100, alpha = 0.5) +
+  annotate(geom = "text", x = -4.5, y = Inf, label = resultSummary, vjust = 1, hjust = 0) +
   geom_vline(xintercept = 0, linetype = "dashed", size = 1) +
   scale_x_continuous(limits = c(-5, 5), expand = expand_scale(mult = 0.01)) +
   scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("unshrunken" = "#999999", "shrunken" = "red"), 
+    breaks = c("unshrunken", "shrunken"),
+    labels = c("unshrunken LFC", "shrunken LFC")
+  ) +
   labs(title = paste("log2(fold change) frequency distribution:", compare[1], "vs", compare[2]),
        x = "log2(fold change)", y = "Frequency") +
   theme_bw() +
@@ -253,16 +291,20 @@ lfcFreq <- ggplot(data = as.data.frame(res)) +
         axis.title = element_text(face = "bold", size = 15),
         panel.grid = element_blank(),
         plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
-        legend.position = "none"
+        legend.position = c(0.95, 0.95),
+        legend.justification = c(1, 1),
+        legend.text = element_text(size = 15),
+        legend.key.size = unit(1.2,"cm")
   )
 
 
 pqDensity <- ggplot(data = as.data.frame(res)) +
-  geom_histogram(mapping = aes(x = pvalue, y= ..density.. , fill = "pvalue"),
+  geom_histogram(mapping = aes(x = pvalue, y = ..density.. , fill = "pvalue"),
                  bins = 100, alpha = 0.5) +
-  geom_histogram(mapping = aes(x = padj, y= ..density.. , fill = "padj"),
+  geom_histogram(mapping = aes(x = padj, y = ..density.. , fill = "padj"),
                  bins = 100, alpha = 0.5) +
   geom_vline(xintercept = 0.05, linetype = "dashed", color = "red", size = 1) +
+  annotate(geom = "text", x = 0.3, y = Inf, label = resultSummary, vjust = 1) +
   scale_fill_manual(
     name = NULL,
     values = c("pvalue" = "#999999", "padj" = "#E69F00"), 
@@ -279,10 +321,12 @@ pqDensity <- ggplot(data = as.data.frame(res)) +
         axis.title = element_text(face = "bold", size = 15),
         legend.text = element_text(size = 15),
         legend.key.size = unit(1.2,"cm"),
+        # legend.direction = "horizontal",
         panel.grid = element_blank(),
         plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
         legend.title = element_text(face = "bold", size = 15),
-        legend.position = c(0.5,0.8)
+        legend.position = c(0.95, 0.95),
+        legend.justification = c(1, 1)
   )
 
 
@@ -338,10 +382,12 @@ resultTable <- dplyr::left_join(
 ## get the sample names for each condition under comparison
 grp1 <- sapply(rownames(exptInfo[exptInfo$condition %in% compare[1], ]), FUN = as.name, USE.NAMES = F, simplify = T)
 name1 <- paste(compare[1], "_meanCount", sep = "")
+# name1 <- "condition1_meanCount"
 grp1Len <- length(grp1)
 
 grp2 <- sapply(rownames(exptInfo[exptInfo$condition %in% compare[2], ]), FUN = as.name, USE.NAMES = F, simplify = T)
 name2 <- paste(compare[2], "_meanCount", sep = "")
+# name2 <- "condition2_meanCount"
 grp2Len <- length(grp2)
 
 
@@ -349,7 +395,8 @@ resNormCounts <- normCounts %>%
   dplyr::select(geneId, !!!c(grp1, grp2)) %>%
   rowwise() %>%
   mutate(!!name1 := sum(!!!grp1) / !!grp1Len,
-         !!name2 := sum(!!!grp2) / !!grp2Len)
+         !!name2 := sum(!!!grp2) / !!grp2Len) 
+
 
 
 ## validate
@@ -373,8 +420,8 @@ diffData <- resultTable %>%
       TRUE ~ "noDEG"
     )
   ) %>% 
-  dplyr::select(geneId, contrast, ends_with("_meanCount"), log2FoldChange, shrinkLog2FC,
-                pvalue, padj, diff_l2fc, diff_shrink_l2fc, !!!selCols)
+  dplyr::select(geneId, contrast, ends_with("_meanCount"), log2FoldChange,
+                shrinkLog2FC, pvalue, padj, diff_l2fc, diff_shrink_l2fc, !!!selCols)
 
 
 head(diffData)
@@ -420,9 +467,10 @@ pdf(file = paste(outPrefix, ".summary_plots.pdf", sep = ""), width = 10, height 
 ## PCA
 plot(pcaPlot)
 
-## p-value distribution plots
-plot(pqDensity)
-plot(lfcFreq)
+## distance heatmap
+draw(plot_dist,
+     padding = unit(rep(0.5, 4), "cm")
+)
 
 ## MA plots
 op <- par(mfrow = c(2, 1))
@@ -442,6 +490,10 @@ par(op)
 
 ## volcano plot
 plot(p2$plot)
+
+## p-value distribution plots
+plot(pqDensity)
+plot(lfcFreq)
 
 dev.off()
 
