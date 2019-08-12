@@ -28,7 +28,9 @@ library(clusterProfiler)
 #'
 #' @examples topGO_enrichment(goMapFile = goToGeneFile, genes = genes)
 #' 
-topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1, algo = "weight01", bgNodeLimit = 500){
+topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
+                             algo = "weight01", bgNodeLimit = 500){
+  
   geneID2GO <- topGO::readMappings(file = goMapFile)
   geneNames <- names(geneID2GO)
   
@@ -37,17 +39,21 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1, algo
   geneList <- factor(as.integer(geneNames %in% genes))
   names(geneList) <- geneNames
   
-  goData <- new(Class = "topGOdata",
+  goData <- suppressMessages(
+    new(Class = "topGOdata",
                 ontology = type,
                 allGenes = geneList,
                 annot = annFUN.gene2GO,
                 gene2GO = geneID2GO,
                 nodeSize = goNodeSize)
+  )
   
   # nodeCount <- length(attributes(attributes(goData)$graph)$nodes)
   nodeCount <- length(topGO::usedGO(goData))
   
-  resFisherWeight <- topGO::runTest(goData, algorithm = algo, statistic = "fisher")
+  resFisherWeight <- suppressMessages(
+    topGO::runTest(goData, algorithm = algo, statistic = "fisher")
+  )
   
   ## get the result table, filter by pValue cutoff 0.05 and calculate Rich factor
   resultTab <- topGO::GenTable(goData, 
@@ -125,7 +131,7 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1, algo
 #' 
 topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term",
                               richCol = "richFactor", geneCountCol = "Significant"){
-
+  
   
   goData <- dplyr::arrange(df, !!as.name(pvalCol))
   wrap_80 <- wrap_format(80)
@@ -325,14 +331,19 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
                                    pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
   
   ## extract KEGG gene IDs 
-  keggIds <- AnnotationDbi::select(x = orgdb, keys = genes, columns = c(keytype, keggIdCol), keytype = keytype) %>% 
+  keggIds <- suppressMessages(
+    AnnotationDbi::select(x = orgdb, keys = genes, keytype = keytype,
+                          columns = c(keytype, keggIdCol))
+  ) %>% 
     dplyr::filter(!is.na(!!sym(keggIdCol)))
   
   ## KEGG enrichment
-  kp <- KEGGprofile::find_enriched_pathway(gene = keggIds[[keggIdCol]], species = keggOrg,
-                                           returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
-                                           download_latest = TRUE, returned_genenumber = minGenes,
-                                           ...)
+  kp <- suppressMessages(
+    KEGGprofile::find_enriched_pathway(gene = keggIds[[keggIdCol]], species = keggOrg,
+                                       returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
+                                       download_latest = TRUE, returned_genenumber = minGenes,
+                                       ...)
+  )
   
   
   ## prepare a mapped gene list for the enriched pathways
@@ -418,7 +429,7 @@ GO_map <- function(genes, goTerms, org){
   summaryDf <- dplyr::group_by(goData, GOALL) %>% 
     dplyr::summarise(
       count = length(intersect(x = GID, y = genes)),
-      inputSize = length(genes),
+      inputSize = n_distinct(genes),
       background = n_distinct(GID),
       genes = paste(intersect(x = GID, y = genes), collapse = ";")
     ) %>% 
