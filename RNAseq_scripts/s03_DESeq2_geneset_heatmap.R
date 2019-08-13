@@ -17,20 +17,20 @@ library(tibble)
 
 rm(list = ls())
 
-path <- "E:/Chris_UM/Analysis/CoreData/14_ZhuBo_RNASeq/Day5_vs_Day5_M_diff/specific_genelist_heatmaps"
+path <- "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/specific_genelist_heatmaps"
 setwd(path)
 
 compare <- c("Day5", "Day5_M")
 
-file_geneList <- "genelist_mmp.txt"
+file_geneList <- "genelist_inflamation.txt"
 
-sampleInfoFile <- "E:/Chris_UM/Analysis/CoreData/14_ZhuBo_RNASeq/Day5_vs_Day5_M_diff/sampleInfo.txt"
+sampleInfoFile <- "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/sampleInfo.txt"
 geneInfoFile <- "E:/Chris_UM/Database/Zebrafish/GRCz10/ensembl_to_zfin.txt"
-rldFile <- "E:/Chris_UM/Analysis/CoreData/14_ZhuBo_RNASeq/Day5_vs_Day5_M_diff/Day5_vs_Day5_M_rlogCounts.tab"
-outPrefix <- "genes_mmp"
+rldFile <- "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/Day5_vs_Day5_M_rlogCounts.tab"
+outPrefix <- "genes_inflamation"
 
 
-plotTitle <- "mmp genes"
+plotTitle <- "inflamation genes"
 
 lfcCol <- "shrinkLog2FC"
 
@@ -38,9 +38,9 @@ lfcCol <- "shrinkLog2FC"
 ##Prepare input data
 diffFiles <- data.frame(
   comparison = c("Day5_vs_Day6", "Day5_vs_Day5_M", "Day5_M_vs_Day6"),
-  degFiles = c("E:/Chris_UM/Analysis/CoreData/14_ZhuBo_RNASeq/Day5_vs_Day6_diff/Day5_vs_Day6_DEG_all.txt",
-               "E:/Chris_UM/Analysis/CoreData/14_ZhuBo_RNASeq/Day5_vs_Day5_M_diff/Day5_vs_Day5_M_DEG_all.txt",
-               "E:/Chris_UM/Analysis/CoreData/14_ZhuBo_RNASeq/Day5_M_vs_Day6_diff/Day5_M_vs_Day6_DEG_all.txt"),
+  degFiles = c("G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day6_diff/Day5_vs_Day6_DEG_all.txt",
+               "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/Day5_vs_Day5_M_DEG_all.txt",
+               "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_M_vs_Day6_diff/Day5_M_vs_Day6_DEG_all.txt"),
   stringsAsFactors = FALSE
 )
 

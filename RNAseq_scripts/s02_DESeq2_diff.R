@@ -4,8 +4,9 @@ library(data.table)
 library(ggrepel)
 library(tximport)
 library(here)
+library(RColorBrewer)
 library(ComplexHeatmap)
-library(org.HSapiens.gencodev30.eg.db)
+library(org.Drerio.GRCz11.Ensembl97.eg.db)
 
 
 ## This script:
@@ -22,21 +23,22 @@ rm(list = ls())
 
 source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/s02_DESeq2_functions.R")
 
-analysisName <- "MHCC97L_A_vs_WT"
+analysisName <- "PG_WT_8mpf_vs_PG_WT_50dpf"
 
 ## the denominator or WT in log2(fold_change) should be second
-compare <- c("A", "WT")
+## "PG_WT_50dpf", "PG_HE_50dpf", "PG_WT_8mpf", "PG_HE_8mpf"
+compare <- c("PG_WT_8mpf", "PG_WT_50dpf")
 
 file_sampleInfo <- here::here("data", "sample_info.txt")
 
 
 outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
 outPrefix <- paste(outDir, analysisName, sep = "/")
-orgDb <- org.HSapiens.gencodev30.eg.db
+orgDb <- org.Drerio.GRCz11.Ensembl97.eg.db
 
 
 if(!dir.exists(outDir)){
-  dir.create(path = outDir)
+  dir.create(path = outDir, recursive = TRUE)
 }
 
 
@@ -51,7 +53,7 @@ down_cut <- lfc_cut * -1
 exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
 ## set the reference levels
-exptInfo$genotype <- factor(exptInfo$genotype, levels = c("MHCC97L"))
+# exptInfo$genotype <- factor(exptInfo$genotype, levels = c("MHCC97L"))
 # "WT", "A", "B", "AB"
 
 ## ensure that reference level is same as compare[2] in the factor
@@ -131,10 +133,10 @@ dds <- DESeq(ddsTxi)
 
 ## use org.db
 geneInfo <- AnnotationDbi::select(x = orgDb,
-                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
-                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
-                                  keytype = "ENSEMBL_VERSION") %>% 
-  dplyr::rename(geneId = ENSEMBL_VERSION)
+                                  keys = keys(x = orgDb, keytype = "GID"),
+                                  columns = c("NCBI_ID", "GENE_NAME", "DESCRIPTION"),
+                                  keytype = "GID") %>% 
+  dplyr::rename(geneId = GID)
 
 
 ###########################################################################

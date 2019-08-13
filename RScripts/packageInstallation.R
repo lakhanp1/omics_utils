@@ -105,6 +105,13 @@ devtools::install(
   pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
   upgrade = "never")
 
+
+## Zebrafish GRCz11
+devtools::install(
+  pkg = "E:/Chris_UM/Database/Zebrafish/GRCz11/annotation_resources/org.Drerio.GRCz11.Ensembl97.eg.db",
+  upgrade = "never")
+
+
 ############################################################################
 ###############         BSgenome packages            #######################
 ############################################################################
