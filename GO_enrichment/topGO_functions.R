@@ -5,7 +5,9 @@ library(scales)
 library(stringr)
 library(KEGGprofile)
 library(clusterProfiler)
-
+library(tm)  # for text mining
+library(SnowballC) # for text stemming
+library(wordcloud) # word-cloud generator 
 
 ## This script has functions for using topGO package for GO enrichment
 ##################################################################################
@@ -41,11 +43,11 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   
   goData <- suppressMessages(
     new(Class = "topGOdata",
-                ontology = type,
-                allGenes = geneList,
-                annot = annFUN.gene2GO,
-                gene2GO = geneID2GO,
-                nodeSize = goNodeSize)
+        ontology = type,
+        allGenes = geneList,
+        annot = annFUN.gene2GO,
+        gene2GO = geneID2GO,
+        nodeSize = goNodeSize)
   )
   
   # nodeCount <- length(attributes(attributes(goData)$graph)$nodes)
@@ -107,11 +109,9 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   return(resultTab)
 }
 
-##################################################################################
-
-
 
 ##################################################################################
+
 
 #' GO enrichment scatter plot
 #' 
@@ -190,7 +190,6 @@ topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term
 
 
 
-##################################################################################
 #' Perform GO enrichment using topGO and scatter plot
 #'
 #' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
@@ -225,9 +224,6 @@ go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
 ##################################################################################
 
 
-
-
-##################################################################################
 ## function to generate the plot and write the matrix. can also be called inside dplyr::do()
 #' Title
 #'
@@ -515,6 +511,50 @@ GO_terms_at_level <- function(ont, level){
   
 }
 
-##################################################################################
+###################### frequent_key_words
+
+## 
+#' find frequent words in the sentences
+#'
+#' @param sentences A vector of sentences
+#' @param topn how many top frequent words to report. Default: all words
+#' @param remove remove specific keywords which are common
+#'
+#' @return
+#' @export
+#'
+#' @examples
+frequent_key_words = function(sentences, topn = Inf, remove = NULL){
+  ## Load the data as a corpus
+  docs = Corpus(VectorSource(sentences))
+  
+  ## filter the data
+  docs = tm_map(docs, content_transformer(tolower))
+  docs = tm_map(docs, stripWhitespace)
+  docs = tm_map(docs, removePunctuation)
+  toSpace = content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+  docs = tm_map(docs, toSpace, ":")
+  docs = tm_map(docs, toSpace, "-")
+  docs = tm_map(docs, removeWords, stopwords("english"))
+  docs <- tm_map(docs, removeNumbers)
+  
+  if (!is.null(remove)) {
+    ## c("hypothetical", "protein", "predicted", "putative", "uncharacterized", "nrrl", "cbs", "atcc")
+    docs = tm_map(docs, removeWords, remove)
+    
+  }
+  # docs = tm_map(docs, stemDocument) 
+  
+  dtm = TermDocumentMatrix(docs)
+  m = as.matrix(dtm)
+  v = sort(rowSums(m),decreasing=TRUE)
+  dt = data.frame(word = names(v),freq=v)
+  
+  if(nrow(dt) < topn){
+    topn = nrow(dt)
+  }
+  
+  return(dt)
+}
 
 

@@ -2,8 +2,7 @@ library(tidyverse)
 library(data.table)
 library(AnnotationForge)
 library(GenomicFeatures)
-library(TxDb.Hsapiens.UCSC.hg38.knownGene)
-library(biomaRt)
+library(xml2)
 
 rm(list = ls())
 
@@ -76,7 +75,7 @@ geneInfo <- suppressMessages(
                 GENE_TYPE = !!as.name("Gene type")) %>% 
   dplyr::mutate(
     DESCRIPTION = if_else(
-    condition = is.na(DESCRIPTION), true = GENE_TYPE, false = DESCRIPTION),
+      condition = is.na(DESCRIPTION), true = GENE_TYPE, false = DESCRIPTION),
     ENSEMBL = GID
   ) %>% 
   dplyr::distinct() %>% 
@@ -143,6 +142,31 @@ makeOrgPackage(
   verbose = TRUE)
 
 
+##############################################################################
+## parse msigDB XML file to get gene set description
+file_msigDb_xml <- "E:/Chris_UM/Database/Human/msigdb_v6.2.xml"
+
+msigDb <- xml2::read_xml(x = file_msigDb_xml)
+
+xml_children(msigDb)
+
+geneSets <- xml_find_all(x = msigDb, xpath = ".//GENESET")
+
+xml_attrs(geneSets[[1]]) %>% enframe() %>% as.data.frame()
+
+# STANDARD_NAME, SYSTEMATIC_NAME, DESCRIPTION_BRIEF
+
+geneSetDf <- tibble(
+  STANDARD_NAME = xml_attr(x = geneSets, attr = "STANDARD_NAME"),
+  DESCRIPTION_BRIEF = xml_attr(x = geneSets, attr = "DESCRIPTION_BRIEF"),
+  CATEGORY_CODE = xml_attr(x = geneSets, attr = "CATEGORY_CODE"),
+  SUB_CATEGORY_CODE = xml_attr(x = geneSets, attr = "SUB_CATEGORY_CODE")
+)
+
+readr::write_tsv(x = geneSetDf, path = "msigDB_geneset_desc.tab")
+
+
+##############################################################################
 
 
 
