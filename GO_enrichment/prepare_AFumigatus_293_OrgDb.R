@@ -7,12 +7,12 @@ library(BSgenome)
 rm(list = ls())
 
 
-path <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_orgDb/"
+path <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/annotation_resources/"
 setwd(path)
 
 
 file_chrFeature <- "A_fumigatus_Af293_version_s03-m05-r12_chromosomal_feature.tab"
-file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.aspgd.20190117.tab"
+file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.20190601.aspgd.tab"
 file_keggId <- "afm_ncbi-geneid.list"
 
 ## using gene coordinates which include UTRs
@@ -51,12 +51,11 @@ keggData <- readr::read_tsv(file = file_keggId) %>%
   as.data.frame()
 
 
-geneBed <- readr::read_tsv(file = file_genes,
-                                  col_names = c("CHR", "START", "END", "NAME", "SCORE", "STRAND"))
+# geneBed <- readr::read_tsv(file = file_genes,
+#                                   col_names = c("CHR", "START", "END", "NAME", "SCORE", "STRAND"))
 
 
-geneInfo <- dplyr::left_join(x = geneInfo, y = geneBed, by = c("GID" = "NAME")) %>% 
-  dplyr::select(GID, GENE_NAME, TYPE, ASPGD_ID, DESCRIPTION, CHR, START, END, STRAND)
+geneInfo <- dplyr::select(geneInfo, -ALIAS)
 
 
 
@@ -65,8 +64,9 @@ geneInfo <- dplyr::left_join(x = geneInfo, y = geneBed, by = c("GID" = "NAME")) 
 
 goCols = c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference", "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by")
 
-goAssociations = data.table::fread(file = file_goAssociation, sep = "\t", header = F, data.table = T, strip.white = T,
-                                   stringsAsFactors = F, na.strings = "", col.names = goCols)
+goAssociations = data.table::fread(file = file_goAssociation, sep = "\t", header = F,
+                                   data.table = T, strip.white = T, stringsAsFactors = F,
+                                   na.strings = "", col.names = goCols)
 
 ## Gene to GO map for topGO
 goData = goAssociations %>%
@@ -103,6 +103,7 @@ fwrite(x = topGoMap,
 
 makeOrgPackage(
   geneInfo = geneInfo,
+  aliasInfo = geneToAlias,
   kegg = keggData,
   go = goDf,
   version = "03.05.12",
@@ -117,7 +118,7 @@ makeOrgPackage(
 
 
 ## install package
-install.packages("E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_orgDb/org.AFumigatus293.eg.db", repos = NULL, type = "source")
+install.packages("E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/annotation_resources/org.AFumigatus293.eg.db", repos = NULL, type = "source")
 
 library(org.AFumigatus293.eg.db)
 
