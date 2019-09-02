@@ -105,6 +105,22 @@ goData <- suppressMessages(
   dplyr::distinct() %>% 
   as.data.frame()
 
+## topGO gene-> GO map
+topGoMap <- dplyr::select(goData, GID, GO) %>% 
+  dplyr::filter(!is.na(GO)) %>% 
+  dplyr::group_by(GID) %>%
+  dplyr::mutate(GOs = paste(GO, collapse = ",")) %>%
+  dplyr::slice(1L) %>%
+  dplyr::ungroup() %>% 
+  dplyr::select(GID, GOs) %>%
+  as.data.frame()
+
+
+fwrite(x = topGoMap,
+       file = "geneid2go.HSapiens.GRCh38p12.topGO.map",
+       col.names = F, row.names = F,
+       sep = "\t", eol = "\n")
+
 ## KEGG table
 keggData <- suppressMessages(
   readr::read_tsv(file = "GRCh38p12.ensembl_release_96.BioMart.KEGG.txt")) %>% 

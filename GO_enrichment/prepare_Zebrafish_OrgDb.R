@@ -60,6 +60,24 @@ goData <- suppressMessages(
 
 length(unique(goData$GID))
 
+
+## topGO gene-> GO map
+topGoMap <- dplyr::select(goData, GID, GO) %>% 
+  dplyr::filter(!is.na(GO)) %>% 
+  dplyr::group_by(GID) %>%
+  dplyr::mutate(GOs = paste(GO, collapse = ",")) %>%
+  dplyr::slice(1L) %>%
+  dplyr::ungroup() %>% 
+  dplyr::select(GID, GOs) %>%
+  as.data.frame()
+
+
+fwrite(x = topGoMap,
+       file = "geneid2go.DRerio.GRCz11.topGO.map",
+       col.names = F, row.names = F,
+       sep = "\t", eol = "\n")
+
+
 ## KEGG table
 keggData <- suppressMessages(
   readr::read_tsv(file = "GRCz11.Ensembl_97.BioMart.KEGG.txt")) %>% 
@@ -91,9 +109,9 @@ makeOrgPackage(
   maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
   author = "Lakhansing Pardeshi Chris Lab",
   outputDir = ".",
-  tax_id = "9606",
+  tax_id = "7955",
   genus = "Danio",
-  species = "rerio.GRCz11.Ensembl97",
+  species = "Rerio.GRCz11.Ensembl97",
   goTable = "go",
   verbose = TRUE)
 
