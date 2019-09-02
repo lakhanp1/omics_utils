@@ -70,7 +70,7 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   resultTab <- resultTab %>%
     dplyr::mutate(weightedFisher = as.numeric(weightedFisher)) %>%
     dplyr::filter(weightedFisher <= 0.05) %>%
-    dplyr::mutate(richFactor = as.numeric(sprintf(fmt = "%.3f", (Significant / Annotated)) ),
+    dplyr::mutate(richness = as.numeric(sprintf(fmt = "%.3f", (Significant / Annotated)) ),
                   log10_pval = as.numeric(sprintf(fmt = "%.3f", -log10(as.numeric(weightedFisher))))
     ) %>%
     dplyr::select(GO.ID,Term, weightedFisher, everything())
@@ -99,13 +99,15 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
     tibble::rownames_to_column(var = "GO_ID") %>% 
     dplyr::rename(genes = V1)
   
+  ## select best GO term from multiple terms which have same genes from input list
   resultTab <- dplyr::left_join(x = resultTab, y = enrichedGenes, by = c("GO.ID" = "GO_ID")) %>% 
     dplyr::group_by(genes) %>% 
     dplyr::arrange(desc(log10_pval), .by_group = TRUE) %>% 
     dplyr::slice(1L) %>% 
-    dplyr::ungroup()
+    dplyr::ungroup() %>% 
+    dplyr::arrange(desc(log10_pval))
   
-  resultTab$inputGenes <- length(genes)
+  resultTab$inputSize <- length(genes)
   return(resultTab)
 }
 
@@ -121,7 +123,7 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
 #' @param title title of the plot
 #' @param pvalCol pvalue column name. Default: log10_pval
 #' @param termCol GO term column name. Default: Term
-#' @param richCol Rich factor column name. Default: richFactor
+#' @param richCol Rich factor column name. Default: richness
 #' @param geneCountCol gene count column name. Default: Significant
 #'
 #' @return A ggplot object 
@@ -130,7 +132,7 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
 #' @examples topGO_scatterPlot(df = goData, title = "topGO enrichment")
 #' 
 topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term",
-                              richCol = "richFactor", geneCountCol = "Significant"){
+                              richCol = "richness", geneCountCol = "Significant"){
   
   
   goData <- dplyr::arrange(df, !!as.name(pvalCol))
@@ -344,18 +346,23 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
   
   ## prepare a mapped gene list for the enriched pathways
   assignedGenes <- sapply(X = kp$detail,
-                          FUN = function(x){return(paste(x, collapse = "/"))},
+                          FUN = function(x){return(paste(x, collapse = ","))},
                           simplify = TRUE, USE.NAMES = TRUE)
   
   assignedDf <- data.frame("pathway_id" = names(assignedGenes),
-                           "geneIds" = assignedGenes, stringsAsFactors = FALSE)
+                           "genes" = assignedGenes, stringsAsFactors = FALSE)
   
   
   ## need to add a modification to return original gene IDs instead of KEGG gene IDs
   
   ## a final result dataframe
   keggDf <- tibble::rownames_to_column(.data = kp$stastic, var = "pathway_id") %>% 
+    dplyr::filter(Pathway_Name != "Metabolic pathways") %>% 
     dplyr::left_join(y = assignedDf, by = c("pathway_id" = "pathway_id")) %>% 
+    dplyr::rename(Annotated = Gene_Pathway,
+                  Significant = Gene_Found,
+                  richness = Percentage) %>% 
+    dplyr::mutate(inputSize = nrow(keggIds)) %>% 
     dplyr::arrange(pvalue)
   
   return(keggDf)
