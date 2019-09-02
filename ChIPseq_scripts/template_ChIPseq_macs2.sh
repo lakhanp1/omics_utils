@@ -1,7 +1,6 @@
 
 ##macs2:START
-macs2_g=$(yq r /home/lakhanp/database/reference_genomes.yaml ${orgId}.macs2_g)
-chrSize=$(yq r /home/lakhanp/database/reference_genomes.yaml ${orgId}.chrSize)
+conf_macs2_g=$(yq r /home/lakhanp/database/reference_genomes.yaml ${conf_orgId}.macs2_g)
 
 if [ -f "${control}" ]
 then
@@ -24,7 +23,7 @@ else
 fi
 
 ##macs2 narrowPeak calling: 
-macs2 callpeak -t SAMPLE_ID_bt2.bam --name SAMPLE_ID.${macs2_name} ${macs2_ctrl} --outdir ${macs2_outDir} -g ${macs2_g} --nomodel --extsize 200 -B --SPMR ${macs2_broad}
+macs2 callpeak -t SAMPLE_ID_bt2.bam --name SAMPLE_ID.${macs2_name} ${macs2_ctrl} --outdir ${macs2_outDir} -g ${conf_macs2_g} --nomodel --extsize 200 -B --SPMR ${macs2_broad}
 error_exit $?
 
 ##generate fold-enrichment track
@@ -32,7 +31,7 @@ macs2 bdgcmp -t "${macs2_outDir}/SAMPLE_ID.${macs2_name}_treat_pileup.bdg" -c "$
 
 ##bedSort and bedGraph to bigWig conversion
 bedSort "${macs2_outDir}/SAMPLE_ID.${macs2_name}.FE.bdg" "${macs2_outDir}/SAMPLE_ID.${macs2_name}.FE.bdg"
-bedGraphToBigWig "${macs2_outDir}/SAMPLE_ID.${macs2_name}.FE.bdg" ${chrSize} "${macs2_outDir}/SAMPLE_ID.${macs2_name}.FE.bw"
+bedGraphToBigWig "${macs2_outDir}/SAMPLE_ID.${macs2_name}.FE.bdg" ${conf_chrSize} "${macs2_outDir}/SAMPLE_ID.${macs2_name}.FE.bw"
 error_exit $?
 rm ${macs2_outDir}/SAMPLE_ID*.bdg
 
