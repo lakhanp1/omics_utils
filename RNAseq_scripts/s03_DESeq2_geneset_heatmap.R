@@ -4,96 +4,110 @@ library(dplyr)
 library(RColorBrewer)
 library(data.table)
 library(tibble)
+library(org.HSapiens.gencodev30.eg.db)
 
-
-
-##
 ## This script plots the 
 ## 1) plot1: log2(fold_change) heatmap of specifc genes of interest
 ## 2) plot2: rlog transformed normalized gene counts heatmap 
 ## 3) plot1 + plot2 + annotations
 ##
 
-
 rm(list = ls())
 
-path <- "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/specific_genelist_heatmaps"
-setwd(path)
+source(file = "E:/Chris_UM/GitHub/omics_util/GO_enrichment/topGO_functions.R")
 
-compare <- c("Day5", "Day5_M")
+analysisName <- "geneset1"
+outDir <- here::here("analysis", "04_geneset", analysisName)
 
-file_geneList <- "genelist_inflamation.txt"
+if(!dir.exists(outDir)){
+  dir.create(path = outDir)
+}
 
-sampleInfoFile <- "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/sampleInfo.txt"
-geneInfoFile <- "E:/Chris_UM/Database/Zebrafish/GRCz10/ensembl_to_zfin.txt"
-rldFile <- "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/Day5_vs_Day5_M_rlogCounts.tab"
-outPrefix <- "genes_inflamation"
+outPrefix <- paste(outDir, analysisName, sep = "/")
 
+file_geneList <- paste(outDir, "/genelist.txt", sep = "")
 
-plotTitle <- "inflamation genes"
+file_sampleInfo <- here::here("data", "sample_info.txt")
+file_degInfo <- here::here("analysis", "02_DESeq2_diff", "diff_info.txt")
+file_normCounts <- here::here("analysis", "01_count_data", "count_data.normCounts.tab")
+file_rld <- here::here("analysis", "01_count_data", "count_data.rlogCounts.tab")
+file_fpkm <- here::here("analysis", "01_count_data", "count_data.FPKM.tab")
 
-lfcCol <- "shrinkLog2FC"
+degResults <-  c("MHCC97L_A_vs_WT", "MHCC97L_B_vs_WT", "MHCC97L_AB_vs_WT",
+                 "MHCC97L_AB_vs_A", "MHCC97L_AB_vs_B")
 
+samples <- c("MHCC97L_WT_1", "MHCC97L_WT_2", "MHCC97L_WT_3",
+             "MHCC97L_A_1", "MHCC97L_A_2", "MHCC97L_A_3",
+             "MHCC97L_B_1", "MHCC97L_B_2", "MHCC97L_B_3",
+             "MHCC97L_AB_1", "MHCC97L_AB_2", "MHCC97L_AB_3")
 
-##Prepare input data
-diffFiles <- data.frame(
-  comparison = c("Day5_vs_Day6", "Day5_vs_Day5_M", "Day5_M_vs_Day6"),
-  degFiles = c("G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day6_diff/Day5_vs_Day6_DEG_all.txt",
-               "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_vs_Day5_M_diff/Day5_vs_Day5_M_DEG_all.txt",
-               "G:/Analysis_2/CoreData/14_ZhuBo_RNASeq_ybx1_larvae/Day5_M_vs_Day6_diff/Day5_M_vs_Day6_DEG_all.txt"),
-  stringsAsFactors = FALSE
-)
+plotTitle <- "geneset 1"
 
-## remove the comparison in which you are not interested
-diffFiles <- dplyr::filter(diffFiles, comparison == "Day5_vs_Day5_M")
+orgDb <- org.HSapiens.gencodev30.eg.db
 
-geneSym <- fread(file = geneInfoFile, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
-  distinct(geneId, .keep_all = T)
+cutoff_qval <- 0.05
+cutoff_lfc <- 0.585
+cutoff_up <- cutoff_lfc
+cutoff_down <- -1 * cutoff_lfc
+####################################################################
+
+genelist <- suppressMessages(readr::read_tsv(file = file_geneList))
+diffInfo <- suppressMessages(readr::read_tsv(file = file_degInfo))
+exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", row.names = "sampleId")
+
+lfcCol <- "log2FoldChange"
+# geneInfo <- readr::read_tsv(file = file_geneInfo) %>%
+#   distinct(geneId, .keep_all = T)
+
+## use org.db
+geneInfo <- AnnotationDbi::select(x = orgDb,
+                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
+                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
+                                  keytype = "ENSEMBL_VERSION") %>% 
+  dplyr::rename(geneId = ENSEMBL)
 
 
 ####################################################################
-
-## experiment data
-exptInfo <- read.table(file = sampleInfoFile, header = T, sep = "\t", row.names = "sampleId")
-
-## if required, modify the row names
-rownames(exptInfo) <- sub("_WT", "_", rownames(exptInfo))
-
-designInfo <- droplevels(subset(exptInfo, condition %in% compare))
-
-
-## extract the fold change values, DEG status and qval fields for genes of interest
-rld <- fread(rldFile, sep = "\t", stringsAsFactors = F, header = T, data.table = F)
-
-
-genes <- fread(file = file_geneList, sep = "\t", header = T, stringsAsFactors = F) %>%
-  dplyr::distinct(geneId, .keep_all = TRUE) %>% 
-  dplyr::left_join(y = geneSym, by = c("geneId" = "geneId")) %>%
-  dplyr::left_join(y = rld, by = c("geneId" = "geneID"))
-
+## import data
+nromCount <- suppressMessages(readr::read_tsv(file = file_normCounts)) %>% 
+  dplyr::select(geneId, !!!samples)
+fpkmCount <- suppressMessages(readr::read_tsv(file = file_fpkm)) %>% 
+  dplyr::select(geneId, !!!samples)
+rldCount <- suppressMessages(readr::read_tsv(file = file_rld)) %>% 
+  dplyr::select(geneId, !!!samples)
 
 
 ## function to extract the log2FoldChange, padj and diff coulumns for each DEG result file
-get_foldchange <- function(df, degFile, name){
+get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange"){
   
   degs <- fread(file = degFile, sep = "\t", header = T, stringsAsFactors = F)
   
-  newColName <- structure(c(lfcCol, "diff_l2fc", "padj"), names = paste(c("log2(", "diff(", "padj(" ), name, ")", sep = ""))
+  newColName <- structure(c(lfcCol, "padj"),
+                          names = paste(c("lfc.", "padj." ), name, sep = ""))
   
-  df <- dplyr::left_join(x = df, y = degs, by = c("geneId" = "geneID")) %>%
-    dplyr::select(geneId, !! lfcCol, padj, diff_l2fc) %>%
+  df <- degs %>%
+    dplyr::mutate(!! lfcCol := if_else(condition = padj < FDR_cut, true = !! as.name(lfcCol), false = 0)) %>% 
+    tidyr::replace_na(purrr::set_names(list(0), nm = c(lfcCol))) %>% 
+    dplyr::select(geneId, !! lfcCol, padj) %>%
+    dplyr::distinct() %>% 
     dplyr::rename(!!!newColName )
   
   return(df)
 }
 
 
+i <- 1
 
-for(i in 1:nrow(diffFiles)){
-  dt <- get_foldchange(df = genes, degFile = diffFiles$degFiles[i], name = diffFiles$comparison[i])
-  genes <- dplyr::left_join(genes, dt, by = c("geneId" = "geneId"))
+for(i in 1:nrow(diffInfo)){
+  dt <- get_foldchange(degFile = diffInfo$deseq2[i], name = diffInfo$comparison[i],
+                       lfcCol = lfcCol)
+  geneInfo <- dplyr::left_join(geneInfo, dt, by = c("ENSEMBL_VERSION" = "geneId"))
 }
 
+
+genes <- dplyr::distinct(genelist, geneId, .keep_all = TRUE) %>% 
+  dplyr::left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
+  dplyr::left_join(y = fpkmCount, by = c("ENSEMBL_VERSION" = "geneId"))
 
 
 fwrite(x = genes, file = paste(outPrefix, "_data.tab", sep = ""), sep = "\t", col.names = T, quote = F)
@@ -101,37 +115,38 @@ fwrite(x = genes, file = paste(outPrefix, "_data.tab", sep = ""), sep = "\t", co
 ## remove the rows with NA values
 ## can add additional filters to select specific genes
 genes <- dplyr::filter_at(.tbl = genes, 
-                         .vars = vars(starts_with("log2")),
-                         .vars_predicate = all_vars(!is.na(.))
+                          .vars = vars(starts_with("padj.")),
+                          .vars_predicate = all_vars(!is.na(.))
 )
+
 
 ####################################################################
 
-rownameCol <- "geneName"
+rownameCol <- "GENE_NAME"
 showRowNames <- TRUE
 rowNameFontSize <- 14
 colNameFontSize <- 14
 
 
 ## fold change heatmap
-foldChangeDf <- dplyr::select(genes, !! rownameCol, starts_with("log2")) %>%
+foldChangeDf <- dplyr::select(genes, !! rownameCol, starts_with("lfc")) %>%
   tibble::column_to_rownames(var = rownameCol)
 
 foldChangeMat <- data.matrix(foldChangeDf)
 
-colnames(foldChangeMat) <- gsub(pattern = "log2\\((.*)\\)", replacement = "\\1", colnames(foldChangeMat), perl = TRUE)
+colnames(foldChangeMat) <- gsub(pattern = "lfc\\((.*)\\)", replacement = "\\1", colnames(foldChangeMat), perl = TRUE)
 
 
 fcHeatmap <- Heatmap(matrix = foldChangeMat,
-                    col = colorRamp2(breaks = c(-3, 0, 3), colors = c("blue", "white", "red"), space = "LAB"),
-                    cluster_rows = TRUE,
-                    clustering_distance_rows = "euclidean",
-                    cluster_columns = FALSE,
-                    show_row_names = FALSE,
-                    row_names_gp = gpar(fontsize = rowNameFontSize),
-                    column_names_gp = gpar(fontsize = colNameFontSize), 
-                    width = unit(4, "cm"),
-                    heatmap_legend_param = list(title = "\nlog2(fold_change)")
+                     col = colorRamp2(breaks = c(-3, 0, 3), colors = c("blue", "white", "red"), space = "LAB"),
+                     cluster_rows = TRUE,
+                     clustering_distance_rows = "euclidean",
+                     cluster_columns = FALSE,
+                     show_row_names = FALSE,
+                     row_names_gp = gpar(fontsize = rowNameFontSize),
+                     column_names_gp = gpar(fontsize = colNameFontSize), 
+                     width = unit(4, "cm"),
+                     heatmap_legend_param = list(title = "\nlog2(fold_change)")
 )
 
 
@@ -145,15 +160,15 @@ colnames(diffAnDf) <- gsub(pattern = "diff\\((.*)\\)", replacement = "\\1", coln
 
 
 degAnHeatmap <- Heatmap(matrix = diffAnDf,
-                       col = c("up" = "#fb9a99", "down" = "#a6cee3", "noDEG" = "grey95"),
-                       cluster_rows = FALSE,
-                       cluster_columns = FALSE,
-                       show_row_names = showRowNames,
-                       row_names_gp = gpar(fontsize = rowNameFontSize),
-                       column_names_gp = gpar(fontsize = colNameFontSize), 
-                       width = unit(2, "cm"),
-                       na_col = "grey95",
-                       heatmap_legend_param = list(title = "\nSignificant\nDEG type")
+                        col = c("up" = "#fb9a99", "down" = "#a6cee3", "noDEG" = "grey95"),
+                        cluster_rows = FALSE,
+                        cluster_columns = FALSE,
+                        show_row_names = showRowNames,
+                        row_names_gp = gpar(fontsize = rowNameFontSize),
+                        column_names_gp = gpar(fontsize = colNameFontSize), 
+                        width = unit(2, "cm"),
+                        na_col = "grey95",
+                        heatmap_legend_param = list(title = "\nSignificant\nDEG type")
 )
 
 
@@ -161,30 +176,26 @@ degAnHeatmap <- Heatmap(matrix = diffAnDf,
 ####################################################################
 
 ## rld z-score heatmap
-rldGeneCounts <- dplyr::select(genes, !! rownameCol, rownames(designInfo)) %>%
+rldGeneCounts <- dplyr::select(genes, !!rownameCol, !!!samples) %>%
   column_to_rownames(var = rownameCol)
 
 rldMat <- data.matrix(rldGeneCounts)
 
-rldZscoreMat <- matrix(data = NA, nrow = nrow(rldMat), 
-                      ncol = ncol(rldMat), 
-                      dimnames = list(rownames(rldMat), colnames(rldMat))
-)
+rldZscoreMat <- chipmine::scale_matrix_rows(x = rldMat)
 
-for(i in 1:nrow(rldMat)){
-  rldZscoreMat[i,] <- (rldMat[i,] - mean(rldMat[i,]))/sd(rldMat[i,])
-}
 
 
 ## plot main rld score heatmap
-rldZscoreHeatmap <- Heatmap(rldZscoreMat,
-                            col = colorRamp2(breaks = c(min(rldZscoreMat), 0, max(rldZscoreMat)), c("green", "black", "red"), space = "LAB"), 
-                            show_row_names = FALSE,
-                            row_names_gp = gpar(fontsize = rowNameFontSize),
-                            column_names_gp = gpar(fontsize = colNameFontSize), 
-                            cluster_columns = FALSE, 
-                            width = unit(10, "cm"), row_names_max_width = unit(15, "cm"), 
-                            heatmap_legend_param = list(title = "z-score(rld score)", color_bar = "continuous")
+rldZscoreHeatmap <- Heatmap(
+  rldZscoreMat,
+  col = colorRamp2(breaks = c(min(rldZscoreMat), 0, max(rldZscoreMat)),
+                   colors = c("green", "black", "red"), space = "LAB"), 
+  show_row_names = TRUE,
+  row_names_gp = gpar(fontsize = rowNameFontSize),
+  column_names_gp = gpar(fontsize = colNameFontSize), 
+  cluster_columns = FALSE, 
+  width = unit(10, "cm"), row_names_max_width = unit(15, "cm"), 
+  heatmap_legend_param = list(title = "z-score(rld score)", color_bar = "continuous")
 ) 
 
 

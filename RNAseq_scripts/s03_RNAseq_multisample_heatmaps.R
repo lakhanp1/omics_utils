@@ -4,7 +4,7 @@ library(tidyverse)
 library(RColorBrewer)
 library(data.table)
 library(here)
-library(org.Hsapiens.eg.db)
+library(org.DRerio.GRCz11.Ensembl97.eg.db)
 
 ##
 ## This script plots the 
@@ -13,29 +13,27 @@ library(org.Hsapiens.eg.db)
 ## 3) plot1 + plot2 + annotations
 ##
 
-
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/02_DESeq2_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/s02_DESeq2_functions.R")
 
-analysisName <- "combined_deg"
-outDir <- here::here("analysis", "03_combined_RNAseq")
+analysisName <- "PG_HE_8mpf_vs_PG_WT_8mpf"
+outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
 
 if(!dir.exists(outDir)){
-  dir.create(path = outDir)
+  stop("outDir does not exist")
 }
 
 outPrefix <- paste(outDir, analysisName, sep = "/")
 
-file_sampleInfo <- here::here("data", "sample_info.txt")
+file_RNAseq_info <- here::here("data", "RNAseq_info.txt", sep = "")
 
-degResults <-  c("MHCC97L_A_vs_WT", "MHCC97L_B_vs_WT",
-                 "MHCC97L_AB_vs_WT", "MHCC97L_AB_vs_A", "MHCC97L_AB_vs_B")
+degResults <-  c("PG_HE_8mpf_vs_PG_WT_8mpf")
 
 samples <- c()
 plotTitle <- "all DEG comparison"
 
-orgDb <- org.Hsapiens.eg.db
+orgDb <- org.DRerio.GRCz11.Ensembl97.eg.db
 
 FDR_cut <- 0.05
 lfc_cut <- 0
@@ -44,15 +42,8 @@ down_cut <- lfc_cut * -1
 
 ####################################################################
 
-diffFiles <- purrr::map_dfr(
-  .x = degResults,
-  .f = function(x){
-    list(
-      diffPair = x,
-      file_diff = here::here("analysis", "02_DESeq2_diff", x, paste(x, ".DESeq2.tab", sep = "")),
-      file_rld = here::here("analysis", "RNAseq_data", x, paste(x, ".rlogCounts.tab", sep = ""))
-    )
-  })
+rnaseqInfo <- suppressMessages(readr::read_tsv(file = file_RNAseq_info)) %>% 
+  dplyr::filter(comparison %in% degResults)
 
 lfcCol <- "log2FoldChange"
 # geneInfo <- readr::read_tsv(file = file_geneInfo) %>%
@@ -60,27 +51,26 @@ lfcCol <- "log2FoldChange"
 
 ## use org.db
 geneInfo <- AnnotationDbi::select(x = orgDb,
-                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
-                                  columns = c("GENE_NAME", "DESCRIPTION"),
-                                  keytype = "ENSEMBL_VERSION") %>% 
-  dplyr::rename(geneId = ENSEMBL_VERSION)
+                                  keys = keys(orgDb),
+                                  columns = c("GENE_NAME", "DESCRIPTION")) %>% 
+  dplyr::rename(geneId = GID)
 
 ####################################################################
 ## import data
 
 ## function to extract the log2FoldChange, padj and diff coulumns for each DEG result file
-get_foldchange <- function(degFile, name){
+get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange"){
   
   degs <- fread(file = degFile, sep = "\t", header = T, stringsAsFactors = F)
   
   newColName <- structure(c(lfcCol, "padj"),
-                          names = paste(c("log2.", "padj." ), name, sep = ""))
-  
+                          names = paste(c("lfc.", "padj." ), name, sep = ""))
   
   df <- degs %>%
     dplyr::mutate(!! lfcCol := if_else(condition = padj < FDR_cut, true = !! as.name(lfcCol), false = 0)) %>% 
     tidyr::replace_na(purrr::set_names(list(0), nm = c(lfcCol))) %>% 
     dplyr::select(geneId, !! lfcCol, padj) %>%
+    dplyr::distinct() %>% 
     dplyr::rename(!!!newColName )
   
   return(df)
@@ -89,8 +79,9 @@ get_foldchange <- function(degFile, name){
 
 i <- 1
 
-for(i in 1:nrow(diffFiles)){
-  dt <- get_foldchange(degFile = diffFiles$file_diff[i], name = diffFiles$diffPair[i])
+for(i in 1:nrow(rnaseqInfo)){
+  dt <- get_foldchange(degFile = rnaseqInfo$deg[i], name = rnaseqInfo$comparison[i],
+                       lfcCol = lfcCol)
   geneInfo <- dplyr::left_join(geneInfo, dt, by = c("geneId" = "geneId"))
 }
 
@@ -108,12 +99,12 @@ colNameFontSize <- 14
 
 ## fold change heatmap
 ## fold change heatmap
-foldChangeDf <- dplyr::select(allData, !! rownameCol, starts_with("log2")) %>%
+foldChangeDf <- dplyr::select(allData, !! rownameCol, starts_with("lfc")) %>%
   tibble::column_to_rownames(var = rownameCol)
 
 foldChangeMat <- data.matrix(foldChangeDf)
 
-colnames(foldChangeMat) <- gsub(pattern = "log2\\.(.*)", replacement = "\\1", colnames(foldChangeMat), perl = TRUE)
+colnames(foldChangeMat) <- gsub(pattern = "lfc\\.(.*)", replacement = "\\1", colnames(foldChangeMat), perl = TRUE)
 
 diffColor <- colorRamp2(
   breaks = c(-3, -2, -1, -0.75, -0.4, 0, 0.4, 0.75, 1, 2, 3),
