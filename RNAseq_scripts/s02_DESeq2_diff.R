@@ -6,7 +6,8 @@ library(tximport)
 library(here)
 library(RColorBrewer)
 library(ComplexHeatmap)
-library(org.Drerio.GRCz11.Ensembl97.eg.db)
+library(circlize)
+library(org.DRerio.GRCz11.Ensembl97.eg.db)
 
 
 ## This script:
@@ -30,11 +31,11 @@ analysisName <- "PG_WT_8mpf_vs_PG_WT_50dpf"
 compare <- c("PG_WT_8mpf", "PG_WT_50dpf")
 
 file_sampleInfo <- here::here("data", "sample_info.txt")
-
+readLength <- 60
 
 outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
 outPrefix <- paste(outDir, analysisName, sep = "/")
-orgDb <- org.Drerio.GRCz11.Ensembl97.eg.db
+orgDb <- org.DRerio.GRCz11.Ensembl97.eg.db
 
 
 if(!dir.exists(outDir)){
@@ -81,8 +82,8 @@ names(filesStringtie) <- exptInfo$sampleId
 tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
 tx2gene <- tmp[, c("t_name", "gene_id")]
 
-txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene,
-                readLength = 100)
+txi <- tximport(files = filesStringtie, type = "stringtie",
+                tx2gene = tx2gene, readLength = readLength)
 
 ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
 # assay(ddsTxi)
@@ -120,18 +121,6 @@ dds <- DESeq(ddsTxi)
 
 ###########################################################################
 ## Add gene symbol for each Ensembl ID
-
-## Make sure to merge the geneIds which are duplicated using group_by + summarize_all and remove the NA strings in data frame by replacing it with real <NA>
-## geneInfo <- read.table(file = ensToGeneId, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
-##   group_by(geneId) %>% summarize_all(.funs = funs(paste0(unique(.), collapse = ","))) %>% 
-##   mutate_all(.funs = funs(ifelse(. == "NA", NA, .)))
-##
-## OR just take first row in case of duplicate rows 
-# geneInfo <- fread(file = geneInfoFile, sep = "\t", header = T, stringsAsFactors = F, na.strings = "") %>%
-#   distinct(geneId, .keep_all = T)
-
-
-## use org.db
 geneInfo <- AnnotationDbi::select(x = orgDb,
                                   keys = keys(x = orgDb, keytype = "GID"),
                                   columns = c("NCBI_ID", "GENE_NAME", "DESCRIPTION"),
@@ -139,12 +128,22 @@ geneInfo <- AnnotationDbi::select(x = orgDb,
   dplyr::rename(geneId = GID)
 
 
+## Make sure to merge the geneIds which are duplicated using group_by + summarize_all and remove the NA strings in data frame by replacing it with real <NA>
+if(any(duplicated(geneInfo$geneId))){
+  geneInfo <- dplyr::group_by(geneInfo, geneId) %>%
+    summarize_all(.funs = ~ paste0(unique(.), collapse = ","))
+  
+  ## OR just take first row in case of duplicate rows 
+  # geneInfo <- dplyr::distinct(geneInfo, geneId, .keep_all = T)
+}
+
+
 ###########################################################################
 
 ## raw counts
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
-
-readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
+########
+# readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
 
 ## FPKM
 # fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
@@ -155,15 +154,15 @@ readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = 
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
-
-readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
+########
+# readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
 
 
 ## r-log normalized counts
 rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
-
-readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = ""))
+########
+# readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = ""))
 
 
 ###########################################################################
@@ -184,12 +183,12 @@ pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$c
 pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   geom_point(mapping = aes(color = condition), size=4) +
   geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
-  geom_hline(yintercept = 0, linetype = 2) + 
+  geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
-  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   scale_color_manual(values = pointCol) +
-  ggtitle(pltTitle) + 
+  ggtitle(pltTitle) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
         axis.text.x = element_text(size = 13),
@@ -219,6 +218,7 @@ plot_dist <- ComplexHeatmap::Heatmap(
   heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
                               title_position = "topcenter")
 )
+
 
 png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
     width = 3000, height = 3000, res = 300)
@@ -281,7 +281,7 @@ lfcFreq <- ggplot() +
   scale_y_continuous(expand = expand_scale(mult = 0.01)) +
   scale_fill_manual(
     name = NULL,
-    values = c("unshrunken" = "#999999", "shrunken" = "red"), 
+    values = c("unshrunken" = "#999999", "shrunken" = "red"),
     breaks = c("unshrunken", "shrunken"),
     labels = c("unshrunken LFC", "shrunken LFC")
   ) +
@@ -309,7 +309,7 @@ pqDensity <- ggplot(data = as.data.frame(res)) +
   annotate(geom = "text", x = 0.3, y = Inf, label = resultSummary, vjust = 1) +
   scale_fill_manual(
     name = NULL,
-    values = c("pvalue" = "#999999", "padj" = "#E69F00"), 
+    values = c("pvalue" = "#999999", "padj" = "#E69F00"),
     breaks = c("pvalue", "padj"),
     labels = c("p-value", "q-value")
   ) +
@@ -347,16 +347,16 @@ plotMA(resShrink, ylim=c(-4,4), main = "MA plot with shrunken log2 fold changes"
 #   m = res$baseMean,
 #   a = res$log2FoldChange,
 #   c = ifelse(abs(res$log2FoldChange) >= lfc_cut & res$padj <= FDR_cut, TRUE, FALSE)),
-#   ylim=c(-4,4), 
+#   ylim=c(-4,4),
 #   main = "MA plot with unshrunken LFC"
 # )
-# 
+#
 # ## MA plot with apeglm shrunken LFC
 # geneplotter::plotMA(object = data.frame(
 #   m = resShrink$baseMean,
 #   a = resShrink$log2FoldChange,
 #   c = ifelse(abs(resShrink$log2FoldChange) >= lfc_cut & resShrink$padj <= FDR_cut, TRUE, FALSE)),
-#   ylim=c(-4,4), 
+#   ylim=c(-4,4),
 #   main = "MA plot with apeglm shrunken LFC"
 # )
 
@@ -421,22 +421,23 @@ diffData <- resultTable %>%
       padj < FDR_cut & shrinkLog2FC <= down_cut ~ "down",
       TRUE ~ "noDEG"
     )
-  ) %>% 
-  dplyr::select(geneId, contrast, ends_with("_meanCount"), log2FoldChange,
-                shrinkLog2FC, pvalue, padj, diff_l2fc, diff_shrink_l2fc, !!!selCols)
+  )
 
 
 head(diffData)
 
+degData <- diffData %>%
+  dplyr::select(
+  geneId, contrast, ends_with("_meanCount"), log2FoldChange,
+  shrinkLog2FC, pvalue, padj, diff_l2fc, diff_shrink_l2fc, !!!selCols)
 
-significant <- filter(diffData, padj < FDR_cut, log2FoldChange >= up_cut | log2FoldChange <= down_cut)
 
-significant_up <- filter(diffData, padj < FDR_cut, log2FoldChange >= up_cut)
-significant_down <- filter(diffData, padj < FDR_cut, log2FoldChange <= down_cut)
+significant_up <- filter(degData, padj < FDR_cut, log2FoldChange >= up_cut)
+significant_down <- filter(degData, padj < FDR_cut, log2FoldChange <= down_cut)
 
-
-readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
-readr::write_tsv(x = diffData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
+########
+# readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
+# readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
 
 
 ###########################################################################
@@ -448,9 +449,9 @@ markGenes <- c()
 # tmpDf = filter(diffData, geneName %in% markGenes)
 
 plotTitle <- paste("Volcano plot:", compare[1], "vs", compare[2], sep = " ")
-p2 <- volcano_plot(df = diffData, 
-                   title = plotTitle, 
-                   fdr_col = "padj", 
+p2 <- volcano_plot(df = diffData,
+                   title = plotTitle,
+                   fdr_col = "padj",
                    lfc_col = "log2FoldChange",
                    fdr_cut = FDR_cut, lfc_cut = lfc_cut,
                    geneOfInterest = markGenes,
@@ -500,5 +501,83 @@ plot(lfcFreq)
 dev.off()
 
 ###########################################################################
+
+## heatmap of normalized read counts
+significant <- filter(diffData, padj < FDR_cut, log2FoldChange >= up_cut | log2FoldChange <= down_cut)
+
+## rld z-score heatmap
+geneCounts <- significant %>% 
+  dplyr::select(geneId, !!!c(grp1, grp2)) %>%
+  dplyr::distinct() %>% 
+  column_to_rownames(var = "geneId")
+
+countMat <- data.matrix(geneCounts)
+
+countZscoreMat <- chipmine::scale_matrix_rows(x = countMat)
+
+## plot main rld score heatmap
+countHeatmap <- Heatmap(
+  countZscoreMat,
+  name = "count_heatmap",
+  col = colorRamp2(breaks = c(min(countZscoreMat), 0, max(countZscoreMat)),
+                   colors = c("green", "black", "red"), space = "LAB"),
+  show_row_names = FALSE,
+  column_names_gp = gpar(fontsize = 14), 
+  cluster_columns = FALSE, 
+  width = unit(10, "cm"), row_names_max_width = unit(15, "cm"), 
+  heatmap_legend_param = list(title = "z-score(normalized read count)", color_bar = "continuous")
+) 
+
+
+## fold change heatmap
+foldChangeDf <- dplyr::select(significant, geneId, log2FoldChange) %>%
+  dplyr::distinct() %>% 
+  tibble::column_to_rownames(var = "geneId")
+
+if(all(rownames(geneCounts) != rownames(foldChangeDf))){
+  stop("gene order does not match")
+}
+
+foldChangeMat <- data.matrix(foldChangeDf)
+
+
+fcHeatmap <- Heatmap(matrix = foldChangeMat,
+                     name = "lfc_heatmap",
+                     col = colorRamp2(breaks = c(-3, 0, 3), colors = c("blue", "white", "red"), space = "LAB"),
+                     cluster_rows = TRUE,
+                     clustering_distance_rows = "euclidean",
+                     cluster_columns = TRUE,
+                     show_row_names = FALSE,
+                     column_names_gp = gpar(fontsize = 14), 
+                     width = unit(2, "cm"),
+                     heatmap_legend_param = list(title = "\nlog2(fold_change)")
+)
+
+htList <- countHeatmap + fcHeatmap
+
+pdf(file = paste(outPrefix, ".normCount_heatmap.pdf", sep = ""), width = 10, height = 12, onefile = TRUE)
+
+draw(object = htList,
+     main_heatmap = "lfc_heatmap",
+     column_title = paste("Normalized read counts heatmap:", analysisName),
+     row_title = "Genes",
+     row_dend_side = "left",
+     column_title_gp = gpar(fontsize = 14, fontface = "bold")
+)
+
+dev.off()
+
+###########################################################################
+
+
+
+
+
+
+
+
+
+
+
 
 

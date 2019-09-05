@@ -27,6 +27,8 @@ if(!dir.exists(outDir)){
 
 outPrefix <- paste(outDir, "/", analysisName, sep = "")
 
+readLength <- 75
+
 file_sampleInfo <- here::here("data", "sample_info.txt")
 path_stringtie <- here::here("data", "stringTie")
 
@@ -63,8 +65,8 @@ names(filesStringtie) <- exptInfo$sampleId
 tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
 tx2gene <- tmp[, c("t_name", "gene_id")]
 
-txi <- tximport(files = filesStringtie, type = "stringtie", tx2gene = tx2gene, readLength = 100)
-
+txi <- tximport(files = filesStringtie, type = "stringtie",
+                tx2gene = tx2gene, readLength = readLength)
 
 ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
 
@@ -180,8 +182,12 @@ dev.off()
 ###########################################################################
 ## PCA based on rld counts
 
-normCountMat <- rldCount[, c("geneId", exptInfo$sampleId), drop = FALSE] %>% 
-  tibble::column_to_rownames(var = "geneId")
+normCountMat <- as.matrix(fpkmCounts[, c(exptInfo$sampleId), drop = FALSE])
+rownames(normCountMat) <- fpkmCounts$geneId
+
+## remove low count rows
+keep <- rowSums(normCountMat > 1) >= 2
+normCountMat <- normCountMat[keep, ]
 
 ## transform the data such that the genes are columns and each sample is a row
 ## also append the additional information for each sample using left_join()
@@ -267,7 +273,7 @@ dev.off()
 
 #############################################################################
 ## correlation scatter plot
-pt <- ggpairs(data = normCountMat[(rowSums2(as.matrix(normCountMat)) > 1), ],
+pt <- ggpairs(data = as.data.frame(normCountMat),
               upper = list(continuous = wrap("points", size = 0.1)),
               lower = list(continuous = wrap("cor", size = 10)),
               diag = list(continuous = "densityDiag")) +
