@@ -121,28 +121,33 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
 #'
 #' @param df a dataframe returned by topGO enrichment function topGO_enrichment
 #' @param title title of the plot
-#' @param pvalCol pvalue column name. Default: log10_pval
-#' @param termCol GO term column name. Default: Term
-#' @param richCol Rich factor column name. Default: richness
-#' @param geneCountCol gene count column name. Default: Significant
+#' @param pvalCol pvalue column name used for point color. Default: weightedFisher
+#' @param termCol GO term column name which is used as Y axis Default: Term
+#' @param xVar X axis variable. Default: richness
+#' @param sizeVar Point size variable. Default: Significant
 #'
 #' @return A ggplot object 
 #' @export
 #'
-#' @examples topGO_scatterPlot(df = goData, title = "topGO enrichment")
+#' @examples enrichment_scatter(df = goData, title = "topGO enrichment")
 #' 
-topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term",
-                              richCol = "richness", geneCountCol = "Significant"){
+enrichment_scatter <- function(df, title, pvalCol = "weightedFisher", termCol = "Term",
+                               xVar = "richness", sizeVar = "Significant"){
   
   
-  goData <- dplyr::arrange(df, !!as.name(pvalCol))
+  goData <- dplyr::arrange(df, desc(!!as.name(pvalCol)))
   wrap_80 <- wrap_format(80)
   goData[[termCol]] <- wrap_80(goData[[termCol]])
   goData[[termCol]] <- sprintf(fmt = "%80s", goData[[termCol]])
-  goData[[termCol]] <- factor(goData[[termCol]], levels = unique(goData[[termCol]][ order( goData[[pvalCol]] ) ] ) )
+  goData[[termCol]] <- factor(goData[[termCol]],
+                              levels = unique(goData[[termCol]])
+  )
+  goData$log10_pval <- -log10(as.numeric(goData[[pvalCol]]))
+  
+  logPvalCol <- "log10_pval"
   
   ## color scales
-  # scaleLim <- ceiling(min(5, max(goData[[pvalCol]])))
+  # scaleLim <- ceiling(min(5, max(goData[[logPvalCol]])))
   scaleLim <- 5
   brk = c(1.30103, 2:scaleLim, scaleLim+1)
   scaleLabels <- c(format(1/(10^c(1.30103, 2:scaleLim)), drop0trailing = T, scientific = F), "smaller")
@@ -150,16 +155,16 @@ topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term
   # structure(l10Vals, names = format(1/(10^seq(1, 3, by = 0.1)), drop0trailing = T, scientific = F))
   
   ## size parameters
-  sizeBreaks <- ceiling(seq(from = 1, to = max( max( goData[[geneCountCol]] ) + 1, 5), length.out = 5) )
+  sizeBreaks <- ceiling(seq(from = 1, to = max( max( goData[[sizeVar]] ) + 1, 5), length.out = 5) )
   
   ## ggplot object
   goScatter <- ggplot(data = goData) +
-    geom_point(mapping = aes(x = !! as.name(termCol), 
-                             y = !! as.name(richCol),
-                             size = !! as.name(geneCountCol),
-                             color = !! as.name(pvalCol))) +
+    geom_point(mapping = aes(x = !! as.name(xVar),
+                             y = !! as.name(termCol), 
+                             size = !! as.name(sizeVar),
+                             color = !! as.name(logPvalCol))) +
     scale_color_gradientn(name = "p-value",
-                          values = rescale(c(1, 2.5, scaleLim, max(goData[[pvalCol]], scaleLim+0.1))),
+                          values = rescale(c(1, 2.5, scaleLim, max(goData[[logPvalCol]], scaleLim+0.1))),
                           colours = c("green", "red", "blue", "darkblue"),
                           breaks = brk,
                           labels = scaleLabels,
@@ -167,16 +172,12 @@ topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term
                           oob = squish,
                           limits = c(1, scaleLim + 1)
     ) +
-    scale_size_continuous(breaks = sizeBreaks,
-                          name = "Gene count",
-                          limits = c(0, max( goData[[geneCountCol]] ) + 1),
+    scale_size_continuous(limits = c(0, max( goData[[sizeVar]] )),
                           range = c(1, 15)) +
-    ggtitle(title) + 
-    coord_flip() +
-    ylab("Rich factor") +
+    labs(title = title) +
     theme_bw() +
     theme(plot.title = element_text(hjust = 0.8, size = 16, face = "bold"),
-          axis.text.x = element_text(size = 20),
+          axis.text.x = element_text(size = 14),
           axis.text.y = element_text(size = 14),
           axis.title.y = element_blank(),
           axis.title.x = element_text(face = "bold"),
@@ -207,7 +208,7 @@ topGO_scatterPlot <- function(df, title, pvalCol = "log10_pval", termCol = "Term
 go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
   
   goData <- topGO_enrichment(goMapFile = goToGeneFile, genes = genes, ...)
-  topGoScatter <- topGO_scatterPlot(df = goData, title = goTitle)
+  topGoScatter <- enrichment_scatter(df = goData, title = goTitle)
   
   # draw Heatmap and add the annotation name decoration
   ht <- max(nrow(goData) * 80, 1500)
@@ -247,7 +248,7 @@ topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
     return(data.frame(height = NA, width = NA, title = NA, res = NA, png = NA, stringsAsFactors = F))
   }
   
-  topGoScatter <- topGO_scatterPlot(df = goData, title = title)
+  topGoScatter <- enrichment_scatter(df = goData, title = title)
   
   ht <- max(nrow(goData) * 80, 1500)
   wd <- (min(max(nchar(as.character(goData$Term))), 80) * 30) * 1.5
