@@ -6,17 +6,16 @@ library(BSgenome)
 
 rm(list = ls())
 
+source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
 
 path <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/annotation_resources/"
 setwd(path)
 
 
 file_chrFeature <- "A_fumigatus_Af293_version_s03-m05-r12_chromosomal_feature.tab"
-file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.20190601.aspgd.tab"
+file_goAssociation <- "FungiDB-45_AfumigatusAf293_GO.gaf"
 file_keggId <- "afm_ncbi-geneid.list"
 
-## using gene coordinates which include UTRs
-file_genes <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r12_genes.bed"
 
 ## ANidulans: 162425
 ## CAlbicans: 5476
@@ -40,7 +39,7 @@ geneToAlias <- dplyr::select(geneInfo, GID, ALIAS) %>%
   dplyr::filter(!is.na(ALIAS)) %>% 
   dplyr::mutate(newAlias = strsplit(ALIAS, split = "|", fixed = T)) %>% 
   dplyr::select(-ALIAS) %>% 
-  tidyr::unnest() %>% 
+  tidyr::unnest(cols = c(newAlias)) %>% 
   dplyr::rename(ALIAS = newAlias)
 
 ## KEGG and NCBI ids
@@ -51,10 +50,6 @@ keggData <- readr::read_tsv(file = file_keggId) %>%
   as.data.frame()
 
 
-# geneBed <- readr::read_tsv(file = file_genes,
-#                                   col_names = c("CHR", "START", "END", "NAME", "SCORE", "STRAND"))
-
-
 geneInfo <- dplyr::select(geneInfo, -ALIAS)
 
 
@@ -62,20 +57,14 @@ geneInfo <- dplyr::select(geneInfo, -ALIAS)
 ##############################################################################
 ## GO data
 
-goCols = c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference", "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by")
-
-goAssociations = data.table::fread(file = file_goAssociation, sep = "\t", header = F,
-                                   data.table = T, strip.white = T, stringsAsFactors = F,
-                                   na.strings = "", col.names = goCols)
+goAssociations <- read_gaf(file = file_goAssociation)
 
 ## Gene to GO map for topGO
-goData = goAssociations %>%
-  dplyr::filter(taxon == "taxon:746128") %>%
-  dplyr::select(DB_Object_ID, GO, EVIDENCE)
+goData =  dplyr::select(goAssociations, DB_Object_ID, GO, EVIDENCE)
 
 
 ## GO dataframe for OrgDb package
-goDf = dplyr::left_join(x = geneInfo, y = goData, by = c("ASPGD_ID" = "DB_Object_ID")) %>% 
+goDf = dplyr::left_join(x = geneInfo, y = goData, by = c("GID" = "DB_Object_ID")) %>% 
   dplyr::select(GID, GO, EVIDENCE) %>% 
   dplyr::filter(!is.na(GO)) %>% 
   dplyr::distinct()
@@ -112,15 +101,15 @@ makeOrgPackage(
   outputDir = ".",
   tax_id = "746128",
   genus = "Aspergillus",
-  species = "Fumigatus293",
+  species = "Fumigatus.Af293",
   goTable = "go",
   verbose = TRUE)
 
 
 ## install package
-install.packages("E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/annotation_resources/org.AFumigatus293.eg.db", repos = NULL, type = "source")
+install.packages("E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/annotation_resources/org.AFumigatus.Af293.eg.db", repos = NULL, type = "source")
 
-library(org.AFumigatus293.eg.db)
+library(org.AFumigatus.Af293.eg.db)
 
 
 

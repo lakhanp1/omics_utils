@@ -7,13 +7,14 @@ library(BSgenome)
 
 rm(list = ls())
 
+source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
 
-path <- "E:/Chris_UM/Database/A_Nidulans/ANidulans_OrgDb/"
+path <- "E:/Chris_UM/Database/A_Nidulans/annotation_resources/"
 setwd(path)
 
 
 file_chrFeature <- "A_nidulans_FGSC_A4_version_s10-m04-r13_chromosomal_feature.tab"
-file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.20100721.aspgd.tab"
+file_goAssociation <- "FungiDB-45_AnidulansFGSCA4_GO.gaf"
 file_SM <- "SM_genes.txt"
 file_tf <- "TF_genes.txt"
 
@@ -24,7 +25,6 @@ file_tf <- "TF_genes.txt"
 ## Aspergillus fumigatus A1163: 451804
 
 ##############################################################################
-
 
 geneInfo <- data.table::fread(file = file_chrFeature,
                               sep = "\t", header = F, stringsAsFactors = F, na.strings = "", select = c(1:4, 9, 11),
@@ -49,7 +49,7 @@ tfGenes <- suppressMessages(readr::read_tsv(file = file_tf)) %>%
 aliasTable <- dplyr::select(geneInfo, GID, ALIAS) %>%
   dplyr::filter(!is.na(ALIAS)) %>% 
   dplyr::mutate(ALIAS = strsplit(x = ALIAS, split = "\\|")) %>% 
-  tidyr::unnest() %>% 
+  tidyr::unnest(cols = c(ALIAS)) %>% 
   dplyr::distinct() %>% 
   as.data.frame()
 
@@ -98,21 +98,13 @@ fwrite(x = geneTable, file = "A_nidulans_FGSC_A4.geneTable.tab", sep = "\t", col
 ##############################################################################
 ## GO data
 
-goCols <- c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference",
-            "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type",
-            "taxon", "Date", "Assigned_by")
-
-goAssociations <- data.table::fread(file = file_goAssociation, sep = "\t", header = F, data.table = T,
-                                    stringsAsFactors = F, na.strings = "", col.names = goCols)
+goAssociations <- read_gaf(file = file_goAssociation)
 
 ## Gene to GO map for topGO
-goData <- goAssociations %>%
-  dplyr::filter(taxon == "taxon:162425") %>%
-  dplyr::select(DB_Object_ID, GO, EVIDENCE)
-
+goData =  dplyr::select(goAssociations, DB_Object_ID, GO, EVIDENCE)
 
 ## GO dataframe for OrgDb package
-goDf <- dplyr::left_join(x = geneInfo, y = goData, by = c("ASPGD_ID" = "DB_Object_ID")) %>% 
+goDf <- dplyr::left_join(x = geneInfo, y = goData, by = c("GID" = "DB_Object_ID")) %>% 
   dplyr::select(GID, GO, EVIDENCE) %>% 
   dplyr::filter(!is.na(GO)) %>% 
   dplyr::distinct()
@@ -151,18 +143,16 @@ makeOrgPackage(
   outputDir = ".",
   tax_id = "162425",
   genus = "Aspergillus",
-  species = "nidulans",
+  species = "nidulans.FGSCA4",
   goTable = "go",
   verbose = TRUE)
 
 
 ## install package
-install.packages("E:/Chris_UM/Database/A_Nidulans/ANidulans_OrgDb/org.Anidulans.eg.db",
+install.packages("E:/Chris_UM/Database/A_Nidulans/annotation_resources/org.Anidulans.FGSCA4.eg.db",
                  repos = NULL, type = "source")
 
-library(org.Anidulans.eg.db)
-
-columns(org.Anidulans.eg.db)
+library(org.Anidulans.FGSCA4.eg.db)
 
 
 ##############################################################################

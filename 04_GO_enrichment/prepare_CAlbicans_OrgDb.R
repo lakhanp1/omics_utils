@@ -7,13 +7,14 @@ library(summarytools)
 
 rm(list = ls())
 
+source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
 
-path <- "E:/Chris_UM/Database/C_albicans/SC5314_A21/CAlbicansA21_OrgDb"
+path <- "E:/Chris_UM/Database/C_albicans/SC5314_A21/annotation_resources"
 setwd(path)
 
 
 file_caMappings <- "CAlbicans_mapping.txt"
-file_goAssociation <- "E:/Chris_UM/Database/GO_associations/gene_association.cgd"
+file_goAssociation <- "FungiDB-45_CalbicansSC5314_GO.gaf"
 
 ## ANidulans: 162425
 ## CAlbicans: 5476
@@ -47,17 +48,14 @@ ncbiData <- dplyr::select(caGenes, GID, NCBI_ID) %>%
 
 goCols <- c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference", "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by")
 
-goAssociations <- fread(file = file_goAssociation, sep = "\t", header = F, data.table = T, stringsAsFactors = F,
-                       na.strings = "", col.names = goCols)
+goAssociations <- read_gaf(file = file_goAssociation)
 
 ## Gene to GO map for topGO
-goData <- goAssociations %>%
-  dplyr::filter(taxon == "taxon:5476") %>%
-  dplyr::select(DB_Object_ID, GO, EVIDENCE)
+goData =  dplyr::select(goAssociations, DB_Object_ID, GO, EVIDENCE)
 
 
 ## GO dataframe for OrgDb package
-goDf <- dplyr::left_join(x = chrFeature, y = goData, by = c("CGD_ID" = "DB_Object_ID")) %>% 
+goDf <- dplyr::left_join(x = chrFeature, y = goData, by = c("ASSEMBLY22_ID" = "DB_Object_ID")) %>% 
   dplyr::select(GID, GO, EVIDENCE) %>% 
   dplyr::filter(!is.na(GO)) %>% 
   dplyr::distinct()
@@ -95,16 +93,16 @@ makeOrgPackage(
   outputDir = ".",
   tax_id = "5476",
   genus = "Candida",
-  species = "albicans",
+  species = "albicans.SC5314",
   goTable = "go",
   verbose = TRUE)
 
 
 
 ## install package
-install.packages("E:/Chris_UM/Database/C_albicans/SC5314_A21/CAlbicansA21_OrgDb/org.Calbicans.eg.db",
+install.packages("E:/Chris_UM/Database/C_albicans/SC5314_A21/annotation_resources/org.Calbicans.SC5314.eg.db",
                  repos = NULL, type = "source")
 
-library(org.Calbicans.eg.db)
+library(org.Calbicans.SC5314.eg.db)
 
 

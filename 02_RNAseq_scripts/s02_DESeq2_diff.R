@@ -22,7 +22,7 @@ library(org.DRerio.GRCz11.Ensembl97.eg.db)
 
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/s02_DESeq2_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
 analysisName <- "PG_WT_8mpf_vs_PG_WT_50dpf"
 
@@ -142,27 +142,24 @@ if(any(duplicated(geneInfo$geneId))){
 
 ## raw counts
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
-########
-# readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
+readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
 
 ## FPKM
-# fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-# 
-# fwrite(x = fpkmCounts, file = paste(outPrefix, "_FPKM.tab", sep = ""),
-#        sep = "\t", row.names = F, col.names = T, quote = F)
+fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
+
+fwrite(x = fpkmCounts, file = paste(outPrefix, "_FPKM.tab", sep = ""),
+       sep = "\t", row.names = F, col.names = T, quote = F)
 
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
-########
-# readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
+readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
 
 
 ## r-log normalized counts
 rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
-########
-# readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = ""))
+readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = ""))
 
 
 ###########################################################################
@@ -435,9 +432,8 @@ degData <- diffData %>%
 significant_up <- filter(degData, padj < FDR_cut, log2FoldChange >= up_cut)
 significant_down <- filter(degData, padj < FDR_cut, log2FoldChange <= down_cut)
 
-########
-# readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
-# readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
+readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
+readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
 
 
 ###########################################################################

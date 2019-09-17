@@ -519,8 +519,7 @@ GO_terms_at_level <- function(ont, level){
   
 }
 
-###################### frequent_key_words
-
+##################################################################################
 ## 
 #' find frequent words in the sentences
 #'
@@ -564,5 +563,30 @@ frequent_key_words = function(sentences, topn = Inf, remove = NULL){
   
   return(dt)
 }
+
+
+##################################################################################
+
+read_gaf <- function(file){
+  gafCols <- c(
+    "DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "DB_Reference", "EVIDENCE",
+    "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by",
+    "Annotation_Extension", "Gene_Product_From_ID")
+  
+  gaf <- data.table::fread(file = file, sep = "\t", header = F,
+                           data.table = T, strip.white = T, stringsAsFactors = F,
+                           na.strings = "", col.names = gafCols) %>% 
+    tibble::as_tibble()
+  
+  
+}
+
+
+
+
+
+
+
+
 
 

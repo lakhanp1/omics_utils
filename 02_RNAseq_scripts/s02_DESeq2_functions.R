@@ -140,3 +140,32 @@ geneStatsPieChart <- function(df, namePrefix, title, fdr_col, lfc_col, fdr_cut =
 
 ###########################################################################
 
+
+get_diff_info <- function(degInfoFile, dataPath){
+  
+  diffInfo <- suppressMessages(readr::read_tsv(degInfoFile))
+  
+  diffInfo <- dplyr::mutate(
+    diffInfo,
+    rld = paste(dataPath, "/", comparison, "/", comparison, ".rlogCounts.tab", sep = ""),
+    normCount = paste(dataPath, "/", comparison, "/", comparison, ".normCounts.tab", sep = ""),
+    deseq2 = paste(dataPath, "/", comparison, "/", comparison, ".DESeq2.tab", sep = ""),
+    deg = paste(dataPath, "/", comparison, "/", comparison, ".DEG_all.txt", sep = ""),
+    topGO = paste(dataPath, "/", comparison, "/", comparison, ".topGO.tab", sep = ""),
+    keggProfile = paste(dataPath, "/", comparison, "/", comparison, ".keggProfile.tab", sep = ""),
+    clusterProfiler_GO = paste(dataPath, "/", comparison, "/", comparison, ".clusterProfiler.GO.tab", sep = ""),
+    clusterProfiler_kegg = paste(dataPath, "/", comparison, "/", comparison, ".clusterProfiler.kegg.tab", sep = "")
+  )
+  
+  return(diffInfo)
+}
+
+
+
+
+
+
+
+
+###########################################################################
+

@@ -108,7 +108,7 @@ devtools::install(
 
 ## Zebrafish GRCz11
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Zebrafish/GRCz11/annotation_resources/org.Drerio.GRCz11.Ensembl97.eg.db",
+  pkg = "E:/Chris_UM/Database/Zebrafish/GRCz11/annotation_resources/org.DRerio.GRCz11.Ensembl97.eg.db",
   upgrade = "never")
 
 
