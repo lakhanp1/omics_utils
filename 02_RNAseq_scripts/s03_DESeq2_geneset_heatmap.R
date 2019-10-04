@@ -15,6 +15,7 @@ library(org.HSapiens.gencodev30.eg.db)
 rm(list = ls())
 
 source(file = "E:/Chris_UM/GitHub/omics_util/GO_enrichment/topGO_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
 analysisName <- "geneset1"
 outDir <- here::here("analysis", "04_geneset", analysisName)
@@ -78,17 +79,18 @@ rldCount <- suppressMessages(readr::read_tsv(file = file_rld)) %>%
 
 
 ## function to extract the log2FoldChange, padj and diff coulumns for each DEG result file
-get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange"){
+get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange", fdrCol = "padj", fdr_cut){
   
   degs <- fread(file = degFile, sep = "\t", header = T, stringsAsFactors = F)
   
-  newColName <- structure(c(lfcCol, "padj"),
+  newColName <- structure(c(lfcCol, fdrCol),
                           names = paste(c("lfc.", "padj." ), name, sep = ""))
   
   df <- degs %>%
-    dplyr::mutate(!! lfcCol := if_else(condition = padj < FDR_cut, true = !! as.name(lfcCol), false = 0)) %>% 
+    dplyr::mutate(!! lfcCol := if_else(condition = !!sym(fdrCol) < fdr_cut,
+                                       true = !! as.name(lfcCol), false = 0)) %>% 
     tidyr::replace_na(purrr::set_names(list(0), nm = c(lfcCol))) %>% 
-    dplyr::select(geneId, !! lfcCol, padj) %>%
+    dplyr::select(geneId, !!lfcCol, !!fdrCol) %>%
     dplyr::distinct() %>% 
     dplyr::rename(!!!newColName )
   

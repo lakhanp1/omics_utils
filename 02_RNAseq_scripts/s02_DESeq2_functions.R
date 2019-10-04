@@ -5,7 +5,7 @@
 
 ###########################################################################
 ## function to plot volcano plot
-volcano_plot <- function(df, title,
+volcano_plot <- function(df, title = "volcano plot",
                          fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1,
                          ylimit = 150, xlimit = c(-4, 4), geneOfInterest, showNames = TRUE){
   
@@ -13,13 +13,15 @@ volcano_plot <- function(df, title,
     df$geneName = df$geneId
   }
   
+  up_cut <- lfc_cut
+  down_cut <- -1 * lfc_cut
   
   df <- df %>% 
     dplyr::mutate(
       category = dplyr::case_when(
-        !! as.name(fdr_col) < !! fdr_cut & !! as.name(lfc_col) >= !! up_cut ~ "Significant Up",
-        !! as.name(fdr_col) < !! fdr_cut & !! as.name(lfc_col) <= !! down_cut ~ "Significant Down",
-        !! as.name(fdr_col) < !! fdr_cut ~ "Significant",
+        !! sym(fdr_col) < !! fdr_cut & !! sym(lfc_col) >= !! up_cut ~ "Significant Up",
+        !! sym(fdr_col) < !! fdr_cut & !! sym(lfc_col) <= !! down_cut ~ "Significant Down",
+        !! sym(fdr_col) < !! fdr_cut ~ "Significant",
         TRUE ~ "Non-significant"
       )
     )
@@ -39,7 +41,7 @@ volcano_plot <- function(df, title,
     # geom_point(mapping = aes(color = significant), alpha=0.6, size=1.75) +
     geom_point(
       data = df,
-      mapping = aes(x = !! as.name(lfc_col), y = log10FDR, color = category), alpha=0.6, size=1.75
+      mapping = aes(x = !! sym(lfc_col), y = log10FDR, color = category), alpha=0.6, size=1.75
     ) +
     scale_color_manual(
       values = c("Significant Up" = "red", "Significant Down" = "green",
