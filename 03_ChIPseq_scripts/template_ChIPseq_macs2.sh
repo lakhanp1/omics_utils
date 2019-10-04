@@ -22,6 +22,13 @@ else
 	macs2_outDir+="_narrow"
 fi
 
+echo "macs2_ctrl=${macs2_ctrl}
+macs2_name=${macs2_name}
+conf_macs2_g=${conf_macs2_g}
+conf_chrSize=${conf_chrSize}
+macs2_outDir=${macs2_outDir}
+"
+
 ##macs2 narrowPeak calling: 
 macs2 callpeak -t SAMPLE_ID_bt2.bam --name SAMPLE_ID.${macs2_name} ${macs2_ctrl} --outdir ${macs2_outDir} -g ${conf_macs2_g} --nomodel --extsize 200 -B --SPMR ${macs2_broad}
 error_exit $?
