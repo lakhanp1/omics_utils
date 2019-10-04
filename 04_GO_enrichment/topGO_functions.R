@@ -383,14 +383,15 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
 #' key in org.db
 #'
 #' @param genes A vector of gene Ids
-#' @param goTerm A vector of GO term Ids
+#' @param goTerms GO term ID vector
 #' @param org an org.db object
+#' @param keytype keytype in org.db for the input genes
 #'
 #' @return A dataframe with GO term to gene mapping statistics
 #' @export
 #'
 #' @examples
-GO_map <- function(genes, goTerms, org){
+GO_map <- function(genes, goTerms, org, keytype){
   
   # Ontology(goTerms[1])
   # AnnotationDbi::get(goTerms[1], GO.db::GOBPOFFSPRING)
@@ -408,8 +409,8 @@ GO_map <- function(genes, goTerms, org){
   ontStats <- suppressMessages(
     AnnotationDbi::select(
       x = org,
-      keys = AnnotationDbi::keys(x = org, keytype = "GID"),
-      keytype = "GID",
+      keys = AnnotationDbi::keys(x = org, keytype = keytype),
+      keytype = keytype,
       columns = c("GOALL", "ONTOLOGYALL")
     )
   ) %>% 
@@ -582,7 +583,7 @@ read_gaf <- function(file){
 }
 
 
-
+##################################################################################
 
 
 

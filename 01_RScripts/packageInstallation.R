@@ -84,6 +84,7 @@ devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 ## A. nidulans
 devtools::install_github("lakhanp1/fungal_resources/A_nidulans/org.Anidulans.eg.db")
 devtools::install_github("lakhanp1/fungal_resources/A_nidulans/TxDb.Anidulans.AspGD.GFF")
+devtools::install_github("lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.AspGD.FGSCA4")
 
 ## C. albicans
 devtools::install_github("lakhanp1/fungal_resources/C_albicans/org.Calbicans.eg.db")
