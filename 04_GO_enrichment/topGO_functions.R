@@ -338,17 +338,27 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
   
   ## KEGG enrichment
   kp <- suppressMessages(
-    KEGGprofile::find_enriched_pathway(gene = keggIds[[keggIdCol]], species = keggOrg,
-                                       returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
-                                       download_latest = TRUE, returned_genenumber = minGenes,
-                                       ...)
+    KEGGprofile::find_enriched_pathway(
+      gene = keggIds[[keggIdCol]], species = keggOrg,
+      returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
+      download_latest = TRUE, returned_genenumber = minGenes,
+      ...)
   )
   
   
   ## prepare a mapped gene list for the enriched pathways
-  assignedGenes <- sapply(X = kp$detail,
-                          FUN = function(x){return(paste(x, collapse = ","))},
-                          simplify = TRUE, USE.NAMES = TRUE)
+  assignedGenes <- sapply(
+    X = kp$detail,
+    FUN = function(x){
+      mappedIds <- suppressMessages(
+        AnnotationDbi::mapIds(
+          x = orgdb, keys = x, column = keytype, keytype = keggIdCol,
+          multiVals = function(x){paste(x, collapse = ",")})
+      )
+      
+      return(paste(mappedIds, collapse = ","))
+    },
+    simplify = TRUE, USE.NAMES = TRUE)
   
   assignedDf <- data.frame("pathway_id" = names(assignedGenes),
                            "genes" = assignedGenes, stringsAsFactors = FALSE)
