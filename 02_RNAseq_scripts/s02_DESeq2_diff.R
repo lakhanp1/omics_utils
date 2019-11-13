@@ -432,7 +432,8 @@ degData <- diffData %>%
 significant_up <- filter(degData, padj < FDR_cut, log2FoldChange >= up_cut)
 significant_down <- filter(degData, padj < FDR_cut, log2FoldChange <= down_cut)
 
-readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
+readr::write_tsv(x = resDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
+readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2_shrunken.tab", sep = ""))
 readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
 
 

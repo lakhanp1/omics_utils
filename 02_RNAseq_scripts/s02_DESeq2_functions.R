@@ -152,6 +152,7 @@ get_diff_info <- function(degInfoFile, dataPath){
     rld = paste(dataPath, "/", comparison, "/", comparison, ".rlogCounts.tab", sep = ""),
     normCount = paste(dataPath, "/", comparison, "/", comparison, ".normCounts.tab", sep = ""),
     deseq2 = paste(dataPath, "/", comparison, "/", comparison, ".DESeq2.tab", sep = ""),
+    deseq2_shrink = paste(dataPath, "/", comparison, "/", comparison, ".DESeq2_shrunken.tab", sep = ""),
     deg = paste(dataPath, "/", comparison, "/", comparison, ".DEG_all.txt", sep = ""),
     topGO = paste(dataPath, "/", comparison, "/", comparison, ".topGO.tab", sep = ""),
     keggProfile = paste(dataPath, "/", comparison, "/", comparison, ".keggProfile.tab", sep = ""),
