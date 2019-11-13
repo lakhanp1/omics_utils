@@ -185,7 +185,7 @@ makeTxDbPackage(txdb = txdbData,
                 maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
                 author = "Lakhansing Pardeshi Chris Lab",
                 destDir = ".",
-                pkgname = "TxDb.Anidulans.AspGD.GFF"
+                pkgname = "TxDb.Anidulans.FGSCA4.AspGD.GFF"
 )
 
 

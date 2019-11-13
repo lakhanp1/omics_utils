@@ -82,20 +82,35 @@ devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 ###############         Org.Db packages            #######################
 ##########################################################################
 ## A. nidulans
-devtools::install_github("lakhanp1/fungal_resources/A_nidulans/org.Anidulans.eg.db")
-devtools::install_github("lakhanp1/fungal_resources/A_nidulans/TxDb.Anidulans.AspGD.GFF")
-devtools::install_github("lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.AspGD.FGSCA4")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_nidulans/org.Anidulans.FGSCA4.eg.db",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_nidulans/TxDb.Anidulans.FGSCA4.AspGD.GFF",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.FGSCA4.AspGD",
+  upgrade = "never")
 
 ## C. albicans
-devtools::install_github("lakhanp1/fungal_resources/C_albicans/org.Calbicans.eg.db")
+devtools::install_github(
+  "lakhanp1/fungal_resources/C_albicans/org.Calbicans.SC5314.eg.db",
+  upgrade = "never")
 
 ## C. auris
-devtools::install_github("lakhanp1/fungal_resources/C_auris/org.Cauris.eg.db")
+devtools::install_github("lakhanp1/fungal_resources/C_auris/org.Cauris.eg.db",
+                         upgrade = "never")
 
 ## A. fumigatus
-devtools::install_github("lakhanp1/fungal_resources/A_fumigatus/org.AFumigatus293.eg.db")
-devtools::install_github("lakhanp1/fungal_resources/A_fumigatus/TxDb.Afumigatus.Af293.AspGD.GFF")
-devtools::install_github("lakhanp1/fungal_resources/A_fumigatus/BSgenome.Afumigatus.AspGD.Af293")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_fumigatus_Af293/org.AFumigatus.Af293.eg.db",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_fumigatus_Af293/TxDb.Afumigatus.Af293.AspGD.GFF",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_fumigatus_Af293/BSgenome.Afumigatus.Af293.AspGD",
+  upgrade = "never")
 
 ## Human
 devtools::install(
