@@ -10,7 +10,7 @@ library(data.table)
 library(DESeq2)
 library(tximport)
 library(matrixStats)
-library(org.Hsapiens.eg.db)
+library(org.HSapiens.gencodev30.eg.db)
 
 ## This script uses ballgown to extract the FPKM matrix from the stringTie output
 ## It also perform PCA analysis using FPKM values
@@ -27,15 +27,15 @@ if(!dir.exists(outDir)){
 
 outPrefix <- paste(outDir, "/", analysisName, sep = "")
 
-readLength <- 75
+readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
 
 file_sampleInfo <- here::here("data", "sample_info.txt")
 path_stringtie <- here::here("data", "stringTie")
 
-orgDb <- org.Hsapiens.eg.db
+orgDb <- org.HSapiens.gencodev30.eg.db
 
 ###########################################################################
-exptInfo <- readr::read_tsv(file = file_sampleInfo) %>% 
+exptInfo <- suppressMessages(readr::read_tsv(file = file_sampleInfo)) %>% 
   as.data.frame()
 
 rownames(exptInfo) <- exptInfo$sampleId
@@ -65,6 +65,8 @@ names(filesStringtie) <- exptInfo$sampleId
 tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
 tx2gene <- tmp[, c("t_name", "gene_id")]
 
+cat("Importing stringTie data with tximport. Read length = ", readLength)
+
 txi <- tximport(files = filesStringtie, type = "stringtie",
                 tx2gene = tx2gene, readLength = readLength)
 
@@ -92,13 +94,20 @@ fwrite(x = rawCounts, file = paste(outPrefix, ".rawCounts.tab", sep = ""),
        sep = "\t", row.names = F, col.names = T, quote = F)
 
 ## FPKM
-fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
+fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId");
 
-# if(all(fpkmCounts$geneId %in% geneInfo$geneId)){
+if(all(fpkmCounts$geneId %in% geneInfo$geneId)){
   fpkmCounts <- dplyr::left_join(x = fpkmCounts, y = geneInfo, by = c("geneId" = "geneId")) %>% 
     dplyr::select(geneId, exptInfo$sampleId, everything()) %>% 
     dplyr::filter(!is.na(geneId))
-# }
+  
+} else{
+  warning(
+    "Missing geneIds in fpkmCounts from org.db:\n",
+    paste(head(fpkmCounts$geneId[which(!fpkmCounts$geneId %in% geneInfo$geneId)], 10), collapse = ", "),
+    ", ..."
+  )
+}
 
 fwrite(x = fpkmCounts, file = paste(outPrefix, ".FPKM.tab", sep = ""),
        sep = "\t", row.names = F, col.names = T, quote = F)
@@ -273,10 +282,12 @@ dev.off()
 
 #############################################################################
 ## correlation scatter plot
-pt <- ggpairs(data = as.data.frame(normCountMat),
-              upper = list(continuous = wrap("points", size = 0.1)),
-              lower = list(continuous = wrap("cor", size = 10)),
-              diag = list(continuous = "densityDiag")) +
+pt <- ggpairs(
+  data = dplyr::select(rldCount, -geneId),
+  upper = list(continuous = wrap("points", size = 0.1)),
+  lower = list(continuous = wrap("cor", size = 10)),
+  diag = list(continuous = "densityDiag"),
+  title = "scatter plot of rlog transformed normalized read counts") +
   theme_bw() +
   theme(
     strip.text.y = element_text(size = 18, angle = 0, hjust = 0, face = "bold"),
@@ -284,7 +295,7 @@ pt <- ggpairs(data = as.data.frame(normCountMat),
   )
 
 png(filename = paste(outPrefix, ".scatter_matrix.png", sep = ""),
-    width = 6000, height = 6000, res = 300)
+    width = 10000, height = 10000, res = 300)
 
 pt
 dev.off()

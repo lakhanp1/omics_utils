@@ -10,7 +10,7 @@ library(data.table)
 library(DESeq2)
 library(tximport)
 library(matrixStats)
-library(org.AFumigatus.Af293.eg.db)
+library(org.HSapiens.gencodev30.eg.db)
 
 ## This script uses tximport to extract the FPKM matrix from the stringTie output
 ## It also perform PCA analysis using FPKM values
@@ -18,12 +18,12 @@ rm(list = ls())
 
 analysisName <- "count_data"
 
-readLength <- 100
 file_sampleInfo <- here::here("data", "sample_info.txt")
+readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
 
 outDir <- here("analysis", "01_count_data")
 outPrefix <- paste(outDir, "/", analysisName, sep = "")
-orgDb <- org.AFumigatus.Af293.eg.db
+orgDb <- org.HSapiens.gencodev30.eg.db
 
 if(!dir.exists(outDir)){
   dir.create(path = outDir)
@@ -38,84 +38,93 @@ rownames(exptInfo) <- exptInfo$sampleId
 
 ## set the factor levels.
 ## control levels should be first
-# exptInfo$gt <- factor(exptInfo$gt, levels = c("WT", "tet90"))
-# exptInfo$treatment <- factor(exptInfo$treatment, levels = c("YPD", "YPD_DOX", "YPD_GdA"))
-exptInfo$condition <- factor(exptInfo$condition, levels = unique(exptInfo$condition))
+# exptInfo$gt <- forcats::as_factor(exptInfo$gt)
+# exptInfo$treatment <- forcats::as_factor(exptInfo$treatment)
+exptInfo$condition <- forcats::as_factor(exptInfo$condition)
 
 ## Add gene symbol for each Ensembl ID
 geneInfo <- AnnotationDbi::select(x = orgDb,
-                                  keys = keys(x = orgDb, keytype = "GID"),
-                                  columns = c("GENE_NAME", "DESCRIPTION"),
-                                  keytype = "GID") %>% 
-  dplyr::rename(geneId = GID)
+                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
+                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
+                                  keytype = "ENSEMBL_VERSION") %>% 
+  dplyr::rename(geneId = ENSEMBL_VERSION)
 
 design <- ~ condition
 
 ###########################################################################
 ## import counts data: either by tximport or as raw count matrix
 
-# ## import the counts data using tximport and run DESeq2
-# path_stringtie <- here::here("data", "stringTie")
-# filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
-# names(filesStringtie) <- exptInfo$sampleId
-# 
-# tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
-# tx2gene <- tmp[, c("t_name", "gene_id")]
-# 
-# txi <- tximport(files = filesStringtie, type = "stringtie",
-#                 tx2gene = tx2gene, readLength = readLength)
-# 
-# ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
-# # assay(ddsTxi)
-# # colData(ddsTxi)
-# # rowData(ddsTxi)
-# 
-# ## Run DESeq2
-# dds <- DESeq(ddsTxi)
+## import the counts data using tximport and run DESeq2
+path_stringtie <- here::here("data", "stringTie")
+filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
+names(filesStringtie) <- exptInfo$sampleId
 
-## import raw counts data and run DESeq2
-file_rawCounts <- here::here("data", "MatrixCountsPerGeneBySample.Reneto.tab")
+tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
+tx2gene <- tmp[, c("t_name", "gene_id")]
 
-countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
-  as.data.frame()
-rownames(countsDf) <- countsDf$geneId
-countsDf$geneId <- NULL
+cat("Importing stringTie data with tximport. Read length = ", readLength)
 
+txi <- tximport(files = filesStringtie, type = "stringtie",
+                tx2gene = tx2gene, readLength = readLength)
 
-if(all(rownames(exptInfo) %in% colnames(countsDf))){
-  countsDf <- countsDf[, rownames(exptInfo)]
-} else{
-  stop("Column names in count matrix does not match with row names in experiment data")
-}
-
-## select only those sample rows which are part of current comparison
-# exptInfo <- droplevels(subset(exptInfo, condition %in% compare))
-# countsDf <- countsDf[, rownames(exptInfo)]
-
-## run DESeq2 and extract the processed data
-ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
+# assay(ddsTxi)
+# colData(ddsTxi)
+# rowData(ddsTxi)
 
 ## Run DESeq2
-dds <- DESeq(ddsCount)
+dds <- DESeq(ddsTxi)
+
+# ## import raw counts data and run DESeq2
+# file_rawCounts <- here::here("data", "MatrixCountsPerGeneBySample.Reneto.tab")
+# 
+# countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
+#   as.data.frame()
+# rownames(countsDf) <- countsDf$geneId
+# countsDf$geneId <- NULL
+# 
+# 
+# if(all(rownames(exptInfo) %in% colnames(countsDf))){
+#   countsDf <- countsDf[, rownames(exptInfo)]
+# } else{
+#   stop("Column names in count matrix does not match with row names in experiment data")
+# }
+# 
+# ## select only those sample rows which are part of current comparison
+# # exptInfo <- droplevels(subset(exptInfo, condition %in% compare))
+# # countsDf <- countsDf[, rownames(exptInfo)]
+# 
+# ## run DESeq2 and extract the processed data
+# ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+# 
+# ## Run DESeq2
+# dds <- DESeq(ddsCount)
 
 ###########################################################################
 ## raw counts
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
 
-fwrite(x = rawCounts, file = paste(outPrefix, ".rawCounts.tab", sep = ""),
-       sep = "\t", row.names = F, col.names = T, quote = F)
+readr::write_tsv(x = rawCounts, path = paste0(c(outPrefix,".rawCounts.tab"), collapse = ""))
 
-# ## FPKM
-# fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-# 
-# # if(all(fpkmCounts$geneId %in% geneInfo$geneId)){
-#   fpkmCounts <- dplyr::left_join(x = fpkmCounts, y = geneInfo, by = c("geneId" = "geneId")) %>% 
-#     dplyr::select(geneId, exptInfo$sampleId, everything()) %>% 
-#     dplyr::filter(!is.na(geneId))
-# # }
-# 
-# fwrite(x = fpkmCounts, file = paste(outPrefix, ".FPKM.tab", sep = ""),
-#        sep = "\t", row.names = F, col.names = T, quote = F)
+## FPKM
+fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId");
+
+if(all(fpkmCounts$geneId %in% geneInfo$geneId)){
+  fpkmCounts <- dplyr::left_join(x = fpkmCounts, y = geneInfo, by = c("geneId" = "geneId")) %>% 
+    dplyr::select(geneId, exptInfo$sampleId, everything()) %>% 
+    dplyr::filter(!is.na(geneId))
+  
+  readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
+  
+} else{
+  warning(
+    "Missing geneIds in fpkmCounts from org.db:\n",
+    paste(head(fpkmCounts$geneId[which(!fpkmCounts$geneId %in% geneInfo$geneId)], 10), collapse = ", "),
+    ", ..."
+  )
+}
+
+
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
@@ -125,25 +134,24 @@ readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), c
 rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
 
-fwrite(x = rldCount, file = paste(outPrefix, ".rlogCounts.tab", sep = ""),
-       sep = "\t", row.names = F, col.names = T, quote = F)
-
+readr::write_tsv(x = rldCount, path = paste0(c(outPrefix,".rlogCounts.tab"), collapse = ""))
 
 plotPCA(rld, intgroup=c("genotype", "treatment"), ntop = 4000)
 
-pcaData <- plotPCA(rld, intgroup=c("genotype", "treatment"), returnData = TRUE, ntop = 4000)
+pcaData <- plotPCA(rld, intgroup= "condition", returnData = TRUE, ntop = 4000)
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
-pcaData$treatment <- factor(pcaData$treatment, levels = unique(pcaData$treatment))
-pcaData$genotype <- factor(pcaData$genotype, levels = unique(pcaData$genotype))
+# pcaData$treatment <- forcats::as_factor(pcaData$treatment)
+# pcaData$genotype <- forcats::as_factor(pcaData$genotype)
+pcaData$condition <- forcats::as_factor(pcaData$condition)
 
 pltTitle <- "Principal Component Analysis"
-pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$genotype)), name = "Set1"),
-                            names = levels(pcaData$genotype))
+pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$condition)), name = "Set1"),
+                            names = levels(pcaData$condition))
 
 
 pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
-  geom_point(mapping = aes(color = genotype, shape = treatment), size=4) +
+  geom_point(mapping = aes(color = condition), shape = 16, size=4) +
   geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) +
@@ -163,7 +171,7 @@ pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   )
 
 
-png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 4000, height = 3000, res = 350)
+png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 4000, height = 3000, res = 380)
 pcaPlot
 dev.off()
 
@@ -207,11 +215,11 @@ rownames(normCountMat) <- rldCount$geneId
 
 ## remove low count rows
 keep <- rowSums(normCountMat > 1) >= 2
-normCountMat <- normCountMat[keep, ]
+normCountMatFiltered <- normCountMat[keep, ]
 
 ## transform the data such that the genes are columns and each sample is a row
 ## also append the additional information for each sample using left_join()
-df2 <- as.data.frame(t(normCountMat)) %>% 
+df2 <- as.data.frame(t(normCountMatFiltered)) %>% 
   tibble::rownames_to_column(var = "sampleId") %>% 
   dplyr::left_join(y = exptInfo, by = c("sampleId" = "sampleId")) %>% 
   dplyr::select(!!!colnames(exptInfo), dplyr::everything())
@@ -252,13 +260,13 @@ pairs(x = plotData[, 2:6],
 
 
 ## set the factor levels
-plotData$condition <- factor(plotData$condition, levels = unique(exptInfo$condition))
-plotData$genotype <- factor(plotData$genotype, levels = unique(exptInfo$genotype))
-plotData$treatment <- factor(plotData$treatment, levels = unique(exptInfo$treatment))
+plotData$condition <- forcats::as_factor(plotData$condition)
+plotData$genotype <- forcats::as_factor(plotData$genotype)
+plotData$treatment <- forcats::as_factor(plotData$treatment)
 
 pointCol <- base::structure(
-  RColorBrewer::brewer.pal(n = length(unique(plotData$genotype)), name = "Set1"),
-  names = levels(plotData$genotype))
+  RColorBrewer::brewer.pal(n = length(unique(plotData$condition)), name = "Set1"),
+  names = levels(plotData$condition))
 
 pltTitle <- "Principal Component Analysis"
 
@@ -266,14 +274,14 @@ pltTitle <- "Principal Component Analysis"
 ## decide which PCs to use for plotting
 pcToPlot <- c(1, 2)
 pcCols <- grep(pattern = "Dim.", x = colnames(plotData), value = T)[pcToPlot]
-fillColumn <- "genotype"
-shapeColumn <- "treatment"
+fillColumn <- "condition"
+# shapeColumn <- "treatment"
 
 pcaPlot <- ggplot(data = plotData,
                   mapping = aes(x = !!sym(pcCols[1]), y = !!sym(pcCols[2]), label = sampleId)) +
-  geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
+  geom_point(mapping = aes(color = !!sym(fillColumn)),
              size = 4, stroke = 2) +
-  scale_shape_manual(values = c(1, 15, 17)) +
+  # scale_shape_manual(values = c(1, 15, 17)) +
   # guides(fill=guide_legend(override.aes=list(shape=21))) +
   scale_color_manual(values = pointCol) +
   geom_text_repel(size = 3, point.padding = 0.5) +
@@ -299,10 +307,12 @@ dev.off()
 
 #############################################################################
 ## correlation scatter plot
-pt <- ggpairs(data = as.data.frame(normCountMat),
+pt <- ggpairs(
+  data = dplyr::select(rldCount, -geneId),
               upper = list(continuous = wrap("points", size = 0.1)),
               lower = list(continuous = wrap("cor", size = 10)),
-              diag = list(continuous = "densityDiag")) +
+              diag = list(continuous = "densityDiag"),
+  title = "scatter plot of rlog transformed normalized read counts") +
   theme_bw() +
   theme(
     strip.text.y = element_text(size = 18, angle = 0, hjust = 0, face = "bold"),
