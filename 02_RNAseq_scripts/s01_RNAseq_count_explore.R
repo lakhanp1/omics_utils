@@ -10,6 +10,7 @@ library(data.table)
 library(DESeq2)
 library(tximport)
 library(matrixStats)
+library(ComplexHeatmap)
 library(org.HSapiens.gencodev30.eg.db)
 
 ## This script uses tximport to extract the FPKM matrix from the stringTie output
@@ -173,6 +174,31 @@ pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
 
 png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 4000, height = 3000, res = 380)
 pcaPlot
+dev.off()
+
+
+###########################################################################
+## sample distance matrix
+
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+
+
+plot_dist <- ComplexHeatmap::Heatmap(
+  matrix = sampleDistMatrix,
+  col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
+  column_title = "Distance matrix of normalized read counts",
+  column_title_gp = gpar(fontface = "bold", fontsize = 14),
+  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
+                              title_position = "topcenter")
+)
+
+
+png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
+    width = 3000, height = 3000, res = 300)
+draw(plot_dist,
+     padding = unit(rep(0.5, 4), "cm")
+)
 dev.off()
 
 
