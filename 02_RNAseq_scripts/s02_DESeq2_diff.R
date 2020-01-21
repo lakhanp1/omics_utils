@@ -30,8 +30,10 @@ analysisName <- "PG_WT_8mpf_vs_PG_WT_50dpf"
 ## "PG_WT_50dpf", "PG_HE_50dpf", "PG_WT_8mpf", "PG_HE_8mpf"
 compare <- c("PG_WT_8mpf", "PG_WT_50dpf")
 
+useAllGroupsSamples <- TRUE
+
 file_sampleInfo <- here::here("data", "sample_info.txt")
-readLength <- 60
+readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
 
 outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
 outPrefix <- paste(outDir, analysisName, sep = "/")
@@ -53,9 +55,9 @@ down_cut <- lfc_cut * -1
 
 exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
-## set the reference levels
-# exptInfo$genotype <- factor(exptInfo$genotype, levels = c("MHCC97L"))
-# "WT", "A", "B", "AB"
+if(!isTRUE(useAllGroupsSamples)){
+  exptInfo <- dplyr::filter(exptInfo, condition %in% compare)
+}
 
 ## ensure that reference level is same as compare[2] in the factor
 exptInfo$condition <- factor(
@@ -202,6 +204,16 @@ png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 3000, height = 30
 pcaPlot
 dev.off()
 
+## PCA on subset of the data
+# subExptInfo <- dplyr::filter(exptInfo, condition %in% compare)
+# 
+# seTemp <- SummarizedExperiment(
+#   assays = log2(counts(dds, normalized = TRUE) + 1)[, subExptInfo$sampleId],
+#   colData = subExptInfo
+# )
+# 
+# plotPCA( DESeqTransform(seTemp))
+
 
 sampleDists <- dist(t(assay(rld)))
 sampleDistMatrix <- as.matrix(sampleDists)
@@ -337,25 +349,6 @@ pqDensity <- ggplot(data = as.data.frame(res)) +
 
 plotMA(res, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
 plotMA(resShrink, ylim=c(-4,4), main = "MA plot with shrunken log2 fold changes")
-
-
-# ## MA plot with unshrunken LFC
-# geneplotter::plotMA(object = data.frame(
-#   m = res$baseMean,
-#   a = res$log2FoldChange,
-#   c = ifelse(abs(res$log2FoldChange) >= lfc_cut & res$padj <= FDR_cut, TRUE, FALSE)),
-#   ylim=c(-4,4),
-#   main = "MA plot with unshrunken LFC"
-# )
-#
-# ## MA plot with apeglm shrunken LFC
-# geneplotter::plotMA(object = data.frame(
-#   m = resShrink$baseMean,
-#   a = resShrink$log2FoldChange,
-#   c = ifelse(abs(resShrink$log2FoldChange) >= lfc_cut & resShrink$padj <= FDR_cut, TRUE, FALSE)),
-#   ylim=c(-4,4),
-#   main = "MA plot with apeglm shrunken LFC"
-# )
 
 # par(op)
 # dev.off()
