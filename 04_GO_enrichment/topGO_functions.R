@@ -111,6 +111,58 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   return(resultTab)
 }
 
+##################################################################################
+
+#' Bar chart for functional enrichment result
+#'
+#' @param df a dataframe returned by topGO enrichment function topGO_enrichment
+#' @param title title of the plot
+#' @param pvalCol pvalue column name used for point color. Default: weightedFisher
+#' @param termCol GO term column name which is used as Y axis Default: Term
+#' @param colorCol column name for deciding bar color. Default: category
+#' @param countCol column name for gene count. Default: Significant
+#'
+#' @return A ggplot2 object
+#' @export
+#'
+#' @examples NA
+enrichment_bar <- function(df, title, pvalCol = "weightedFisher", termCol = "Term",
+                           colorCol = "category", countCol = "Significant"){
+  
+  goData <- dplyr::arrange(df, !!sym(colorCol), desc(!!sym(pvalCol)))
+  wrap_80 <- wrap_format(80)
+  goData[[termCol]] <- wrap_80(goData[[termCol]])
+  goData[[termCol]] <- sprintf(fmt = "%80s", goData[[termCol]])
+  goData[[termCol]] <- factor(goData[[termCol]],
+                              levels = unique(goData[[termCol]])
+  )
+  goData$log10_pval <- -log10(as.numeric(goData[[pvalCol]]))
+  
+  logPvalCol <- "log10_pval"
+  
+  ggBar <- ggplot(data = goData, mapping = aes(x = !!sym(termCol), y = !!sym(logPvalCol))) +
+    geom_bar(mapping = aes(fill = !!sym(colorCol)), stat='identity') +
+    geom_text(mapping = aes(y = !!sym(logPvalCol), label = !!sym(countCol)), hjust = 1.2) +
+    labs(title = title, y = "-log10(p-value)") +
+    coord_flip() +
+    # scale_y_discrete(expand = expand_scale(add = c(0, 1))) +
+    facet_grid(rows = vars(!!sym(colorCol)), scales = "free_y") +
+    theme_bw() +
+    theme_classic() +
+    theme(
+      panel.grid = element_blank(),
+      strip.background = element_blank(),
+      strip.text = element_blank(),
+      panel.spacing = unit(0, "cm"),
+      # panel.border = element_blank(),
+      axis.text = element_text(size = 12),
+      axis.title.y = element_blank(),
+      plot.title = element_text(size = 12, face = "bold", hjust = 1),
+      axis.title = element_text(size = 12, face = "bold")
+    )
+  
+  return(ggBar)
+}
 
 ##################################################################################
 
