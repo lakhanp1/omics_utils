@@ -4,7 +4,7 @@ library(tidyverse)
 library(RColorBrewer)
 library(data.table)
 library(here)
-library(org.DRerio.GRCz11.Ensembl97.eg.db)
+library(org.HSapiens.gencodev30.eg.db)
 
 ##
 ## This script plots the 
@@ -15,10 +15,10 @@ library(org.DRerio.GRCz11.Ensembl97.eg.db)
 
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/s02_DESeq2_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
-analysisName <- "PG_HE_8mpf_vs_PG_WT_8mpf"
-outDir <- here::here("analysis", "02_DESeq2_diff", analysisName)
+analysisName <- "PHH_vs_PCL5_CTCF_OE"
+outDir <- here::here("analysis", "09_RNAseq_CTCF", "03_DEG_compare", analysisName)
 
 if(!dir.exists(outDir)){
   stop("outDir does not exist")
@@ -26,34 +26,36 @@ if(!dir.exists(outDir)){
 
 outPrefix <- paste(outDir, analysisName, sep = "/")
 
-file_RNAseq_info <- here::here("data", "RNAseq_info.txt", sep = "")
+file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
+diffDataPath <- here::here("analysis", "09_RNAseq_CTCF", "02_DESeq2_diff")
 
-degResults <-  c("PG_HE_8mpf_vs_PG_WT_8mpf")
+degResults <-  c("PHH_SB_CTCF_OE_vs_PHH_SB_Ctrl",
+                 "PLC5_SB_CTCF_OE_vs_PLC5_SB_Ctrl")
 
 samples <- c()
 plotTitle <- "all DEG comparison"
 
-orgDb <- org.DRerio.GRCz11.Ensembl97.eg.db
+orgDb <- org.HSapiens.gencodev30.eg.db
 
 FDR_cut <- 0.05
-lfc_cut <- 0
+lfc_cut <- 1
 up_cut <- lfc_cut
 down_cut <- lfc_cut * -1
 
 ####################################################################
 
-rnaseqInfo <- suppressMessages(readr::read_tsv(file = file_RNAseq_info)) %>% 
+rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
   dplyr::filter(comparison %in% degResults)
 
 lfcCol <- "log2FoldChange"
-# geneInfo <- readr::read_tsv(file = file_geneInfo) %>%
-#   distinct(geneId, .keep_all = T)
 
 ## use org.db
 geneInfo <- AnnotationDbi::select(x = orgDb,
-                                  keys = keys(orgDb),
-                                  columns = c("GENE_NAME", "DESCRIPTION")) %>% 
-  dplyr::rename(geneId = GID)
+                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
+                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
+                                  keytype = "ENSEMBL_VERSION") %>% 
+  dplyr::rename(geneId = ENSEMBL_VERSION)
+
 
 ####################################################################
 ## import data
@@ -61,7 +63,7 @@ geneInfo <- AnnotationDbi::select(x = orgDb,
 ## function to extract the log2FoldChange, padj and diff coulumns for each DEG result file
 get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange"){
   
-  degs <- fread(file = degFile, sep = "\t", header = T, stringsAsFactors = F)
+  degs <- suppressMessages(readr::read_tsv(file = degFile))
   
   newColName <- structure(c(lfcCol, "padj"),
                           names = paste(c("lfc.", "padj." ), name, sep = ""))
