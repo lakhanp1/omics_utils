@@ -131,12 +131,15 @@ enrichment_bar <- function(df, title, pvalCol = "weightedFisher", termCol = "Ter
   
   goData <- dplyr::arrange(df, !!sym(colorCol), desc(!!sym(pvalCol)))
   wrap_80 <- wrap_format(80)
+  
   goData[[termCol]] <- wrap_80(goData[[termCol]])
   goData[[termCol]] <- sprintf(fmt = "%80s", goData[[termCol]])
   goData[[termCol]] <- factor(goData[[termCol]],
                               levels = unique(goData[[termCol]])
   )
   goData$log10_pval <- -log10(as.numeric(goData[[pvalCol]]))
+  
+  title <- wrap_80(title)
   
   logPvalCol <- "log10_pval"
   
@@ -196,6 +199,7 @@ enrichment_scatter <- function(df, title, pvalCol = "weightedFisher", termCol = 
   )
   goData$log10_pval <- -log10(as.numeric(goData[[pvalCol]]))
   
+  title <- wrap_80(title)
   logPvalCol <- "log10_pval"
   
   ## color scales
