@@ -1,10 +1,12 @@
 library(ComplexHeatmap)
 library(circlize)
 library(tidyverse)
+library(cowplot)
 library(RColorBrewer)
 library(data.table)
 library(here)
 library(org.HSapiens.gencodev30.eg.db)
+
 
 ##
 ## This script plots the 
@@ -16,7 +18,7 @@ rm(list = ls())
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
 
-analysisName <- "PHH_vs_PCL5_CTCF_OE"
+analysisName <- "PCL5_vs_Huh7_CTCF_KO"
 outDir <- here::here("analysis", "09_RNAseq_CTCF", "03_DEG_compare", analysisName)
 
 if(!dir.exists(outDir)){
@@ -28,8 +30,8 @@ outPrefix <- paste(outDir, analysisName, sep = "/")
 file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
 diffDataPath <- here::here("analysis", "09_RNAseq_CTCF", "02_DESeq2_diff")
 
-degResults <-  c("PLC5_SB_CTCF_OE_vs_PLC5_SB_Ctrl",
-                 "PHH_SB_CTCF_OE_vs_PHH_SB_Ctrl")
+degResults <-  c("Huh7_CRI_CTCF_KO_vs_Huh7_CRI_Ctrl",
+                 "PLC5_CRI_CTCF_KO_vs_PLC5_CRI_Ctrl")
 
 samples <- c()
 plotTitle <- "all DEG comparison"
@@ -171,7 +173,46 @@ degGroupsGo <- dplyr::group_by_at(degGroupsDf, .vars = vars(starts_with("diff.")
 
 readr::write_tsv(x = degGroupsGo, path = paste(outPrefix, ".DEG_overlap.topGO.tab", sep = ""))
 
+####################################################################
+## plot GO enrichment figures
+degGroupsGo <- suppressMessages(
+  readr::read_tsv(file = paste(outPrefix, ".DEG_overlap.topGO.tab", sep = ""))
+)
+
+
+goBarPlots <- degGroupsGo %>% 
+  dplyr::group_by_at(.vars = vars(starts_with("diff."))) %>% 
+  dplyr::slice(1:10) %>% 
+  dplyr::mutate(
+    groupId = dplyr::group_indices()
+  ) %>% 
+  tidyr::unite(col = "group", groupId, starts_with("diff."), remove = FALSE) %>% 
+  dplyr::do(
+    plots = enrichment_bar(
+      df = ., title = paste(title, ":", unique(.$group)),
+      pvalCol = "weightedFisher",
+      termCol = "Term",
+      colorCol = "group",
+      countCol = "Significant"
+    ),
+    group = unique(.$group)
+  ) %>% 
+  tidyr::unnest(group)
+
+
+goPlotList <- goBarPlots$plots %>% 
+  purrr::set_names(goBarPlots$group)
 
 
 
+goPlotList <- cowplot::align_plots(plotlist = goPlotList, align = "v", axis = "rl")
+
+pdf(file = paste(outPrefix, ".DEG_overlap.topGO.barplot.pdf", sep = ""),
+    width = 10, height = 4, onefile = TRUE)
+
+for (i in names(goPlotList)) {
+  plot(goPlotList[[i]])
+}
+
+dev.off()
 
