@@ -168,24 +168,29 @@ genomeSize <- suppressMessages(
                   col_names = c("chr", "length"))) %>% 
   dplyr::mutate(isCircular = FALSE)
 
-seqInfo <- Seqinfo(seqnames = genomeSize$chr, seqlengths = genomeSize$length,
-                   isCircular = genomeSize$isCircular, genome = "A_nidulans")
+seqInfo <- Seqinfo(
+  seqnames = genomeSize$chr,
+  seqlengths = genomeSize$length,
+  isCircular = genomeSize$isCircular,
+  genome = "Aspergillus_nidulans")
 
-txdbData <- GenomicFeatures::makeTxDbFromGFF(file = file_gff,
-                                             dataSource = "A_nidulans AspGD GFF",
-                                             organism = "Aspergillus nidulans",
-                                             metadata = metadata,
-                                             taxonomyId = 162425,
-                                             chrominfo = seqInfo)
+txdbData <- GenomicFeatures::makeTxDbFromGFF(
+  file = file_gff,
+  dataSource = "A_nidulans AspGD GFF",
+  organism = "Aspergillus nidulans",
+  metadata = metadata,
+  taxonomyId = 162425,
+  chrominfo = seqInfo)
 
 makePackageName(txdbData)
 
-makeTxDbPackage(txdb = txdbData,
-                version = "03.05.06",
-                maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
-                author = "Lakhansing Pardeshi Chris Lab",
-                destDir = ".",
-                pkgname = "TxDb.Anidulans.FGSCA4.AspGD.GFF"
+makeTxDbPackage(
+  txdb = txdbData,
+  version = "03.05.06",
+  maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
+  author = "Lakhansing Pardeshi Chris Lab",
+  destDir = ".",
+  pkgname = "TxDb.Anidulans.FGSCA4.AspGD.GFF"
 )
 
 
