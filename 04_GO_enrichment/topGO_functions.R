@@ -23,7 +23,7 @@ library(wordcloud) # word-cloud generator
 #' @param algo One of the algorithm for topGO: "classic", "elim", "weight", "weight01", "lea", "parentchild".
 #' Default: "weight01"
 #' @param bgNodeLimit Any GO term with more than this number of genes in background is removed from the
-#' topGO output. Default: 500. If NULL, no such limit is used.
+#' topGO output. Default: NULL i.e. no such limit is used.
 #'
 #' @return A topGO enrichment result table
 #' @export
@@ -31,7 +31,7 @@ library(wordcloud) # word-cloud generator
 #' @examples topGO_enrichment(goMapFile = goToGeneFile, genes = genes)
 #' 
 topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
-                             algo = "weight01", bgNodeLimit = 500){
+                             algo = "weight01", bgNodeLimit = NULL){
   
   geneID2GO <- topGO::readMappings(file = goMapFile)
   geneNames <- names(geneID2GO)
@@ -335,7 +335,7 @@ topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
 #' Group genes into GO terms at specific level
 #'
 #' @param genes A vector of gene IDs
-#' @param org OrgDb
+#' @param orgDb OrgDb
 #' @param goLevel GO graph level at which grouping to be performed. Default: 3
 #' @param type GO category. One of "MF", "BP", and "CC". Default: "BP"
 #' @param ... Other arguments to groupGO function
@@ -344,11 +344,11 @@ topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
 #' @export
 #'
 #' @examples NA
-clusterProfiler_groupGO <- function(genes, org, goLevel = 3, type = "BP", ...){
+clusterProfiler_groupGO <- function(genes, orgDb, goLevel = 3, type = "BP", ...){
   
   grpGo <- suppressMessages(
     clusterProfiler::groupGO(gene = genes,
-                             OrgDb = org,
+                             OrgDb = orgDb,
                              ont = type,
                              level = goLevel,
                              ...)
@@ -450,14 +450,14 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
 #'
 #' @param genes A vector of gene Ids
 #' @param goTerms GO term ID vector
-#' @param org an org.db object
+#' @param orgDb an org.db object
 #' @param keytype keytype in org.db for the input genes
 #'
 #' @return A dataframe with GO term to gene mapping statistics
 #' @export
 #'
 #' @examples
-GO_map <- function(genes, goTerms, org, keytype){
+GO_map <- function(genes, goTerms, orgDb, keytype){
   
   # Ontology(goTerms[1])
   # AnnotationDbi::get(goTerms[1], GO.db::GOBPOFFSPRING)
@@ -474,14 +474,14 @@ GO_map <- function(genes, goTerms, org, keytype){
   ## get the total number of genes annotated for each ONTOLOGY category
   ontStats <- suppressMessages(
     AnnotationDbi::select(
-      x = org,
-      keys = AnnotationDbi::keys(x = org, keytype = keytype),
+      x = orgDb,
+      keys = AnnotationDbi::keys(x = orgDb, keytype = keytype),
       keytype = keytype,
       columns = c("GOALL", "ONTOLOGYALL")
     )
   ) %>% 
     dplyr::group_by(ONTOLOGYALL) %>% 
-    dplyr::summarise(n = n_distinct(GID)) %>% 
+    dplyr::summarise(n = n_distinct(!!sym(keytype))) %>% 
     dplyr::filter(!is.na(ONTOLOGYALL))
   
   
@@ -491,25 +491,29 @@ GO_map <- function(genes, goTerms, org, keytype){
   ## true for GO column
   goData <- suppressMessages(
     AnnotationDbi::select(
-      x = org,
-      keys = goTerms, columns = c("GID"),
+      x = orgDb,
+      keys = goTerms, columns = c(keytype),
       keytype = "GOALL"
-    ))
+    )) %>% 
+    dplyr::rename(geneId = !!sym(keytype))
   
   ## build summary table
   summaryDf <- dplyr::group_by(goData, GOALL) %>% 
     dplyr::summarise(
-      count = length(intersect(x = GID, y = genes)),
+      count = length(intersect(x = geneId, y = genes)),
       inputSize = n_distinct(genes),
-      background = n_distinct(GID),
-      genes = paste(intersect(x = GID, y = genes), collapse = ";")
+      background = n_distinct(geneId),
+      genes = paste(intersect(x = geneId, y = genes), collapse = ";")
     ) %>% 
     dplyr::ungroup()
   
   goMap <- dplyr::left_join(x = goTable, y = summaryDf,by = c("GOID" = "GOALL")) %>%
     dplyr::left_join(y = ontStats, by = c("ONTOLOGY" = "ONTOLOGYALL")) %>% 
-    dplyr::mutate(backgroundRatio = paste(background, "/", n, sep = "")) %>% 
-    dplyr::select(GOID, TERM, ONTOLOGY, count, inputSize, backgroundRatio, genes)
+    dplyr::mutate(
+      backgroundRatio = paste(background, "/", n, sep = ""),
+      enrichment = round(count/background, 3)
+    ) %>% 
+    dplyr::select(GOID, TERM, ONTOLOGY, count, enrichment, inputSize, backgroundRatio, genes)
   
   return(goMap)
 }
@@ -522,13 +526,13 @@ GO_map <- function(genes, goTerms, org, keytype){
 #'
 #' @param genes 
 #' @param pathways 
-#' @param org 
+#' @param orgDb 
 #'
 #' @return
 #' @export
 #'
 #' @examples
-KEGG_map <- function(genes, pathways, org){
+KEGG_map <- function(genes, pathways, orgDb){
   
   
 }
