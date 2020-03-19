@@ -127,6 +127,15 @@ devtools::install(
   pkg = "E:/Chris_UM/Database/Zebrafish/GRCz11/annotation_resources/org.DRerio.GRCz11.Ensembl97.eg.db",
   upgrade = "never")
 
+## Mouse
+devtools::install(
+  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/TxDb.Mmusculus.GRCm38p6.Ensembl99",
+  upgrade = "never")
+
+devtools::install(
+  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/org.Mmusculus.GRCm38p6.99.eg.db",
+  upgrade = "never")
+
 
 ############################################################################
 ###############         BSgenome packages            #######################
