@@ -7,10 +7,11 @@
 ## function to plot volcano plot
 volcano_plot <- function(df, title = "volcano plot",
                          fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1,
-                         ylimit = 150, xlimit = c(-4, 4), geneOfInterest, showNames = TRUE){
+                         ylimit = 150, xlimit = c(-4, 4),
+                         markGenes = NULL, geneNameCol = NULL, showNames = TRUE){
   
-  if (is.null(df[["geneName"]])) {
-    df$geneName = df$geneId
+  if (is.null(df[[geneNameCol]])) {
+    df[[geneNameCol]] = df$geneId
   }
   
   up_cut <- lfc_cut
@@ -34,14 +35,14 @@ volcano_plot <- function(df, title = "volcano plot",
   
   
   #Drwa Volcano plot
-  p <- ggplot() +
+  pt <- ggplot(mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
     geom_hline(yintercept = -log10(fdr_cut), color = "black", linetype = "dashed") +
     geom_vline(xintercept = -lfc_cut, color = "black", linetype = "dashed") +
     geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
     # geom_point(mapping = aes(color = significant), alpha=0.6, size=1.75) +
     geom_point(
       data = df,
-      mapping = aes(x = !! sym(lfc_col), y = log10FDR, color = category), alpha=0.6, size=1.75
+      mapping = aes(color = category), alpha=0.6, size=1.75
     ) +
     scale_color_manual(
       values = c("Significant Up" = "red", "Significant Down" = "green",
@@ -63,28 +64,32 @@ volcano_plot <- function(df, title = "volcano plot",
   
   
   ## highlight genes of interest
-  if(!missing(geneOfInterest)){
-    tmpDf <- dplyr::filter(df, geneName %in% geneOfInterest)
+  if(!missing(markGenes)){
+    tmpDf <- dplyr::filter(df, !!sym(geneNameCol) %in% markGenes)
     
     ## draw the points
-    p <- p +
-      geom_point(data = tmpDf,
-                 color = "black",
-                 shape = 1
+    pt <- pt +
+      geom_point(
+        data = tmpDf,
+        color = "black",
+        size=1.75, shape = 1
       )
     
     ## show the gene lables
     if(isTRUE(showNames)){
-      p <- p +
-        geom_text_repel(data = tmpDf, mapping = aes(label = geneName),
-                        segment.color = '#cccccc',
-                        segment.size = 1,
-                        size = 5) 
+      pt <- pt +
+        geom_text_repel(
+          data = tmpDf,
+          mapping = aes(label = !!sym(geneNameCol)),
+          segment.color = 'black',
+          segment.size = 1,
+          ylim = c(-log10(fdr_cut), NA),
+          size = 5) 
     }
   }
   
   return(list(
-    plot = p,
+    plot = pt,
     data = df
   ))
 }
@@ -151,6 +156,7 @@ get_diff_info <- function(degInfoFile, dataPath){
     diffInfo,
     rld = paste(dataPath, "/", comparison, "/", comparison, ".rlogCounts.tab", sep = ""),
     normCount = paste(dataPath, "/", comparison, "/", comparison, ".normCounts.tab", sep = ""),
+    fpkm = paste(dataPath, "/", comparison, "/", comparison, ".FPKM.tab", sep = ""),
     deseq2 = paste(dataPath, "/", comparison, "/", comparison, ".DESeq2.tab", sep = ""),
     deseq2_shrink = paste(dataPath, "/", comparison, "/", comparison, ".DESeq2_shrunken.tab", sep = ""),
     deg = paste(dataPath, "/", comparison, "/", comparison, ".DEG_all.txt", sep = ""),
