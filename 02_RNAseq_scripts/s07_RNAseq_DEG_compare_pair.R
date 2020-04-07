@@ -18,7 +18,7 @@ rm(list = ls())
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
 
-analysisName <- "PCL5_vs_Huh7_CTCF_KO"
+analysisName <- "PCL5_CTCF_OE_and_KO"
 outDir <- here::here("analysis", "09_RNAseq_CTCF", "03_DEG_compare", analysisName)
 
 if(!dir.exists(outDir)){
@@ -30,7 +30,7 @@ outPrefix <- paste(outDir, analysisName, sep = "/")
 file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
 diffDataPath <- here::here("analysis", "09_RNAseq_CTCF", "02_DESeq2_diff")
 
-degResults <-  c("Huh7_CRI_CTCF_KO_vs_Huh7_CRI_Ctrl",
+degResults <-  c("PLC5_SB_CTCF_OE_vs_PLC5_SB_Ctrl",
                  "PLC5_CRI_CTCF_KO_vs_PLC5_CRI_Ctrl")
 
 samples <- c()
@@ -39,10 +39,11 @@ plotTitle <- "all DEG comparison"
 orgDb <- org.HSapiens.gencodev30.eg.db
 file_topGO <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/geneid2go.HSapiens.GRCh38p12.topGO.map"
 
-FDR_cut <- 0.05
-lfc_cut <- 1
-up_cut <- lfc_cut
-down_cut <- lfc_cut * -1
+
+cutoff_fdr <- 0.05
+cutoff_lfc <- 0.585
+cutoff_up <- cutoff_lfc
+cutoff_down <- -1 * cutoff_lfc
 
 ####################################################################
 
@@ -63,19 +64,19 @@ geneInfo <- AnnotationDbi::select(x = orgDb,
 ## import data
 
 ## function to extract the log2FoldChange, padj and diff coulumns for each DEG result file
-get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange", ...){
+get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange", otherCols = NULL){
   
   degs <- suppressMessages(readr::read_tsv(file = degFile)) %>% 
     dplyr::mutate(
       diff = dplyr::case_when(
-        !!sym(lfcCol) >= up_cut & padj <= FDR_cut ~ "up",
-        !!sym(lfcCol) <= down_cut & padj <= FDR_cut ~ "down",
+        !!sym(lfcCol) >= cutoff_up & padj <= cutoff_fdr ~ "up",
+        !!sym(lfcCol) <= cutoff_down & padj <= cutoff_fdr ~ "down",
         TRUE ~ "noDEG"
       ),
       contrast = !!name
     ) %>% 
-    dplyr::filter(diff != "noDEG") %>% 
-    dplyr::select(geneId, !!lfcCol, padj, diff, contrast, ...)
+    # dplyr::filter(diff != "noDEG") %>% 
+    dplyr::select(geneId, !!lfcCol, padj, diff, contrast, otherCols)
   
   return(degs)
 }
@@ -86,21 +87,24 @@ degData <- NULL
 
 for(i in 1:nrow(rnaseqInfo)){
   dt <- get_foldchange(degFile = rnaseqInfo$deg[i], name = rnaseqInfo$comparison[i],
-                       lfcCol = lfcCol, "ENSEMBL")
+                       lfcCol = lfcCol, otherCols = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"))
   degData <- dplyr::bind_rows(degData, dt)
 }
-
 
 # geneInfo <- dplyr::left_join(geneInfo, dt, by = c("geneId" = "geneId"))
 
 degData <- dplyr::mutate(degData, group = paste(contrast, "_", diff, sep = ""))
 
-dplyr::group_by(degData, diff, contrast) %>% 
-  dplyr::summarise(n = n())
 
 ####################################################################
 
-geneList <- split(x = degData$geneId, f = degData$group)
+degLists <- dplyr::filter(degData, diff != "noDEG") %>% 
+  dplyr::group_by(diff, contrast, group) %>% 
+  dplyr::summarise(
+    n = n(),
+    geneList = list(geneId))
+
+geneList <- purrr::set_names(x = degLists$geneList, nm = degLists$group)
 
 title <- paste("DEG overlap in", paste(degResults, collapse = ", "), "\n", collapse = " ")
 wrap_80 <- scales::wrap_format(80)
@@ -155,11 +159,22 @@ dev.off()
 ## GO enrichment for individual groups
 degGroupsDf <- degData %>% 
   pivot_wider(
-    id_cols = c(geneId, ENSEMBL),
+    id_cols = c(geneId, ENSEMBL, GENE_NAME, DESCRIPTION),
     names_from = c(contrast),
-    values_from = c(diff, log2FoldChange),
+    values_from = c(diff, log2FoldChange, padj),
     names_sep = "."
-  )
+  ) 
+
+## save the data
+readr::write_tsv(x = degGroupsDf, path = paste(outPrefix, ".DEG_overlap.tab", sep = ""))
+
+
+## remove the genes which are "noDEG" in both conditions to perform GO enrichment
+degGroupsGo <- dplyr::filter_at(
+  .tbl = degGroupsDf,
+  .vars = vars(starts_with("diff")),
+  .vars_predicate = any_vars(. != "noDEG")
+)
 
 
 degGroupsGo <- dplyr::group_by_at(degGroupsDf, .vars = vars(starts_with("diff."))) %>% 
@@ -171,7 +186,7 @@ degGroupsGo <- dplyr::group_by_at(degGroupsDf, .vars = vars(starts_with("diff.")
   )
 
 
-readr::write_tsv(x = degGroupsGo, path = paste(outPrefix, ".DEG_overlap.topGO.tab", sep = ""))
+readr::write_tsv(x = degGroupsGo, path = paste(outPrefix, ".DEG_groups.topGO.tab", sep = ""))
 
 ####################################################################
 ## plot GO enrichment figures
