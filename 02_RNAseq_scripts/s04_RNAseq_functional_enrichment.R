@@ -35,7 +35,7 @@ keggOrg <- 'hsa'
 keggIdCol <- "NCBI_ID"
 file_topGO <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/geneid2go.HSapiens.GRCh38p12.topGO.map"
 
-cutoff_qval <- 0.05
+cutoff_fdr <- 0.05
 cutoff_lfc <- 1
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
@@ -63,10 +63,10 @@ if(! keggIdCol %in% colnames(degs)){
   degs <- dplyr::left_join(x = degs, y = keggInfo, by = "geneId")
 }
 
-downDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) <= cutoff_down) %>% 
+downDegs <- dplyr::filter(degs, padj <= cutoff_fdr & !!sym(col_lfc) <= cutoff_down) %>% 
   dplyr::mutate(category = "down")
 
-upDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) >= cutoff_up) %>% 
+upDegs <- dplyr::filter(degs, padj <= cutoff_fdr & !!sym(col_lfc) >= cutoff_up) %>% 
   dplyr::mutate(category = "up")
 
 degData <- dplyr::bind_rows(upDegs, downDegs)

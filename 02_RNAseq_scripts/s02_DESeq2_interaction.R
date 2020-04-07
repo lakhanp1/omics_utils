@@ -30,12 +30,10 @@ if(!dir.exists(outDir)){
   dir.create(path = outDir)
 }
 
-FDR_cut <- 0.05
-lfc_cut <- 0.585
-up_cut <- lfc_cut
-down_cut <- lfc_cut * -1
-
-
+cutoff_fdr <- 0.05
+cutoff_lfc <- 0.585
+cutoff_up <- cutoff_lfc
+cutoff_down <- -1 * cutoff_lfc
 ###########################################################################
 ## set levels for experiment design information
 
@@ -171,7 +169,7 @@ resultsNames(dds)
 res_BA_gt1 <- results(dds, name = "treatment_AA_vs_C")
 
 ## another way to extract condition effect for genotype I using contrast argument
-# res_BA_gt1_2 <- results(dds, contrast = c("treatment", "AA", "Control"), lfcThreshold = lfc_cut)
+# res_BA_gt1_2 <- results(dds, contrast = c("treatment", "AA", "Control"), lfcThreshold = cutoff_lfc)
 
 summary(res_BA_gt1)
 mcols(res_BA_gt1)
@@ -248,7 +246,7 @@ plotMA(resShrink_inter_gt21_BA, ylim=c(-4,4), main = "MA plot with apeglm shrunk
 # geneplotter::plotMA(object = data.frame(
 #   m = resInter_gt21_BA$baseMean,
 #   a = resInter_gt21_BA$log2FoldChange,
-#   c = ifelse(abs(resInter_gt21_BA$log2FoldChange) >= lfc_cut & resInter_gt21_BA$padj <= FDR_cut, TRUE, FALSE)),
+#   c = ifelse(abs(resInter_gt21_BA$log2FoldChange) >= cutoff_lfc & resInter_gt21_BA$padj <= cutoff_fdr, TRUE, FALSE)),
 #   ylim=c(-4,4), 
 #   main = "MA plot with unshrunken LFC"
 # )
@@ -257,7 +255,7 @@ plotMA(resShrink_inter_gt21_BA, ylim=c(-4,4), main = "MA plot with apeglm shrunk
 # geneplotter::plotMA(object = data.frame(
 #   m = resShrink_inter_gt21_BA$baseMean,
 #   a = resShrink_inter_gt21_BA$log2FoldChange,
-#   c = ifelse(abs(resShrink_inter_gt21_BA$log2FoldChange) >= lfc_cut & resShrink_inter_gt21_BA$padj <= FDR_cut, TRUE, FALSE)),
+#   c = ifelse(abs(resShrink_inter_gt21_BA$log2FoldChange) >= cutoff_lfc & resShrink_inter_gt21_BA$padj <= cutoff_fdr, TRUE, FALSE)),
 #   ylim=c(-4,4), 
 #   main = "MA plot with apeglm shrunken LFC"
 # )
@@ -329,13 +327,13 @@ diffData <- resultTable %>%
   left_join(y = geneSym, by = c("geneId" = "geneId")) %>%
   mutate(
     diff_l2fc = case_when(
-      padj < FDR_cut & log2FoldChange >= up_cut ~ "up",
-      padj < FDR_cut & log2FoldChange <= down_cut ~ "down",
+      padj < cutoff_fdr & log2FoldChange >= cutoff_up ~ "up",
+      padj < cutoff_fdr & log2FoldChange <= cutoff_down ~ "down",
       TRUE ~ "noDEG"
     ),
     diff_shrink_l2fc = dplyr::case_when(
-      padj < FDR_cut & shrinkLog2FC >= up_cut ~ "up",
-      padj < FDR_cut & shrinkLog2FC <= down_cut ~ "down",
+      padj < cutoff_fdr & shrinkLog2FC >= cutoff_up ~ "up",
+      padj < cutoff_fdr & shrinkLog2FC <= cutoff_down ~ "down",
       TRUE ~ "noDEG"
     )
   ) %>% 
@@ -344,10 +342,10 @@ diffData <- resultTable %>%
 
 head(diffData)
 
-significant <- filter(diffData, padj < FDR_cut, log2FoldChange >= up_cut | log2FoldChange <= down_cut)
+significant <- filter(diffData, padj < cutoff_fdr, log2FoldChange >= cutoff_up | log2FoldChange <= cutoff_down)
 
-significant_up <- filter(diffData, padj < FDR_cut, log2FoldChange >= up_cut)
-significant_down <- filter(diffData, padj < FDR_cut, log2FoldChange <= down_cut)
+significant_up <- filter(diffData, padj < cutoff_fdr, log2FoldChange >= cutoff_up)
+significant_down <- filter(diffData, padj < cutoff_fdr, log2FoldChange <= cutoff_down)
 
 readr::write_tsv(x = resultTable, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
 readr::write_tsv(x = diffData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
@@ -370,7 +368,7 @@ p2 <- volcanoPlot(df = diffData,
                   title = plotTitle, 
                   fdr_col = "padj", 
                   lfc_col = "shrinkLog2FC",
-                  fdr_Cut = FDR_cut, lfc_cut = lfc_cut, 
+                  fdr_Cut = cutoff_fdr, lfc_cut = cutoff_lfc, 
                   geneOfInterest = markGenes,
                   ylimit = 10)
 

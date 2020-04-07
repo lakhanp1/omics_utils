@@ -45,7 +45,7 @@ file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
 
 orgDb <- org.Mmusculus.GRCm38p6.99.eg.db
 
-cutoff_qval <- 0.05
+cutoff_fdr <- 0.05
 cutoff_lfc <- 0.585
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
@@ -107,7 +107,7 @@ i <- 1
 
 for(i in 1:nrow(rnaseqInfo)){
   dt <- get_foldchange(degFile = rnaseqInfo$deseq2[i], name = rnaseqInfo$comparison[i],
-                       lfcCol = lfcCol, fdr_cut = cutoff_qval)
+                       lfcCol = lfcCol, fdr_cut = cutoff_fdr)
   geneInfo <- dplyr::left_join(geneInfo, dt, by = c("geneId" = "geneId"))
 }
 

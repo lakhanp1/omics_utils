@@ -37,10 +37,10 @@ plotTitle <- "all DEG comparison"
 
 orgDb <- org.HSapiens.gencodev30.eg.db
 
-FDR_cut <- 0.05
-lfc_cut <- 1
-up_cut <- lfc_cut
-down_cut <- lfc_cut * -1
+cutoff_fdr <- 0.05
+cutoff_lfc <- 0.585
+cutoff_up <- cutoff_lfc
+cutoff_down <- -1 * cutoff_lfc
 
 ####################################################################
 
@@ -69,7 +69,7 @@ get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange"){
                           names = paste(c("lfc.", "padj." ), name, sep = ""))
   
   df <- degs %>%
-    dplyr::mutate(!! lfcCol := if_else(condition = padj < FDR_cut, true = !! as.name(lfcCol), false = 0)) %>% 
+    dplyr::mutate(!! lfcCol := if_else(condition = padj < cutoff_fdr, true = !! as.name(lfcCol), false = 0)) %>% 
     tidyr::replace_na(purrr::set_names(list(0), nm = c(lfcCol))) %>% 
     dplyr::select(geneId, !! lfcCol, padj) %>%
     dplyr::distinct() %>% 
@@ -91,7 +91,7 @@ for(i in 1:nrow(rnaseqInfo)){
 # dplyr::filter_at(.tbl = geneInfo, .vars = vars(starts_with("padj.")), .vars_predicate = all_vars(is.na(.)))
 allData <- dplyr::filter_at(.tbl = geneInfo,
                             .vars = vars(starts_with("padj.")),
-                            .vars_predicate = any_vars(. < FDR_cut))
+                            .vars_predicate = any_vars(. < cutoff_fdr))
 
 ####################################################################
 rownameCol <- "geneId"

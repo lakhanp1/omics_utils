@@ -45,7 +45,7 @@ file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
 
 orgDb <- org.Mmusculus.GRCm38p6.99.eg.db
 
-cutoff_qval <- 0.05
+cutoff_fdr <- 0.05
 cutoff_lfc <- 0.585
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
@@ -101,7 +101,7 @@ pt_vol <- volcano_plot(
   df = diffData,
   title = plotTitle,
   fdr_col = fdrCol, lfc_col = lfcCol,
-  fdr_cut = cutoff_qval, lfc_cut = cutoff_lfc,
+  fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc,
   markGenes = geneSets$GENE_NAME[[i]]$GENE_NAME,
   geneNameCol = "GENE_NAME",
   ylimit = 8, xlimit = c(-7, 7)

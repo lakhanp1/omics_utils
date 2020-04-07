@@ -44,11 +44,12 @@ if(!dir.exists(outDir)){
   dir.create(path = outDir, recursive = TRUE)
 }
 
+col_geneId <- "GID"
 
-FDR_cut <- 0.05
-lfc_cut <- 0.585
-up_cut <- lfc_cut
-down_cut <- lfc_cut * -1
+cutoff_fdr <- 0.05
+cutoff_lfc <- 0.585
+cutoff_up <- cutoff_lfc
+cutoff_down <- cutoff_lfc * -1
 
 ###########################################################################
 ## set levels for experiment design information
@@ -124,10 +125,11 @@ dds <- DESeq(ddsTxi)
 ###########################################################################
 ## Add gene symbol for each Ensembl ID
 geneInfo <- AnnotationDbi::select(x = orgDb,
-                                  keys = keys(x = orgDb, keytype = "GID"),
-                                  columns = c("NCBI_ID", "GENE_NAME", "DESCRIPTION"),
-                                  keytype = "GID") %>% 
-  dplyr::rename(geneId = GID)
+                                  keys = keys(x = orgDb, keytype = col_geneId),
+                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
+                                  keytype = col_geneId) %>% 
+  dplyr::rename(geneId = !!col_geneId)
+
 
 
 ## Make sure to merge the geneIds which are duplicated using group_by + summarize_all and remove the NA strings in data frame by replacing it with real <NA>
@@ -148,10 +150,7 @@ readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = 
 
 ## FPKM
 fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-
-fwrite(x = fpkmCounts, file = paste(outPrefix, "_FPKM.tab", sep = ""),
-       sep = "\t", row.names = F, col.names = T, quote = F)
-
+readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
@@ -402,15 +401,15 @@ diffData <- resultTable %>%
   left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
   mutate(
     diff_l2fc = dplyr::case_when(
-      padj < FDR_cut & log2FoldChange >= up_cut ~ "up",
-      padj < FDR_cut & log2FoldChange <= down_cut ~ "down",
+      padj < cutoff_fdr & log2FoldChange >= cutoff_up ~ "up",
+      padj < cutoff_fdr & log2FoldChange <= cutoff_down ~ "down",
       TRUE ~ "noDEG"
     ),
-    diff_shrink_l2fc = dplyr::case_when(
-      padj < FDR_cut & shrinkLog2FC >= up_cut ~ "up",
-      padj < FDR_cut & shrinkLog2FC <= down_cut ~ "down",
-      TRUE ~ "noDEG"
-    )
+    # diff_shrink_l2fc = dplyr::case_when(
+    #   padj < cutoff_fdr & shrinkLog2FC >= cutoff_up ~ "up",
+    #   padj < cutoff_fdr & shrinkLog2FC <= cutoff_down ~ "down",
+    #   TRUE ~ "noDEG"
+    # )
   )
 
 
@@ -422,8 +421,8 @@ degData <- diffData %>%
   shrinkLog2FC, pvalue, padj, diff_l2fc, diff_shrink_l2fc, !!!selCols)
 
 
-significant_up <- filter(degData, padj < FDR_cut, log2FoldChange >= up_cut)
-significant_down <- filter(degData, padj < FDR_cut, log2FoldChange <= down_cut)
+significant_up <- filter(degData, padj < cutoff_fdr, log2FoldChange >= cutoff_up)
+significant_down <- filter(degData, padj < cutoff_fdr, log2FoldChange <= cutoff_down)
 
 readr::write_tsv(x = resDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
 readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2_shrunken.tab", sep = ""))
@@ -443,7 +442,7 @@ p2 <- volcano_plot(df = diffData,
                    title = plotTitle,
                    fdr_col = "padj",
                    lfc_col = "log2FoldChange",
-                   fdr_cut = FDR_cut, lfc_cut = lfc_cut,
+                   fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc,
                    geneOfInterest = markGenes,
                    ylimit = 100, xlimit = c(-7, 7))
 
@@ -493,7 +492,7 @@ dev.off()
 ###########################################################################
 
 ## heatmap of normalized read counts
-significant <- filter(diffData, padj < FDR_cut, log2FoldChange >= up_cut | log2FoldChange <= down_cut)
+significant <- filter(diffData, padj < cutoff_fdr, log2FoldChange >= cutoff_up | log2FoldChange <= cutoff_down)
 
 ## rld z-score heatmap
 geneCounts <- significant %>% 

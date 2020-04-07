@@ -28,11 +28,11 @@ rldFile = "PG_WT_50dpf_vs_PG_WT_8mpf_rlogCounts.tab"
 diffFile = "PG_WT_50dpf_vs_PG_WT_8mpf_DEG_all.txt"
 
 outFilePrefix = paste0(compare, collapse = "_vs_")
-p_cutoff = 0.05
-lfc_cut = 1
-up_cut = lfc_cut
-down_cut = lfc_cut * -1
 
+cutoff_fdr <- 0.05
+cutoff_lfc <- 0.585
+cutoff_up <- cutoff_lfc
+cutoff_down <- -1 * cutoff_lfc
 
 # plotTitle <- paste("Top ",topN, " regulated genes for each sample pair comparison", sep = " ")
 plotTitle = paste("Heatmap of normalized counts for significant DEGs in\n", paste0(compare, collapse = " vs "), "sample comparison")
@@ -52,7 +52,7 @@ diffData = fread(diffFile, sep = "\t", stringsAsFactors = F, header = T, data.ta
 ## select only those sample rows which are part of current comparison
 designInfo = droplevels(subset(exptInfo, condition %in% compare))
 
-degGenes = filter(diffData, padj < p_cutoff, log2FoldChange >= up_cut | log2FoldChange <= down_cut)
+degGenes = filter(diffData, padj < cutoff_fdr, log2FoldChange >= cutoff_up | log2FoldChange <= cutoff_down)
 
 
 degCounts = left_join(x = degGenes, y = rld, by = c("geneID")) %>%
