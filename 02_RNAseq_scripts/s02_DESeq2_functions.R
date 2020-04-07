@@ -5,19 +5,48 @@
 
 ###########################################################################
 ## function to plot volcano plot
-volcano_plot <- function(df, title = "volcano plot",
-                         fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1,
-                         ylimit = 150, xlimit = c(-4, 4),
-                         markGenes = NULL, geneNameCol = NULL, showNames = TRUE){
+#' Generate volcano plot from RNAseq result table
+#'
+#' @param df data frame
+#' @param title plot title
+#' @param fdr_col FDR column name
+#' @param lfc_col log2(fold change) column name
+#' @param fdr_cut FDR cutoff. Default: 0.05
+#' @param lfc_cut log2(fold change). Default: 1
+#' @param ylimit Y axis limit for volcano plot
+#' @param xlimit X axis limit for volcano plot
+#' @param markGenes A vector of genes to mark with gene name. Default: NULL
+#' @param geneNameCol column from which gene name to use for marking. Default: NULL
+#' @param showNames whether to show gene names on volcano plot. Default: TRUE
+#' @param highlightGenes A named list of gene IDs for highlighting on volcano plot. Default: NULL
+#' @param highlightColor A named vector of colors for each list member. Default: NULL
+#'
+#' @return A list object with following elements:
+#' \itemize{
+#' \item plot: A ggplot2 object for volcano plot
+#' \item data: Final dataframe used in ggplot2 object
+#' }
+#' 
+#' @export
+#'
+#' @examples NA
+volcano_plot <- function(
+  df, title = "volcano plot",
+  fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1,
+  ylimit = 150, xlimit = c(-4, 4),
+  markGenes = NULL, geneNameCol = NULL, showNames = TRUE,
+  highlightGenes = NULL, highlightColor = NULL){
   
-  if (is.null(df[[geneNameCol]])) {
-    df[[geneNameCol]] = df$geneId
+  if(!is.null(geneNameCol)){
+    if (is.null(df[[geneNameCol]])) {
+      df[[geneNameCol]] <- df$geneId
+    }
   }
   
   up_cut <- lfc_cut
   down_cut <- -1 * lfc_cut
   
-  df <- df %>% 
+  plotDf <- df %>% 
     dplyr::mutate(
       category = dplyr::case_when(
         !! sym(fdr_col) < !! fdr_cut & !! sym(lfc_col) >= !! up_cut ~ "Significant Up",
@@ -29,43 +58,52 @@ volcano_plot <- function(df, title = "volcano plot",
   
   
   ## squish the value to limits
-  df$log10FDR <- -log10(df[[fdr_col]])
-  df$log10FDR <- scales::squish(x = df$log10FDR, range = c(0, ylimit))
-  df[[lfc_col]] <- scales::squish(x = df[[lfc_col]], range = xlimit)
+  plotDf$log10FDR <- -log10(plotDf[[fdr_col]])
+  plotDf$log10FDR <- scales::squish(x = plotDf$log10FDR, range = c(0, ylimit))
+  plotDf[[lfc_col]] <- scales::squish(x = plotDf[[lfc_col]], range = xlimit)
   
   
   #Drwa Volcano plot
   pt <- ggplot(mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
-    geom_hline(yintercept = -log10(fdr_cut), color = "black", linetype = "dashed") +
-    geom_vline(xintercept = -lfc_cut, color = "black", linetype = "dashed") +
-    geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
-    # geom_point(mapping = aes(color = significant), alpha=0.6, size=1.75) +
     geom_point(
-      data = df,
+      data = plotDf,
       mapping = aes(color = category), alpha=0.6, size=1.75
     ) +
     scale_color_manual(
       values = c("Significant Up" = "red", "Significant Down" = "green",
                  "Non-significant" = "black", "Significant" = "grey"), 
-      name = "Significance") +
-    scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expand_scale(mult = 0.02)) +
-    scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expand_scale(mult = 0.02)) +
-    guides(color = guide_legend(nrow = 2, byrow = T)) +
-    theme_bw() +
-    theme(legend.background = element_rect(colour = "black"),
-          legend.text = element_text(size = 14),
-          legend.title = element_text(face = "bold", size = 16),
-          legend.position = "bottom",
-          plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-          plot.margin = unit(c(1,1,1,1),"cm"),
-          axis.title = element_text(size = 16, face = "bold"),
-          axis.text = element_text(size = 16)) +
-    ggtitle(title)
+      name = "Significance")
   
   
-  ## highlight genes of interest
-  if(!missing(markGenes)){
-    tmpDf <- dplyr::filter(df, !!sym(geneNameCol) %in% markGenes)
+  
+  ## optionally, color only genes of interest
+  if(is.list(highlightGenes)){
+    
+    if(is.null(highlightColor)){
+      stop("No color provided for highlightGenes")
+    }
+    
+    ## prepare the data
+    colorGeneDf <- purrr::map_dfr(
+      .x = highlightGenes,
+      .f = ~ tibble::tibble(geneId = .x),
+      .id = "colorGroup"
+    ) %>% 
+      dplyr::left_join(y = plotDf, by = "geneId")
+    
+    ## draw the points
+    pt <- ggplot(mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
+      geom_point(data = plotDf, color = "grey", alpha = 0.8) +
+      geom_point(data = colorGeneDf,
+                 mapping = aes(color = colorGroup)) +
+      scale_color_manual(values = highlightColor)
+    
+  }
+  
+  
+  ## mark genes of interest with gene names
+  if(!missing(markGenes) && !is.null(markGenes)){
+    tmpDf <- dplyr::filter(plotDf, !!sym(geneNameCol) %in% markGenes)
     
     ## draw the points
     pt <- pt +
@@ -88,9 +126,33 @@ volcano_plot <- function(df, title = "volcano plot",
     }
   }
   
+
+  
+  
+  ## theme and plot annotations
+  pt <- pt +
+    geom_hline(yintercept = -log10(fdr_cut), color = "black", linetype = "dashed") +
+    geom_vline(xintercept = -lfc_cut, color = "black", linetype = "dashed") +
+    geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
+    scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expand_scale(mult = 0.02)) +
+    scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expand_scale(mult = 0.02)) +
+    guides(color = guide_legend(nrow = 2, byrow = T)) +
+    theme_bw() +
+    theme(legend.background = element_rect(colour = "black"),
+          legend.text = element_text(size = 14),
+          legend.title = element_text(face = "bold", size = 16),
+          legend.position = "bottom",
+          plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+          plot.margin = unit(c(1,1,1,1),"cm"),
+          axis.title = element_text(size = 16, face = "bold"),
+          axis.text = element_text(size = 16)) +
+    ggtitle(title)
+  
+  
+  
   return(list(
     plot = pt,
-    data = df
+    data = plotDf
   ))
 }
 
