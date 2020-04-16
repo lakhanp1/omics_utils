@@ -3,7 +3,10 @@ library(tidyverse)
 library(data.table)
 library(ggrepel)
 library(tximport)
-library(org.AFumigatus293.eg.db)
+library(RColorBrewer)
+library(ComplexHeatmap)
+library(circlize)
+library(org.AFumigatus.Af293.eg.db)
 library(here)
 
 ## This script:
@@ -11,27 +14,25 @@ library(here)
 ## perform differential gene expression analysis with interaction terms using DESeq2
 
 rm(list = ls())
-source("E:/Chris_UM/GitHub/omics_util/RNAseq_scripts/DESeq2_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
-analysisName <- "creE_del_AA_effect"
+analysisName <- "interaction_znfA_del_casp"
 
-outDir <- here::here("RNAseq_data", analysisName)
-file_sampleInfo <- here::here("RNAseq_data", "sampleInfo.txt")
+outDir <- here::here("analysis", "02_polII_diff", analysisName)
+file_sampleInfo <- here::here("data", "reference_data", "polII_diff_info.txt")
 
 outPrefix <- paste(outDir, analysisName, sep = "/")
 
-file_geneInfo <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r09_geneInfo.tab"
-# "E:/Chris_UM/Database/Candida_auris_B8441/Candida_auris_B8441.info.tab"
-# "E:/Chris_UM/Database/C_albicans/SC5314_A21/C_albicans_SC5314_A21.info.tab"
-# "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/A_fumigatus_Af293_version_s03-m05-r09_geneInfo.tab"
 
-orgDb <- org.AFumigatus293.eg.db
+orgDb <- org.AFumigatus.Af293.eg.db
+key_orgDb <- "GID"
+
 if(!dir.exists(outDir)){
   dir.create(path = outDir)
 }
 
 cutoff_fdr <- 0.05
-cutoff_lfc <- 0.585
+cutoff_lfc <- 1
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
 ###########################################################################
@@ -40,19 +41,15 @@ cutoff_down <- -1 * cutoff_lfc
 exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
 ## set the reference levels
-exptInfo$genotype <- factor(exptInfo$genotype, levels = c("CEA17", "5A9"))
-exptInfo$treatment <- factor(exptInfo$treatment, levels = c("C", "AA"))
-exptInfo$condition <- factor(exptInfo$condition, levels = c("CEA17_C", "5A9_C", "CEA17_AA", "5A9_AA"))
+exptInfo$genotype <- forcats::as_factor(exptInfo$genotype)
+exptInfo$treatment <- forcats::as_factor(exptInfo$treatment)
+exptInfo$condition <- forcats::as_factor(exptInfo$condition)
 
 rownames(exptInfo) <- exptInfo$sampleId
 
 design <- ~ genotype + treatment + genotype:treatment
 
-###########################################################################
-## Add gene information
-
-# geneSym = data.table::fread(file = file_geneInfo, sep = "\t", header = T, stringsAsFactors = F) %>%
-#   distinct(geneId, .keep_all = T)
+file.copy(from = file_sampleInfo, to = outDir)
 
 ###########################################################################
 ## import counts data: either by tximport or as raw count matrix
@@ -77,7 +74,7 @@ design <- ~ genotype + treatment + genotype:treatment
 
 
 ## import raw counts data and run DESeq2
-file_rawCounts <- here::here("RNAseq_data", "MatrixCountsPerGeneBySample.txt")
+file_rawCounts <- here::here("data", "polII_data", "polII_raw_counts.tab")
 
 countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
   as.data.frame()
@@ -85,7 +82,6 @@ rownames(countsDf) <- countsDf$geneId
 countsDf$geneId <- NULL
 
 ## select only those sample rows which are part of current comparison
-# exptInfo <- droplevels(subset(exptInfo, condition %in% compare))
 countsDf <- countsDf[, rownames(exptInfo)]
 
 ## run DESeq2 and extract the processed data
@@ -94,6 +90,24 @@ ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, des
 ## Run DESeq2
 dds <- DESeq(ddsCount)
 
+###########################################################################
+## Add gene symbol for each Ensembl ID
+geneInfo <- AnnotationDbi::select(x = orgDb,
+                                  keys = keys(x = orgDb, keytype = key_orgDb),
+                                  columns = c("GENE_NAME", "DESCRIPTION"),
+                                  keytype = key_orgDb) %>% 
+  dplyr::rename(geneId = !!key_orgDb)
+
+
+
+## Make sure to merge the geneIds which are duplicated using group_by + summarize_all and remove the NA strings in data frame by replacing it with real <NA>
+if(any(duplicated(geneInfo$geneId))){
+  geneInfo <- dplyr::group_by(geneInfo, geneId) %>%
+    summarize_all(.funs = ~ paste0(unique(.), collapse = ","))
+  
+  ## OR just take first row in case of duplicate rows 
+  # geneInfo <- dplyr::distinct(geneInfo, geneId, .keep_all = T)
+}
 
 ###########################################################################
 ## raw counts
@@ -135,7 +149,7 @@ pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$c
                             names = levels(pcaData$condition))
 
 
-p1 <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
+pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   geom_point(mapping = aes(color = condition), size=4) +
   geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
   geom_hline(yintercept = 0, linetype = 2) + 
@@ -155,8 +169,31 @@ p1 <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   )
 
 
-pdf(file = paste(outPrefix, ".PCA.pdf", sep = ""), width = 10, height = 10)
-p1
+png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 3000, height = 3000, res = 300)
+pt_pca
+dev.off()
+
+
+
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+
+
+pt_dist <- ComplexHeatmap::Heatmap(
+  matrix = sampleDistMatrix,
+  col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
+  column_title = "Distance matrix of normalized read counts",
+  column_title_gp = gpar(fontface = "bold", fontsize = 14),
+  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
+                              title_position = "topcenter")
+)
+
+
+png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
+    width = 3000, height = 3000, res = 300)
+draw(pt_dist,
+     padding = unit(rep(0.5, 4), "cm")
+)
 dev.off()
 
 
@@ -165,54 +202,66 @@ dev.off()
 
 resultsNames(dds)
 
+########################
 ## the condition effect B_vs_A for genotype I (the main effect)
-res_BA_gt1 <- results(dds, name = "treatment_AA_vs_C")
+res_BA_gt1 <- results(dds, name = "treatment_casp_vs_ctrl")
 
 ## another way to extract condition effect for genotype I using contrast argument
 # res_BA_gt1_2 <- results(dds, contrast = c("treatment", "AA", "Control"), lfcThreshold = cutoff_lfc)
 
 summary(res_BA_gt1)
 mcols(res_BA_gt1)
-plotMA(res_BA_gt1, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
 
-resLfcShrink_BA_gt1 <- lfcShrink(dds, coef = "treatment_AA_vs_C",
+resLfcShrink_BA_gt1 <- lfcShrink(dds, coef = "treatment_casp_vs_ctrl",
                                  res = res_BA_gt1,
                                  type="apeglm")
 
+op <- par(mfrow = c(2, 1))
+plotMA(res_BA_gt1, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
 plotMA(resLfcShrink_BA_gt1, ylim=c(-4,4), main = "MA plot with shrunken LFC")
+par(op)
 
-readr::write_tsv(x = rownames_to_column(as.data.frame(resLfcShrink_BA_gt1), var = "geneId"),
-                 path = paste(outPrefix, ".AA_vs_C.CEA17.DESeq2.tab", sep = ""))
+readr::write_tsv(x = rownames_to_column(as.data.frame(res_BA_gt1), var = "geneId"),
+                 path = paste(outPrefix, ".casp_vs_ctrl.WT.DESeq2.tab", sep = ""))
 
 
-## the condition effect B_vs_A for genotype II
-## remember that the contrast has to be a list with first element as a vector of genotype I effect and interaction term
-res_BA_gt2 <- results(dds,
-                      contrast = list(c("treatment_AA_vs_C", "genotype5A9.treatmentAA")))
+########################
+## the condition effect B_vs_A for genotype II:
+## remember that the contrast has to be a list with first element as a vector of 
+## genotype I effect and interaction term
+res_BA_gt2 <- results(
+  dds,
+  contrast = list(c("treatment_casp_vs_ctrl", "genotypedel_znfA.treatmentcasp"))
+)
 
 summary(res_BA_gt2)
 mcols(res_BA_gt2)
-plotMA(res_BA_gt2, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
 
 ## contrast cannot be used with apeglm. so use ashr for shrinking LFC
-resLfcShrin_BA_gt2 <- lfcShrink(dds, contrast = list(c("treatment_AA_vs_C", "genotype5A9.treatmentAA")),
-                                res = res_BA_gt2, type = "ashr")
+resLfcShrin_BA_gt2 <- lfcShrink(
+  dds, res = res_BA_gt2, type = "ashr",
+  contrast = list(c("treatment_casp_vs_ctrl", "genotypedel_znfA.treatmentcasp"))
+)
 
+op <- par(mfrow = c(2, 1))
+plotMA(res_BA_gt2, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
 plotMA(resLfcShrin_BA_gt2, ylim=c(-4,4), main = "MA plot with shrunken LFC")
+par(op)
 
+readr::write_tsv(x = rownames_to_column(as.data.frame(res_BA_gt2), var = "geneId"),
+                 path = paste(outPrefix, ".casp_vs_ctrl.del_znfA.DESeq2.tab", sep = ""))
 
-readr::write_tsv(x = rownames_to_column(as.data.frame(resLfcShrin_BA_gt2), var = "geneId"),
-                 path = paste(outPrefix, ".AA_vs_C.5A9.DESeq2.tab", sep = ""))
-
+########################
 ## the interaction term for condition effect B_vs_A in genotype II vs genotype I.
 ## the interaction term, answering: is the condition effect *different* across genotypes
-inter_gt21_BA <- "genotype5A9.treatmentAA"
+inter_gt21_BA <- "genotypedel_znfA.treatmentcasp"
 
 resInter_gt21_BA <- results(dds, name = inter_gt21_BA)
 
 summary(resInter_gt21_BA)
 mcols(resInter_gt21_BA)
 
+resultSummary <- paste(capture.output(summary(resInter_gt21_BA))[1:8], collapse = "\n")
 
 resShrink_inter_gt21_BA <- lfcShrink(dds, coef = inter_gt21_BA,
                                      res = resInter_gt21_BA,
@@ -221,10 +270,11 @@ resShrink_inter_gt21_BA <- lfcShrink(dds, coef = inter_gt21_BA,
 summary(resShrink_inter_gt21_BA)
 mcols(resShrink_inter_gt21_BA)
 
+###########################################################################
 
-hist(x = pmin(pmax(resInter_gt21_BA$log2FoldChange, -5), 5),
-     breaks = 50,
-     main = "log2(fold-change) distribution")
+fcDensity <- hist(x = pmin(pmax(resInter_gt21_BA$log2FoldChange, -5), 5),
+                  breaks = 50,
+                  main = "log2(fold-change) frequency distribution")
 
 hist(x = resInter_gt21_BA$pvalue, breaks = 100, main = "p-value distribution")
 hist(x = resInter_gt21_BA$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0.11,1, by = 0.01)),
@@ -232,38 +282,79 @@ hist(x = resInter_gt21_BA$pvalue, breaks = c(seq(0, 0.1, length.out = 20), seq(0
 
 hist(x = resInter_gt21_BA$padj, breaks = 100, main = "q-value distribution")
 
+pt_lfcFreq <- ggplot() +
+  geom_histogram(
+    data = as.data.frame(resInter_gt21_BA),
+    mapping = aes(x = pmin(pmax(log2FoldChange, -5), 5), y = ..density.. , fill = "unshrunken"),
+    bins = 100, alpha = 0.5) +
+  geom_histogram(
+    data = as.data.frame(resShrink_inter_gt21_BA),
+    mapping = aes(x = pmin(pmax(log2FoldChange, -5), 5), y = ..density.. , fill = "shrunken"),
+    bins = 100, alpha = 0.5) +
+  annotate(geom = "text", x = -4.5, y = Inf, label = resultSummary, vjust = 1, hjust = 0) +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1) +
+  scale_x_continuous(limits = c(-5, 5), expand = expand_scale(mult = 0.01)) +
+  scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("unshrunken" = "#999999", "shrunken" = "red"),
+    breaks = c("unshrunken", "shrunken"),
+    labels = c("unshrunken LFC", "shrunken LFC")
+  ) +
+  labs(title = paste("log2(fold change) frequency distribution:", analysisName),
+       x = "log2(fold change)", y = "Frequency") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 13),
+        axis.title = element_text(face = "bold", size = 15),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
+        legend.position = c(0.95, 0.95),
+        legend.justification = c(1, 1),
+        legend.text = element_text(size = 15),
+        legend.key.size = unit(1.2,"cm")
+  )
+
+
+pt_pqDensity <- ggplot(data = as.data.frame(resInter_gt21_BA)) +
+  geom_histogram(mapping = aes(x = pvalue, y = ..density.. , fill = "pvalue"),
+                 bins = 100, alpha = 0.5) +
+  geom_histogram(mapping = aes(x = padj, y = ..density.. , fill = "padj"),
+                 bins = 100, alpha = 0.5) +
+  geom_vline(xintercept = 0.05, linetype = "dashed", color = "red", size = 1) +
+  annotate(geom = "text", x = 0.3, y = Inf, label = resultSummary, vjust = 1) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("pvalue" = "#999999", "padj" = "#E69F00"),
+    breaks = c("pvalue", "padj"),
+    labels = c("p-value", "q-value")
+  ) +
+  scale_x_continuous(expand = expand_scale(mult = 0.01)) +
+  scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  labs(title = paste("p-value and q-value density distribution:", analysisName),
+       x = "p-value or q-value", y = "Density") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 13),
+        axis.title = element_text(face = "bold", size = 15),
+        legend.text = element_text(size = 15),
+        legend.key.size = unit(1.2,"cm"),
+        # legend.direction = "horizontal",
+        panel.grid = element_blank(),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
+        legend.title = element_text(face = "bold", size = 15),
+        legend.position = c(0.95, 0.95),
+        legend.justification = c(1, 1)
+  )
 
 ###########################################################################
 ## MA plot
-# png(filename = paste(outPrefix, ".MA.png", sep = ""), width = 2000, height = 3000, res = 250)
-pdf(file = paste(outPrefix, ".MA.pdf", sep = ""), width = 8, height = 8, onefile = F)
 op <- par(mfrow = c(2, 1))
 
 plotMA(resInter_gt21_BA, ylim=c(-4,4), main = "MA plot with unshrunken LFC")
 plotMA(resShrink_inter_gt21_BA, ylim=c(-4,4), main = "MA plot with apeglm shrunken LFC")
 
-# ## MA plot with unshrunken LFC
-# geneplotter::plotMA(object = data.frame(
-#   m = resInter_gt21_BA$baseMean,
-#   a = resInter_gt21_BA$log2FoldChange,
-#   c = ifelse(abs(resInter_gt21_BA$log2FoldChange) >= cutoff_lfc & resInter_gt21_BA$padj <= cutoff_fdr, TRUE, FALSE)),
-#   ylim=c(-4,4), 
-#   main = "MA plot with unshrunken LFC"
-# )
-# 
-# ## MA plot with apeglm shrunken LFC
-# geneplotter::plotMA(object = data.frame(
-#   m = resShrink_inter_gt21_BA$baseMean,
-#   a = resShrink_inter_gt21_BA$log2FoldChange,
-#   c = ifelse(abs(resShrink_inter_gt21_BA$log2FoldChange) >= cutoff_lfc & resShrink_inter_gt21_BA$padj <= cutoff_fdr, TRUE, FALSE)),
-#   ylim=c(-4,4), 
-#   main = "MA plot with apeglm shrunken LFC"
-# )
-
 par(op)
-dev.off()
-
-
 
 
 ###########################################################################
@@ -271,11 +362,11 @@ dev.off()
 
 ## store un-shrunk LFC data
 resDf <- rownames_to_column(as.data.frame(resInter_gt21_BA), var = "geneId")
-head(resDf)
+glimpse(resDf)
 
 ## store shrunk LFC data
 resShrinkDf <- rownames_to_column(as.data.frame(resShrink_inter_gt21_BA), var = "geneId") 
-head(resShrinkDf)
+glimpse(resShrinkDf)
 
 resultTable <- dplyr::left_join(
   x = resDf,
@@ -284,7 +375,7 @@ resultTable <- dplyr::left_join(
   dplyr::select(geneId, baseMean, log2FoldChange, lfcSE, shrinkLog2FC, sLfcSE, everything())
 
 # resultTable <- resShrinkDf
-head(resultTable)
+glimpse(resultTable)
 
 
 
@@ -292,7 +383,7 @@ head(resultTable)
 formula_list <- function(x){
   ids = samples = sapply(x$sampleId, FUN = as.name, USE.NAMES = F, simplify = T)
   len = nrow(x)
-  name = as.name(paste(x$condition[1], "_meanCount", sep = ""))
+  name = as.name(paste(x$condition[1], ".meanCount", sep = ""))
   
   form = quos(!! name := sum(!!! ids) / !! len)
   
@@ -305,7 +396,7 @@ af <- exptInfo %>%
   # dplyr::mutate_if(.predicate = is.factor, .funs = as.character) %>% 
   dplyr::group_by(condition) %>% 
   dplyr::do(form = formula_list(.)) %>% 
-  dplyr::mutate(name = paste(condition, "_meanCount", sep = ""))
+  dplyr::mutate(name = paste(condition, ".meanCount", sep = ""))
 
 avgFormula <- unlist(af$form)
 
@@ -313,34 +404,23 @@ avgFormula <- unlist(af$form)
 countsDf <- dplyr::rowwise(normCounts) %>%
   dplyr::mutate(!!! avgFormula)
 
-# write.table(head(countsDf), file = "clipboard", sep = "\t", row.names = F, quote = F)
 
-geneSym <- AnnotationDbi::select(x = orgDb,
-                                 keys = keys(orgDb, keytype = "GID"),
-                                 columns = c("DESCRIPTION"), keytype = "GID") %>% 
-  dplyr::rename(geneId = GID)
-
-selCols <- colnames(geneSym)[colnames(geneSym) != "geneId"]
+selCols <- colnames(geneInfo)[colnames(geneInfo) != "geneId"]
 
 diffData <- resultTable %>% 
   left_join(y = countsDf, by = "geneId") %>% 
-  left_join(y = geneSym, by = c("geneId" = "geneId")) %>%
+  left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
   mutate(
     diff_l2fc = case_when(
       padj < cutoff_fdr & log2FoldChange >= cutoff_up ~ "up",
       padj < cutoff_fdr & log2FoldChange <= cutoff_down ~ "down",
       TRUE ~ "noDEG"
-    ),
-    diff_shrink_l2fc = dplyr::case_when(
-      padj < cutoff_fdr & shrinkLog2FC >= cutoff_up ~ "up",
-      padj < cutoff_fdr & shrinkLog2FC <= cutoff_down ~ "down",
-      TRUE ~ "noDEG"
     )
   ) %>% 
-  dplyr::select(geneId, ends_with("_meanCount"), log2FoldChange, shrinkLog2FC,
-                pvalue, padj, diff_l2fc, diff_shrink_l2fc, !!!selCols)
+  dplyr::select(geneId, ends_with(".meanCount"), log2FoldChange, shrinkLog2FC,
+                pvalue, padj, diff_l2fc, !!!selCols)
 
-head(diffData)
+glimpse(diffData)
 
 significant <- filter(diffData, padj < cutoff_fdr, log2FoldChange >= cutoff_up | log2FoldChange <= cutoff_down)
 
@@ -360,23 +440,60 @@ readr::write_tsv(x = diffData, path = paste(outPrefix, ".DEG_all.txt", sep = "")
 
 markGenes <- c()
 
-# tmpDf <- filter(diffData, geneName %in% markGenes)
-
 plotTitle <- paste("Volcano plot:", inter_gt21_BA, sep = " ")
-p2 <- volcanoPlot(df = diffData, 
-                  namePrefix = outPrefix, 
-                  title = plotTitle, 
-                  fdr_col = "padj", 
-                  lfc_col = "shrinkLog2FC",
-                  fdr_Cut = cutoff_fdr, lfc_cut = cutoff_lfc, 
-                  geneOfInterest = markGenes,
-                  ylimit = 10)
+pt_volc <- volcano_plot(df = diffData,
+                   title = plotTitle,
+                   fdr_col = "padj",
+                   lfc_col = "log2FoldChange",
+                   fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc, 
+                   markGenes = markGenes,
+                   ylimit = 4, xlimit = c(-4, 4))
 
-# png(filename = paste(outPrefix, "_volcano.png", sep = ""), width = 3000, height = 3000, res = 230)
-pdf(file = paste(outPrefix, ".volcano.pdf", sep = ""), width = 10, height = 10)
-p2
+png(filename = paste(outPrefix, ".volcano.png", sep = ""), width = 2500, height = 3000, res = 280)
+plot(pt_volc$plot)
 dev.off()
 
+
+###########################################################################
+
+
+
+# plot all data in single PDF file
+
+pdf(file = paste(outPrefix, ".summary_plots.pdf", sep = ""), width = 10, height = 10, onefile = TRUE)
+
+## PCA
+plot(pt_pca)
+
+## distance heatmap
+draw(pt_dist,
+     padding = unit(rep(0.5, 4), "cm")
+)
+
+## MA plots
+op <- par(mfrow = c(2, 1))
+plotMA(
+  object = resInter_gt21_BA,
+  ylim=c(-4,4),
+  main = paste("MA plot with unshrunken LFC:", analysisName)
+)
+
+plotMA(
+  object = resShrink_inter_gt21_BA,
+  ylim=c(-4,4),
+  main = paste("MA plot with shrunken LFC:", analysisName)
+)
+
+par(op)
+
+## volcano plot
+plot(pt_volc$plot)
+
+## p-value distribution plots
+plot(pt_pqDensity)
+plot(pt_lfcFreq)
+
+dev.off()
 
 ###########################################################################
 
