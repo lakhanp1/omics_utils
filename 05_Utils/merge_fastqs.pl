@@ -4,7 +4,21 @@ use strict;
 use warnings;
 use File::Copy;
 
-my $usage = "Usage: perl merge_fastqs.pl work/dir/path raw_data_file\n";
+my $usage = "
+This Perl script merge the multiple batch fastq files into single fastq file.
+Usage: perl merge_fastqs.pl <work/dir/path> <raw_data.info.tab>
+
+<raw_data.info.tab> file format: TAB delimited with following columns
+sequencing_mix  : ChIPmix ID. Eg. CL2020_ChIPmix_73.
+sampleId        : * sample ID
+sampleName      : * new sample name
+batch           : sequencing batch. Eg. batch1, batch2, etc.
+R1              : * R1 read file
+count_R1        : #R1
+outDir          : * output directory
+
+* These columns must be part of raw_data.info.tab file
+";
 	
 if($#ARGV != 1){
 	print STDERR "Error: wrong arguments\n$usage";
