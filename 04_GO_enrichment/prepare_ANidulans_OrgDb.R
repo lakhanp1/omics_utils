@@ -202,6 +202,45 @@ genes(txdbData)
 fiveUtrs <- fiveUTRsByTranscript(txdbData)
 
 ##############################################################################
+file_gff2 <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_version_s10-m04-r03_features_tRNA_removed.gff"
+
+metadata <- data.frame(
+  name = "Resource URL",
+  value = "http://www.aspgd.org/"
+)
+
+genomeSize <- suppressMessages(
+  readr::read_tsv(file = "E:/Chris_UM/Database/A_Nidulans/genome.size",
+                  col_names = c("chr", "length"))) %>% 
+  dplyr::mutate(isCircular = FALSE)
+
+seqInfo <- Seqinfo(
+  seqnames = genomeSize$chr,
+  seqlengths = genomeSize$length,
+  isCircular = genomeSize$isCircular,
+  genome = "Aspergillus_nidulans")
+
+txdbData2 <- GenomicFeatures::makeTxDbFromGFF(
+  file = file_gff2,
+  dataSource = "A_nidulans AspGD non-tRNA GFF",
+  organism = "Aspergillus nidulans",
+  metadata = metadata,
+  taxonomyId = 162425,
+  chrominfo = seqInfo)
+
+makePackageName(txdbData2)
+
+makeTxDbPackage(
+  txdb = txdbData2,
+  version = "03.05.06",
+  maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
+  author = "Lakhansing Pardeshi Chris Lab",
+  destDir = ".",
+  pkgname = "TxDb.Anidulans.tRNA.removed"
+)
+
+
+##############################################################################
 ## create BSgenome package
 forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 
