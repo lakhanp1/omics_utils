@@ -1,6 +1,6 @@
 library(chipmine)
-library(org.Anidulans.eg.db)
-library(TxDb.Anidulans.AspGD.GFF)
+library(org.AFumigatus.Af293.eg.db)
+library(TxDb.Afumigatus.Af293.AspGD.GFF)
 library(foreach)
 library(doParallel)
 library(here)
@@ -13,18 +13,20 @@ rm(list = ls())
 
 ##################################################################################
 
-file_exptInfo <- here::here("data", "referenceData/sample_info.txt")
+file_exptInfo <- here::here("data", "reference_data/sample_info.txt")
 
-file_genes <- here::here("data", "referenceData/AN_genes_for_polII.bed")
-orgDb <- org.Anidulans.eg.db
-txDb <- TxDb.Anidulans.AspGD.GFF
+file_genes <- here::here("data", "reference_data/A_fumigatus_Af293_version_s03-m05-r12_genes_coding.bed")
+orgDb <- org.AFumigatus.Af293.eg.db
+txDb <- TxDb.Afumigatus.Af293.AspGD.GFF
 
 TF_dataPath <- here::here("data", "TF_data")
 polII_dataPath <- here::here("data", "polII_data")
-hist_dataPath <- here::here("data", "histone_data")
-other_dataPath <- here::here("data", "other_data")
 
 file_polIISamples <- paste(polII_dataPath, "/", "sample_polII.list", sep = "")
+
+file_deeptolsMat <- paste(polII_dataPath, "/", "raw_count.deeptools.tab", sep = "")
+
+##################################################################################
 
 geneSet <- data.table::fread(file = file_genes, header = F,
                              col.names = c("chr", "start", "end", "geneId", "score", "strand")) %>%
@@ -36,14 +38,11 @@ geneDesc <- select(x = orgDb, keys = geneSet$geneId, columns = "DESCRIPTION", ke
 
 geneSet <- dplyr::left_join(x = geneSet, y = geneDesc, by = c("geneId" = "GID"))
 
-##################################################################################
-## process individual polII data
 polIISampleList <- readr::read_tsv(file = file_polIISamples, col_names = c("id"),  comment = "#")
 
 polII_info <- get_sample_information(exptInfoFile = file_exptInfo,
                                      samples = polIISampleList$id,
-                                     dataPath = polII_dataPath,
-                                     matrixSource = "normalizedmatrix")
+                                     dataPath = polII_dataPath)
 
 
 polIICols <- list(
@@ -53,6 +52,8 @@ polIICols <- list(
 )
 
 
+##################################################################################
+## process individual polII data
 
 i <- 1
 
@@ -113,6 +114,33 @@ readr::write_tsv(x = polIIQuantiles,
 
 
 ##################################################################################
+## process deeptools raw count matrix
+
+deeptoolsMat <- suppressMessages(readr::read_tsv(file = file_deeptolsMat))
+
+colnames(deeptoolsMat) <- stringr::str_replace(
+  string = colnames(deeptoolsMat), pattern = "_bt2", replacement = "")
+
+if(!setequal(
+  paste(geneSet$chr, geneSet$start, geneSet$end, sep = ":"),
+  paste(deeptoolsMat$chr, deeptoolsMat$start, deeptoolsMat$end, sep = ":"))){
+  
+  stop("geneSet genes and deeptools matrix genes does not match")
+  
+} else{
+  rawCountMat <- dplyr::left_join(
+    x = deeptoolsMat, y = geneSet, by = c("chr" , "start", "end")
+  ) %>% 
+    dplyr::select(geneId, polII_info$sampleId)
+  
+  readr::write_tsv(x = rawCountMat,
+                   path = paste(polII_dataPath, "/polII_raw_counts.tab", sep = ""))
+}
+
+
+
+
+
 
 
 
