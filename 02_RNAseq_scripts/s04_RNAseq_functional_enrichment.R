@@ -1,17 +1,15 @@
-library(tidyverse)
-library(data.table)
-library(fgsea)
-library(msigdbr)
-library(DT)
-library(clusterProfiler)
-library(grid)
-require(XLConnect)
-options(java.parameters = "- Xmx4g")
-xlcFreeMemory()
-library(org.HSapiens.gencodev30.eg.db)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(fgsea))
+suppressPackageStartupMessages(library(msigdbr))
+suppressPackageStartupMessages(library(DT))
+suppressPackageStartupMessages(library(clusterProfiler))
+suppressPackageStartupMessages(library(org.HSapiens.gencodev30.eg.db))
+suppressPackageStartupMessages(require(openxlsx))
+suppressPackageStartupMessages(library(argparse))
 
 
-## RNAseq DEG functional analysis using clusterProfiler
+## RNAseq DEG functional analysis using topGO and keggProfiler
 
 rm(list = ls())
 
@@ -20,61 +18,98 @@ source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
 ###########################################################################
 
-degResult <- "PLC5_CRI_CTCF_KO_vs_PLC5_CRI_Ctrl"
+diffDataPath <- here::here("analysis", "02_DESeq2_diff")
 
-file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
-diffDataPath <- here::here("analysis", "09_RNAseq_CTCF", "02_DESeq2_diff")
-
-outDir <- here::here("analysis", "09_RNAseq_CTCF", "02_DESeq2_diff", degResult)
-outPrefix <- paste(outDir, "/", degResult, sep = "")
-
-file_msigDesc <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/msigDB_geneset_desc.tab"
-
-orgDb <- org.HSapiens.gencodev30.eg.db
-keggOrg <- 'hsa'
-keggIdCol <- "NCBI_ID"
-file_topGO <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/geneid2go.HSapiens.GRCh38p12.topGO.map"
-
-cutoff_fdr <- 0.05
-cutoff_lfc <- 1
+cutoff_qval <- 0.05
+cutoff_lfc <- 0.585
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
 
 col_lfc <- "log2FoldChange"
+
+orgDb <- org.HSapiens.gencodev30.eg.db
+keggOrg <- 'hsa'
+col_kegg <- "NCBI_ID"
+col_topGO <- "ENSEMBL"
+file_topGO <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/geneid2go.HSapiens.GRCh38p12.topGO.map"
+# file_msigDesc <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/msigDB_geneset_desc.tab"
+
+###########################################################################
+#############################################
+## Run DESeq2 pipeline using Rscript       ##
+## command line arguments                  ##
+#############################################
+
+parser <- ArgumentParser(
+  description = "This script automates the functional enrichment analysis of RNAseq DEG results."
+)
+
+parser$add_argument(
+  "-c", "--config", action="store",
+  dest = "config", type = "character", nargs = 1, required = TRUE,
+  # default = here::here("data", "reference_data", "polII_DESeq2_info.txt"),
+  help = "DEG configuration TAB delimited file with columns: comparison, type, group1, group2, design, samples"
+)
+
+parser$add_argument(
+  "-d", "--deg", action="store",
+  dest = "deg", type = "character", nargs = 1, required = TRUE,
+  help = "DEG comparison ID. This value should be present in the column comparison of config file"
+)
+
+# parser$print_help()
+
+args <- parser$parse_args()
+
+file_RNAseq_info <- args$config
+degResult <- args$deg
+
+# file_RNAseq_info <- here::here("data", "DESeq2_DEG_info.txt")
+# degResult <- "SCX1_WT_treat025_vs_WT_ctrl"
+
+outDir <- here::here("analysis", "02_DESeq2_diff", degResult)
+outPrefix <- paste(outDir, "/", degResult, sep = "")
+
+###########################################################################
+
 
 ###########################################################################
 
 rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
   dplyr::filter(comparison == degResult)
 
+if(nrow(rnaseqInfo) != 1){
+  stop(analysisName, " RNAseq data does not exist in config file")
+}
+
 degs <- suppressMessages(readr::read_tsv(file = rnaseqInfo$deg[1])) %>% 
   dplyr::mutate(rankMetric = (-log10(pvalue) * sign(shrinkLog2FC))) %>%
   dplyr::arrange(desc(rankMetric)) %>% 
   dplyr::filter(!is.na(rankMetric))
 
-if(! keggIdCol %in% colnames(degs)){
+if(! col_kegg %in% colnames(degs)){
   keggInfo <- suppressMessages(
     AnnotationDbi::select(x = orgDb, keys = degs$geneId,
-                          keytype = "ENSEMBL_VERSION", columns = keggIdCol)
+                          keytype = "GID", columns = col_kegg)
   ) %>% 
-    dplyr::filter(!is.na(!!sym(keggIdCol))) %>% 
+    dplyr::filter(!is.na(!!sym(col_kegg))) %>% 
     dplyr::rename(geneId = ENSEMBL_VERSION)
   
   degs <- dplyr::left_join(x = degs, y = keggInfo, by = "geneId")
 }
 
-downDegs <- dplyr::filter(degs, padj <= cutoff_fdr & !!sym(col_lfc) <= cutoff_down) %>% 
+downDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) <= cutoff_down) %>% 
   dplyr::mutate(category = "down")
 
-upDegs <- dplyr::filter(degs, padj <= cutoff_fdr & !!sym(col_lfc) >= cutoff_up) %>% 
+upDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) >= cutoff_up) %>% 
   dplyr::mutate(category = "up")
 
 degData <- dplyr::bind_rows(upDegs, downDegs)
 
 contrast <- unique(upDegs$contrast)
 
-geneList <- dplyr::filter(degs, !is.na(NCBI_ID)) %>% 
-  dplyr::select(NCBI_ID, rankMetric) %>% 
+geneList <- dplyr::filter(degs, !is.na(!!sym(col_kegg))) %>% 
+  dplyr::select(!!col_kegg, rankMetric) %>% 
   tibble::deframe()
 
 ## replace +Inf and -Inf values with max and min
@@ -85,7 +120,7 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 
 # ###########################################################################
 # ## clusterProfiler: GO enrichment
-# ego_up <- enrichGO(gene = unique(upDegs$ENSEMBL),
+# ego_up <- enrichGO(gene = unique(upDegs$geneId),
 #                    OrgDb = orgDb,
 #                    ont = "BP", pAdjustMethod = "BH",
 #                    pvalueCutoff = 0.05,
@@ -99,7 +134,7 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 # 
 # ego_up <- simplify(x = ego_up)
 # 
-# ego_down <- enrichGO(gene = unique(downDegs$ENSEMBL),
+# ego_down <- enrichGO(gene = unique(downDegs$geneId),
 #                      OrgDb = orgDb,
 #                      ont = "BP", pAdjustMethod = "BH",
 #                      pvalueCutoff = 0.05,
@@ -119,7 +154,7 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 # readr::write_tsv(x = ego_res, path = paste(outPrefix, ".clusterProfiler.GO.tab", sep = ""))
 # 
 # 
-# ego_degs <- compareCluster(geneClusters = ENSEMBL ~ category,
+# ego_degs <- compareCluster(geneClusters = geneId ~ category,
 #                fun = "enrichGO", data = degData,
 #                OrgDb = orgDb,
 #                ont = "BP", pAdjustMethod = "BH",
@@ -136,12 +171,12 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 
 ## topGO GO enrichment
 topgo_up <- topGO_enrichment(goMapFile = file_topGO,
-                             genes = unique(upDegs$ENSEMBL),
+                             genes = unique(upDegs[[col_topGO]]),
                              type = "BP",
                              goNodeSize = 5)
 
 topgo_down <- topGO_enrichment(goMapFile = file_topGO,
-                               genes = unique(downDegs$ENSEMBL),
+                               genes = unique(downDegs[[col_topGO]]),
                                type = "BP",
                                goNodeSize = 5)
 
@@ -171,11 +206,11 @@ dev.off()
 
 ###########################################################################
 # ## clusterProfiler: KEGG pathway enrichment
-# ekegg_up <- enrichKEGG(gene = na.omit(unique(upDegs$NCBI_ID)),
+# ekegg_up <- enrichKEGG(gene = na.omit(unique(upDegs$NCBI)),
 #                        organism = keggOrg,
 #                        pvalueCutoff = 0.05)
 # 
-# ekegg_down <- enrichKEGG(gene = na.omit(unique(downDegs$NCBI_ID)),
+# ekegg_down <- enrichKEGG(gene = na.omit(unique(downDegs$NCBI)),
 #                          organism = keggOrg,
 #                          pvalueCutoff = 0.05)
 # 
@@ -191,8 +226,8 @@ dev.off()
 
 # ## up and down DEG
 # cp_kegg <- compareCluster(
-#   geneClusters = list(up = na.omit(unique(upDegs$NCBI_ID)),
-#                       down = na.omit(unique(downDegs$NCBI_ID))),
+#   geneClusters = list(up = na.omit(unique(upDegs$NCBI)),
+#                       down = na.omit(unique(downDegs$NCBI))),
 #   fun = "enrichKEGG",
 #   organism = keggOrg
 # )
@@ -214,13 +249,13 @@ dev.off()
 
 ## KEGGprofile::find_enriched_pathway
 keggp_up <- keggprofile_enrichment(
-  genes = as.character(na.omit(unique(upDegs[[keggIdCol]]))), orgdb = orgDb,
-  keytype = keggIdCol, keggIdCol = keggIdCol, keggOrg = keggOrg
+  genes = as.character(na.omit(unique(upDegs[[col_kegg]]))), orgdb = orgDb,
+  keytype = col_kegg, keggIdCol = col_kegg, keggOrg = keggOrg
 )
 
 keggp_down <- keggprofile_enrichment(
-  genes = as.character(na.omit(unique(downDegs[[keggIdCol]]))), orgdb = orgDb,
-  keytype = keggIdCol, keggIdCol = keggIdCol, keggOrg = keggOrg
+  genes = as.character(na.omit(unique(downDegs[[col_kegg]]))), orgdb = orgDb,
+  keytype = col_kegg, keggIdCol = col_kegg, keggOrg = keggOrg
 )
 
 keggp_res <- dplyr::bind_rows(
@@ -231,43 +266,63 @@ keggp_res <- dplyr::bind_rows(
 
 readr::write_tsv(x = keggp_res, path = paste(outPrefix, ".keggProfile.tab", sep = ""))
 
-###########################################################################
-## GSEA
-msigdbr_show_species()
-msig_df <- msigdbr(species = "Homo sapiens") %>% 
-  dplyr::filter(gs_cat %in% c("H", "C2", "C5")) %>% 
-  dplyr::filter(! gs_subcat %in% c("MF", "CC"))
+## top 10 KEGG pathway bar plot
+keggPlotDf <- dplyr::group_by(keggp_res, category) %>% 
+  dplyr::arrange(pvalue, .by_group = TRUE) %>% 
+  dplyr::slice(1:10) %>% 
+  dplyr::ungroup()
 
-# , category = c("H", "C2", "C5")
-msig_list <- split(x = msig_df$entrez_gene, f = msig_df$gs_name)
 
-length(intersect(names(geneList), unique(msig_df$entrez_gene)))
-
-vn <- VennDiagram::venn.diagram(
-  x = list(geneList = names(geneList), msig = unique(msig_df$entrez_gene)),
-  filename = NULL,
-  print.mode = c("raw", "percent"),
-  scaled = FALSE
+kegg_bar <- enrichment_bar(
+  df = keggPlotDf, 
+  title = paste(degResult, "\ntop 10 enriched KEGG pathways in up and down DEGs"),
+  pvalCol = "pvalue", termCol = "Pathway_Name",
+  colorCol = "category", countCol = "Significant"
 )
+
+png(filename = paste(outPrefix, ".KEGG_bar.png", sep = ""),
+    width = 2500, height = 2500, res = 250)
+
+kegg_bar
 dev.off()
-grid.draw(vn)
 
-msigDescDf <- suppressMessages(readr::read_tsv(file = file_msigDesc))
-msigDesc <- split(x = msigDescDf$DESCRIPTION_BRIEF, f = msigDescDf$STANDARD_NAME)
-
-egsea <- GSEA(geneList = geneList,
-              nPerm = 10000,
-              pvalueCutoff = 0.1,
-              minGSSize = 10, maxGSSize = Inf,
-              TERM2GENE = dplyr::select(msig_df, gs_name, entrez_gene))
-
-egseaDf <- as_tibble(egsea) %>%
-  dplyr::left_join(y = msigDescDf, by = c("ID" = "STANDARD_NAME")) %>%
-  dplyr::mutate(contrast = contrast) %>%
-  dplyr::select(ID, contrast, everything(), -Description)
-
-readr::write_tsv(x = egseaDf,
-                 path = paste(outPrefix, ".clusterProfiler.GSEA.tab", sep = ""))
+###########################################################################
+# ## GSEA
+# msigdbr_show_species()
+# msig_df <- msigdbr(species = "Homo sapiens") %>% 
+#   dplyr::filter(gs_cat %in% c("H", "C2", "C5")) %>% 
+#   dplyr::filter(! gs_subcat %in% c("MF", "CC"))
+# 
+# # , category = c("H", "C2", "C5")
+# msig_list <- split(x = msig_df$entrez_gene, f = msig_df$gs_name)
+# 
+# length(intersect(names(geneList), unique(msig_df$entrez_gene)))
+# 
+# vn <- VennDiagram::venn.diagram(
+#   x = list(geneList = names(geneList), msig = unique(msig_df$entrez_gene)),
+#   filename = NULL,
+#   print.mode = c("raw", "percent"),
+#   scaled = FALSE
+# )
+# dev.off()
+# grid.draw(vn)
+# 
+# msigDescDf <- suppressMessages(readr::read_tsv(file = file_msigDesc))
+# msigDesc <- split(x = msigDescDf$DESCRIPTION_BRIEF, f = msigDescDf$STANDARD_NAME)
+# 
+# egsea <- GSEA(geneList = geneList,
+#               nPerm = 10000,
+#               pvalueCutoff = 0.1,
+#               minGSSize = 10, maxGSSize = Inf,
+#               TERM2GENE = dplyr::select(msig_df, gs_name, entrez_gene))
+# 
+# egseaDf <- as_tibble(egsea) %>%
+#   dplyr::left_join(y = msigDescDf, by = c("ID" = "STANDARD_NAME")) %>%
+#   dplyr::mutate(contrast = contrast) %>%
+#   dplyr::select(ID, contrast, everything(), -Description)
+# 
+# readr::write_tsv(x = egseaDf,
+#                  path = paste(outPrefix, ".clusterProfiler.GSEA.tab", sep = ""))
 
 
 
@@ -340,55 +395,41 @@ readr::write_tsv(x = egseaDf,
 
 
 
-# ###########################################################################
-excelOut <- paste(outPrefix, ".enrichment.xlsx", sep = "")
-unlink(excelOut, recursive = FALSE, force = FALSE)
-exc = loadWorkbook(excelOut , create = TRUE)
-xlcFreeMemory()
+###########################################################################
+## write data to excel file
+wb <- openxlsx::createWorkbook(creator = "Lakhansing Pardeshi Genomics Core")
+headerStyle <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#e6e6e6")
+
 
 wrkSheet <- "topGO"
-createSheet(exc, name = wrkSheet)
-createFreezePane(exc, sheet = wrkSheet, 2, 2)
-writeWorksheet(object = exc, data = topgo_res, sheet = wrkSheet)
-setAutoFilter(object = exc, sheet = wrkSheet,
-              reference = aref(topLeft = "A1", dimension = dim(topgo_res)))
+openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
+openxlsx::writeDataTable(
+  wb = wb, sheet = wrkSheet, x = topgo_res,
+  keepNA = TRUE, na.string = "NA",
+  tableStyle = "none", stack = FALSE
+)
+openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 1, cols = 1:ncol(topgo_res))
+openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
+openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
+openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 2, firstActiveCol = 2)
+
 
 wrkSheet <- "keggProfile"
-createSheet(exc, name = wrkSheet)
-createFreezePane(exc, sheet = wrkSheet, 2, 2)
-writeWorksheet(object = exc, data = keggp_res, sheet = wrkSheet)
-setAutoFilter(object = exc, sheet = wrkSheet,
-              reference = aref(topLeft = "A1", dimension = dim(keggp_res)))
+openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
+openxlsx::writeDataTable(
+  wb = wb, sheet = wrkSheet, x = keggp_res,
+  keepNA = TRUE, na.string = "NA",
+  tableStyle = "none", stack = FALSE
+)
+openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 1, cols = 1:ncol(keggp_res))
+openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
+openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
+openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 2, firstActiveCol = 2)
 
-setColumnWidth(object = exc, sheet = 1:2, column = 1, width = -1)
-setColumnWidth(object = exc, sheet = 1:2, column = 2, width = c(13000))
+# openxlsx::openXL(wb)
+openxlsx::saveWorkbook(wb = wb, file = paste(outPrefix, ".enrichment.xlsx", sep = ""), overwrite = TRUE)
 
-wrkSheet <- "GSEA"
-createSheet(exc, name = wrkSheet)
-createFreezePane(exc, sheet = wrkSheet, 2, 2)
-writeWorksheet(object = exc, data = egseaDf, sheet = wrkSheet)
-setAutoFilter(object = exc, sheet = wrkSheet,
-              reference = aref(topLeft = "A1", dimension = dim(egseaDf)))
-setColumnWidth(object = exc, sheet = 3, column = 1, width = c(13000))
-
-# wrkSheet <- "clusterProfiler_GO"
-# createSheet(exc, name = wrkSheet)
-# createFreezePane(exc, sheet = wrkSheet, 2, 2)
-# writeWorksheet(object = exc, data = ego_res, sheet = wrkSheet)
-# setAutoFilter(object = exc, sheet = wrkSheet,
-#               reference = aref(topLeft = "A1", dimension = dim(ego_res)))
-# 
-# wrkSheet <- "clusterProfiler_KEGG"
-# createSheet(exc, name = wrkSheet)
-# createFreezePane(exc, sheet = wrkSheet, 2, 2)
-# writeWorksheet(object = exc, data = ekegg_res, sheet = wrkSheet)
-# setAutoFilter(object = exc, sheet = wrkSheet,
-#               reference = aref(topLeft = "A1", dimension = dim(ekegg_res)))
-
-
-xlcFreeMemory()
-saveWorkbook(exc)
-
+###########################################################################
 
 
 
