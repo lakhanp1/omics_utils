@@ -8,7 +8,8 @@ suppressPackageStartupMessages(library(RColorBrewer))
 suppressPackageStartupMessages(library(ComplexHeatmap))
 suppressPackageStartupMessages(library(circlize))
 suppressPackageStartupMessages(library(argparse))
-suppressPackageStartupMessages(library(org.Anidulans.FGSCA4.eg.db))
+suppressPackageStartupMessages(library(org.HSapiens.gencodev30.eg.db))
+suppressPackageStartupMessages(require(openxlsx))
 
 
 ## This script:
@@ -28,22 +29,21 @@ source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 ###########################################################################
 ## configuration and cutoffs
 
-diffDataPath <- here::here("analysis", "07_polII_diff")
-file_sampleInfo <- here::here("data", "reference_data", "polII_sample_info.txt")
+diffDataPath <- here::here("analysis", "02_DESeq2_diff")
+file_sampleInfo <- here::here("data", "sample_info.txt")
+readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
 
 useAllGroupsSamples <- FALSE
 
 cutoff_fdr <- 0.05
-cutoff_lfc <- 1
+cutoff_lfc <- 0.58
 cutoff_up <- cutoff_lfc
 cutoff_down <- cutoff_lfc * -1
 
-orgDb <- org.Anidulans.FGSCA4.eg.db
-col_geneId <- "GID"
+orgDb <- org.HSapiens.gencodev30.eg.db
+col_geneId <- "ENSEMBL_VERSION"
 
 ###########################################################################
-
-
 #############################################
 ## Run DESeq2 pipeline using Rscript       ##
 ## command line arguments                  ##
@@ -73,11 +73,10 @@ args <- parser$parse_args()
 file_RNAseq_info <- args$config
 analysisName <- args$deg
 
+# file_RNAseq_info <- here::here("data", "DESeq2_DEG_info.txt")
+# analysisName <- "SCX1_KO_ctrl_vs_WT_ctrl"
 
-# file_RNAseq_info <- here::here("data", "reference_data", "polII_DESeq2_DEG_info.txt")
-# analysisName <- "AN10021_sCopy_OE_vs_MH11036"
-
-rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
+rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>%
   dplyr::filter(comparison == analysisName, type == "pairwise")
 
 if(nrow(rnaseqInfo) != 1){
@@ -87,16 +86,16 @@ if(nrow(rnaseqInfo) != 1){
 ## the denominator or WT in log2(fold_change) should be second
 compare <- c(rnaseqInfo$group1, rnaseqInfo$group2)
 col_compare <- rnaseqInfo$design
+samples <- unlist(stringr::str_split(string = rnaseqInfo$samples, pattern = ";"))
 
 # #############################################
 # ## User input of conditions to be compared ##
 # #############################################
-# analysisName <- "PG_WT_8mpf_vs_PG_WT_50dpf"
+# analysisName <- "SCX1_KO_ctrl_vs_WT_ctrl"
 # 
 # ## the denominator or WT in log2(fold_change) should be second
-# ## "PG_WT_50dpf", "PG_HE_50dpf", "PG_WT_8mpf", "PG_HE_8mpf"
-# compare <- c("PG_WT_8mpf", "PG_WT_50dpf")
-# col_compare <- "condition"
+# compare <- c("SCX1_KO_ctrl", "SCX1_WT_ctrl")
+# col_compare <- "conditionSC"
 
 
 ##########################################################################
@@ -104,18 +103,26 @@ col_compare <- rnaseqInfo$design
 outDir <- paste(diffDataPath, analysisName, sep = "/")
 outPrefix <- paste(outDir, analysisName, sep = "/")
 
-
 if(!dir.exists(outDir)){
   dir.create(path = outDir, recursive = TRUE)
 }
 
-
-## set levels for experiment design information
 exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
 
+## get subset of experiment information df
 if(isFALSE(useAllGroupsSamples)){
-  exptInfo <- dplyr::filter(exptInfo, condition %in% compare)
+  # exptInfo <- dplyr::filter(exptInfo, condition %in% compare)
+  exptInfo <- dplyr::filter(exptInfo, sampleId %in% samples)
+  
+  if(nrow(exptInfo) == 0){
+    stop("No samples in the experiment information")
+  }
 }
+
+if(isFALSE(setequal(compare, exptInfo[[col_compare]]))){
+  stop("Mismatch in the ", col_compare, "s to compare and values from ", col_compare, " column of exptInfo")
+}
+
 
 # ## ensure that reference level is same as compare[2] in the factor
 exptInfo <- exptInfo %>% dplyr::mutate(
@@ -130,55 +137,54 @@ design <- as.formula(paste("~", col_compare))
 ###########################################################################
 ## import counts data: either by tximport or as raw count matrix
 
-# ## import the counts data using tximport and run DESeq2
-# readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
-# path_stringtie <- here::here("data", "stringTie")
-# filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
-# names(filesStringtie) <- exptInfo$sampleId
-# 
-# tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
-# tx2gene <- tmp[, c("t_name", "gene_id")]
-# 
-# txi <- tximport(files = filesStringtie, type = "stringtie",
-#                 tx2gene = tx2gene, readLength = readLength)
-# 
-# ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
-# # assay(ddsTxi)
-# # colData(ddsTxi)
-# # rowData(ddsTxi)
-# 
-# ## Run DESeq2
-# dds <- DESeq(ddsTxi)
+## import the counts data using tximport and run DESeq2
+path_stringtie <- here::here("data", "stringTie")
+filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
+names(filesStringtie) <- exptInfo$sampleId
 
+tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
+tx2gene <- tmp[, c("t_name", "gene_id")]
 
-## import raw counts data and run DESeq2
-file_rawCounts <- here::here("data", "polII_data", "polII_raw_counts.tab")
+txi <- tximport(files = filesStringtie, type = "stringtie",
+                tx2gene = tx2gene, readLength = readLength)
 
-countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
-  as.data.frame()
-rownames(countsDf) <- countsDf$geneId
-countsDf$geneId <- NULL
-
-
-if(all(rownames(exptInfo) %in% colnames(countsDf))){
-  countsDf <- countsDf[, rownames(exptInfo)]
-} else{
-  stop("Column names in count matrix does not match with row names in experiment data")
-}
-
-# dplyr::glimpse(countsDf)
-
-## run DESeq2 and extract the processed data
-ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+ddsTxi <- DESeqDataSetFromTximport(txi = txi, colData = exptInfo, design = design)
+# assay(ddsTxi)
+# colData(ddsTxi)
+# rowData(ddsTxi)
 
 ## Run DESeq2
-dds <- DESeq(ddsCount)
+dds <- DESeq(ddsTxi)
+
+
+# ## import raw counts data and run DESeq2
+# file_rawCounts <- here::here("data", "polII_data", "polII_raw_counts.tab")
+# 
+# countsDf <- suppressMessages(readr::read_tsv(file = file_rawCounts, col_names = T)) %>%
+#   as.data.frame()
+# rownames(countsDf) <- countsDf$geneId
+# countsDf$geneId <- NULL
+# 
+# 
+# if(all(rownames(exptInfo) %in% colnames(countsDf))){
+#   countsDf <- countsDf[, rownames(exptInfo)]
+# } else{
+#   stop("Column names in count matrix does not match with row names in experiment data")
+# }
+# 
+# # dplyr::glimpse(countsDf)
+# 
+# ## run DESeq2 and extract the processed data
+# ddsCount <- DESeqDataSetFromMatrix(countData = countsDf, colData = exptInfo, design = design)
+# 
+# ## Run DESeq2
+# dds <- DESeq(ddsCount)
 
 ###########################################################################
 ## Add gene symbol for each Ensembl ID
 geneInfo <- AnnotationDbi::select(x = orgDb,
                                   keys = keys(x = orgDb, keytype = col_geneId),
-                                  columns = c("GENE_NAME", "DESCRIPTION"),
+                                  columns = c("ENSEMBL", "NCBI_ID", "GENE_NAME", "DESCRIPTION"),
                                   keytype = col_geneId) %>%
   dplyr::rename(geneId = !!col_geneId)
 
@@ -201,8 +207,8 @@ rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = F
 readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
 
 ## FPKM
-# fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-# readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
+fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
+readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
@@ -220,18 +226,18 @@ readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = 
 ##NOTE: Typically, we recommend users to run samples from all groups together, and then use the contrast argument of the results function to extract comparisons of interest after fitting the model using DESeq. The model fit by DESeq estimates a single dispersion parameter for each gene, which defines how far we expect the observed count for a sample will be from the mean value from the model given its size factor and its condition group. However, for some datasets, exploratory data analysis (EDA) plots could reveal that one or more groups has much higher within-group variability than the others. This is case where, by comparing groups A and B separately - subsetting a DESeqDataSet to only samples from those two groups and then running DESeq on this subset - will be more sensitive than a model including all samples together.
 
 
-plotPCA(rld, intgroup=c("condition"))
+plotPCA(rld, intgroup=c(col_compare))
 
-pcaData <- plotPCA(rld, intgroup=c("condition"), returnData = TRUE)
+pcaData <- plotPCA(rld, intgroup=c(col_compare), returnData = TRUE)
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
 pltTitle <- paste("Principal Component Analysis:", compare[1], "vs", compare[2])
-pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$condition)), name = "Set1"),
-                            names = levels(pcaData$condition))
+pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData[[col_compare]])), name = "Set1"),
+                            names = levels(pcaData[[col_compare]]))
 
 
 pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
-  geom_point(mapping = aes(color = condition), size=4) +
+  geom_point(mapping = aes(color = !!sym(col_compare)), size=4) +
   geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) +
@@ -298,7 +304,7 @@ dev.off()
 
 resultsNames(dds)
 # coefName <- "condition_5A9_Control_vs_CEA17_Control"
-coefName <- paste("condition_", compare[1], "_vs_", compare[2], sep = "")
+coefName <- paste(col_compare, "_", compare[1], "_vs_", compare[2], sep = "")
 
 if(!any(coefName %in% resultsNames(dds))){
   stop("Wrong coefficient name")
@@ -428,12 +434,18 @@ resultTable <- dplyr::left_join(
 
 ## Extract significant genes and write to Excel file
 ## get the sample names for each condition under comparison
-grp1 <- sapply(rownames(exptInfo[exptInfo$condition %in% compare[1], ]), FUN = as.name, USE.NAMES = F, simplify = T)
+grp1 <- sapply(
+  X = rownames(exptInfo[exptInfo[[col_compare]] %in% compare[1], ]),
+  FUN = as.name, USE.NAMES = F, simplify = T
+)
 name1 <- paste(compare[1], "_meanCount", sep = "")
 # name1 <- "condition1_meanCount"
 grp1Len <- length(grp1)
 
-grp2 <- sapply(rownames(exptInfo[exptInfo$condition %in% compare[2], ]), FUN = as.name, USE.NAMES = F, simplify = T)
+grp2 <- sapply(
+  X = rownames(exptInfo[exptInfo[[col_compare]] %in% compare[2], ]),
+  FUN = as.name, USE.NAMES = F, simplify = T
+)
 name2 <- paste(compare[2], "_meanCount", sep = "")
 # name2 <- "condition2_meanCount"
 grp2Len <- length(grp2)
@@ -481,10 +493,35 @@ degData <- diffData %>%
 significant_up <- filter(degData, padj < cutoff_fdr, log2FoldChange >= cutoff_up)
 significant_down <- filter(degData, padj < cutoff_fdr, log2FoldChange <= cutoff_down)
 
+###########################################################################
+## store data
+
 readr::write_tsv(x = resDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
 readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2_shrunken.tab", sep = ""))
 readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
 
+
+## write data to excel file
+wb <- openxlsx::createWorkbook(creator = "Lakhansing Pardehi Genomics Core")
+openxlsx::addWorksheet(wb = wb, sheetName = analysisName)
+openxlsx::writeData(
+  wb = wb, sheet = 1, startCol = 2, startRow = 1,
+  x = paste("Differential gene expression analysis by DESeq2 for",
+            col_compare,":", compare[1], "/", compare[2])
+)
+openxlsx::writeDataTable(
+  wb = wb, sheet = 1, x = degData,
+  startCol = 1, startRow = 2,
+  keepNA = TRUE, na.string = "NA",
+  tableStyle = "none", stack = FALSE
+)
+headerStyle <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#e6e6e6")
+openxlsx::addStyle(wb = wb, sheet = 1, style = headerStyle, rows = 2, cols = 1:ncol(degData))
+openxlsx::setColWidths(wb = wb, sheet = 1, cols = 1, widths = "auto")
+openxlsx::freezePane(wb = wb, sheet = 1, firstActiveRow = 3, firstActiveCol = 2)
+
+# openxlsx::openXL(wb)
+openxlsx::saveWorkbook(wb = wb, file = paste(outPrefix, ".DEG_all.xlsx", sep = ""), overwrite = TRUE)
 
 ###########################################################################
 ## plot volcano plot
@@ -498,7 +535,7 @@ pt_volc <- volcano_plot(df = diffData,
                         lfc_col = "log2FoldChange",
                         fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc, 
                         markGenes = markGenes,
-                        ylimit = 4, xlimit = c(-4, 4))
+                        ylimit = 50, xlimit = c(-6, 6))
 
 png(filename = paste(outPrefix, ".volcano.png", sep = ""), width = 2500, height = 3000, res = 280)
 plot(pt_volc$plot)
