@@ -56,6 +56,13 @@ volcano_plot <- function(
       )
     )
   
+  degSummary <- dplyr::group_by(plotDf, category) %>% 
+    dplyr::tally() %>% 
+    dplyr::mutate(
+     str = paste(category, ":", n, sep = " ")
+    )
+  
+  subTitle <- stringr::str_c(degSummary$str, collapse = " || ")
   
   ## squish the value to limits
   plotDf$log10FDR <- -log10(plotDf[[fdr_col]])
@@ -126,8 +133,6 @@ volcano_plot <- function(
     }
   }
   
-
-  
   
   ## theme and plot annotations
   pt <- pt +
@@ -137,17 +142,22 @@ volcano_plot <- function(
     scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expand_scale(mult = 0.02)) +
     scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expand_scale(mult = 0.02)) +
     guides(color = guide_legend(nrow = 2, byrow = T)) +
+    labs(
+      title = stringr::str_wrap(title),
+      subtitle = subTitle
+    ) +
     theme_bw() +
-    theme(legend.background = element_rect(colour = "black"),
-          legend.text = element_text(size = 14),
-          legend.title = element_text(face = "bold", size = 16),
-          legend.position = "bottom",
-          plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-          plot.margin = unit(c(1,1,1,1),"cm"),
-          axis.title = element_text(size = 16, face = "bold"),
-          axis.text = element_text(size = 16)) +
-    ggtitle(title)
-  
+    theme(
+      legend.background = element_rect(colour = "black"),
+      legend.title = element_text(face = "bold", size = 16),
+      legend.position = "bottom",
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+      axis.text = element_text(size = 13),
+      axis.title = element_text(face = "bold", size = 15),
+      legend.text = element_text(size = 15),
+      legend.key.size = unit(1.2,"cm"),
+      plot.margin = unit(c(1,1,1,1),"cm"),
+    )
   
   
   return(list(

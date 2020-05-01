@@ -2,13 +2,14 @@ suppressPackageStartupMessages(library(DESeq2))
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library("ggpubr"))
 suppressPackageStartupMessages(library(tximport))
 suppressPackageStartupMessages(library(here))
 suppressPackageStartupMessages(library(RColorBrewer))
 suppressPackageStartupMessages(library(ComplexHeatmap))
 suppressPackageStartupMessages(library(circlize))
 suppressPackageStartupMessages(library(argparse))
-suppressPackageStartupMessages(library(org.HSapiens.gencodev30.eg.db))
+suppressPackageStartupMessages(library(org.Anidulans.FGSCA4.eg.db))
 suppressPackageStartupMessages(require(openxlsx))
 
 
@@ -29,19 +30,18 @@ source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 ###########################################################################
 ## configuration and cutoffs
 
-diffDataPath <- here::here("analysis", "02_DESeq2_diff")
-file_sampleInfo <- here::here("data", "sample_info.txt")
-readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
+diffDataPath <- here::here("analysis", "07_polII_diff")
+file_sampleInfo <- here::here("data", "reference_data", "polII_sample_info.txt")
 
 useAllGroupsSamples <- FALSE
 
 cutoff_fdr <- 0.05
-cutoff_lfc <- 0.58
+cutoff_lfc <- 1
 cutoff_up <- cutoff_lfc
 cutoff_down <- cutoff_lfc * -1
 
-orgDb <- org.HSapiens.gencodev30.eg.db
-col_geneId <- "ENSEMBL_VERSION"
+orgDb <- org.Anidulans.FGSCA4.eg.db
+col_geneId <- "GID"
 
 ###########################################################################
 #############################################
@@ -68,13 +68,14 @@ parser$add_argument(
 
 # parser$print_help()
 
+# file_RNAseq_info <- here::here("data", "reference_data", "polII_DESeq2_DEG_info.txt")
+# analysisName <- "AN10021_sCopy_OE_vs_MH11036"
+
 args <- parser$parse_args()
 
 file_RNAseq_info <- args$config
 analysisName <- args$deg
 
-# file_RNAseq_info <- here::here("data", "DESeq2_DEG_info.txt")
-# analysisName <- "SCX1_KO_ctrl_vs_WT_ctrl"
 
 rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>%
   dplyr::filter(comparison == analysisName, type == "pairwise")
@@ -126,7 +127,7 @@ if(isFALSE(setequal(compare, exptInfo[[col_compare]]))){
 
 # ## ensure that reference level is same as compare[2] in the factor
 exptInfo <- exptInfo %>% dplyr::mutate(
-  !!col_compare := forcats::fct_relevel(!!sym(col_compare), compare[2], compare[1])
+  !!col_compare := forcats::fct_relevel(.f = !!sym(col_compare), compare[2], compare[1])
 )
 
 rownames(exptInfo) <- exptInfo$sampleId
@@ -138,6 +139,7 @@ design <- as.formula(paste("~", col_compare))
 ## import counts data: either by tximport or as raw count matrix
 
 ## import the counts data using tximport and run DESeq2
+readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
 path_stringtie <- here::here("data", "stringTie")
 filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
 names(filesStringtie) <- exptInfo$sampleId
@@ -184,7 +186,7 @@ dds <- DESeq(ddsTxi)
 ## Add gene symbol for each Ensembl ID
 geneInfo <- AnnotationDbi::select(x = orgDb,
                                   keys = keys(x = orgDb, keytype = col_geneId),
-                                  columns = c("ENSEMBL", "NCBI_ID", "GENE_NAME", "DESCRIPTION"),
+                                  columns = c("GENE_NAME", "DESCRIPTION"),
                                   keytype = col_geneId) %>%
   dplyr::rename(geneId = !!col_geneId)
 
@@ -199,6 +201,7 @@ if(any(duplicated(geneInfo$geneId))){
   # geneInfo <- dplyr::distinct(geneInfo, geneId, .keep_all = T)
 }
 
+# dplyr::glimpse(geneInfo)
 
 ###########################################################################
 
@@ -206,9 +209,9 @@ if(any(duplicated(geneInfo$geneId))){
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
 readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
 
-## FPKM
-fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
+# ## FPKM
+# fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
+# readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
@@ -253,13 +256,14 @@ pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
         axis.title.y = element_text(face = "bold", size = 15),
         plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
         legend.text = element_text(size = 13),
+        legend.position = "bottom",
         legend.title = element_text(face = "bold", size = 15)
   )
 
 
-png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 3000, height = 3000, res = 300)
-pt_pca
-dev.off()
+# png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 3000, height = 3000, res = 300)
+# pt_pca
+# dev.off()
 
 ## PCA on subset of the data
 # subExptInfo <- dplyr::filter(exptInfo, condition %in% compare)
@@ -284,14 +288,6 @@ pt_dist <- ComplexHeatmap::Heatmap(
   heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
                               title_position = "topcenter")
 )
-
-
-png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
-    width = 3000, height = 3000, res = 300)
-draw(pt_dist,
-     padding = unit(rep(0.5, 4), "cm")
-)
-dev.off()
 
 
 ###########################################################################
@@ -509,11 +505,10 @@ openxlsx::writeData(
   x = paste("Differential gene expression analysis by DESeq2 for",
             col_compare,":", compare[1], "/", compare[2])
 )
-openxlsx::writeDataTable(
+openxlsx::writeData(
   wb = wb, sheet = 1, x = degData,
-  startCol = 1, startRow = 2,
-  keepNA = TRUE, na.string = "NA",
-  tableStyle = "none", stack = FALSE
+  startCol = 1, startRow = 2, withFilter = TRUE,
+  keepNA = TRUE, na.string = "NA"
 )
 headerStyle <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#e6e6e6")
 openxlsx::addStyle(wb = wb, sheet = 1, style = headerStyle, rows = 2, cols = 1:ncol(degData))
@@ -535,13 +530,18 @@ pt_volc <- volcano_plot(df = diffData,
                         lfc_col = "log2FoldChange",
                         fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc, 
                         markGenes = markGenes,
-                        ylimit = 50, xlimit = c(-6, 6))
+                        ylimit = 4, xlimit = c(-4, 4))
 
-png(filename = paste(outPrefix, ".volcano.png", sep = ""), width = 2500, height = 3000, res = 280)
-plot(pt_volc$plot)
-dev.off()
+# png(filename = paste(outPrefix, ".volcano.png", sep = ""), width = 2500, height = 3000, res = 280)
+# plot(pt_volc$plot)
+# dev.off()
 
 ###########################################################################
+
+pt_pca_volc <- ggpubr::ggarrange(pt_pca, pt_volc$plot, ncol = 2, align = "h")
+png(filename = paste(outPrefix, ".PCA_volcano.png", sep = ""), width = 5000, height = 3000, res = 300)
+plot(pt_pca_volc)
+dev.off()
 
 # plot all data in single PDF file
 
