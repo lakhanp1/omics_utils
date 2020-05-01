@@ -1,13 +1,13 @@
-library(topGO)
-library(dplyr)
-library(ggplot2)
-library(scales)
-library(stringr)
-library(KEGGprofile)
-library(clusterProfiler)
-library(tm)  # for text mining
-library(SnowballC) # for text stemming
-library(wordcloud) # word-cloud generator 
+suppressPackageStartupMessages(library(topGO))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(scales))
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(KEGGprofile))
+suppressPackageStartupMessages(library(clusterProfiler))
+suppressPackageStartupMessages(library(tm))  # for text mining
+suppressPackageStartupMessages(library(SnowballC)) # for text stemming
+suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator 
 
 ## This script has functions for using topGO package for GO enrichment
 ##################################################################################
