@@ -31,7 +31,8 @@ suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 #' @examples topGO_enrichment(goMapFile = goToGeneFile, genes = genes)
 #' 
 topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
-                             algo = "weight01", bgNodeLimit = NULL){
+                             algo = "weight01", bgNodeLimit = NULL,
+                             orgdb, geneNameCol, keytype){
   
   geneID2GO <- topGO::readMappings(file = goMapFile)
   geneNames <- names(geneID2GO)
@@ -87,27 +88,60 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   ## add gene name column
   ann.genes <- topGO::genesInTerm(object = goData, whichGO = resultTab$GO.ID)
   
-  
-  enrichedGenes <- as.data.frame(
-    do.call(rbind,
-            lapply(X = ann.genes, FUN = function(x){paste(x[x %in% genes], sep = ",", collapse = ",") })
-    ),
-    stringsAsFactors = F
+  enrichedGenes <- purrr::map_dfr(
+    .x = ann.genes,
+    .f = function(x){
+      termGenes <- intersect(x, genes)
+      return(list(geneIds = paste(termGenes, collapse = ";")))
+    },
+    .id = "GO.ID"
   )
   
-  enrichedGenes <- enrichedGenes %>% 
-    tibble::rownames_to_column(var = "GO_ID") %>% 
-    dplyr::rename(genes = V1)
+  ## optionally get gene names from orgDb
+  if(!missing(orgdb)){
+    ## extract KEGG gene IDs 
+    mappedNames <- suppressMessages(
+      AnnotationDbi::select(x = orgdb, keys = genes, keytype = keytype,
+                            columns = c(geneNameCol))
+    ) %>% 
+      dplyr::mutate(
+        !!sym(geneNameCol) := if_else(
+          condition = is.na(!!sym(geneNameCol)),
+          true = !!sym(keytype),
+          false = !!sym(geneNameCol)
+        )
+      ) %>% 
+      tibble::deframe()
+    
+    enrichedGenes <- purrr::map_dfr(
+      .x = ann.genes,
+      .f = function(x){
+        termGenes <- intersect(x, genes)
+        return(
+          list(
+            geneIds = paste(termGenes, collapse = ";"),
+            geneNames = paste(mappedNames[termGenes], collapse = ";")
+          )
+        )
+      },
+      .id = "GO.ID"
+    )
+    
+  }
+  
   
   ## select best GO term from multiple terms which have same genes from input list
-  resultTab <- dplyr::left_join(x = resultTab, y = enrichedGenes, by = c("GO.ID" = "GO_ID")) %>% 
-    dplyr::group_by(genes) %>% 
+  resultTab <- dplyr::left_join(x = resultTab, y = enrichedGenes, by = "GO.ID") %>% 
+    dplyr::group_by(geneIds) %>% 
     dplyr::arrange(desc(log10_pval), .by_group = TRUE) %>% 
     dplyr::slice(1L) %>% 
     dplyr::ungroup() %>% 
     dplyr::arrange(desc(log10_pval))
   
   resultTab$inputSize <- length(genes)
+  
+  # dplyr::glimpse(resultTab)
+  
   return(resultTab)
 }
 
@@ -382,15 +416,21 @@ clusterProfiler_groupGO <- function(genes, orgDb, goLevel = 3, type = "BP", ...)
 #' @export
 #'
 #' @examples NA
-keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
+keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg, geneNameCol,
                                    pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
+  
   
   ## extract KEGG gene IDs 
   keggIds <- suppressMessages(
     AnnotationDbi::select(x = orgdb, keys = genes, keytype = keytype,
-                          columns = c(keytype, keggIdCol))
+                          columns = c(keytype, keggIdCol, geneNameCol))
   ) %>% 
-    dplyr::filter(!is.na(!!sym(keggIdCol)))
+    dplyr::filter(!is.na(!!sym(keggIdCol))) %>% 
+    dplyr::group_by(!!sym(keggIdCol)) %>% 
+    dplyr::summarise(
+      !!sym(keytype) := paste(!!sym(keytype), collapse = ","),
+      !!sym(geneNameCol) := paste(!!sym(geneNameCol), collapse = ",")
+    )
   
   ## KEGG enrichment
   kp <- suppressMessages(
@@ -402,30 +442,26 @@ keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg,
   )
   
   
+  mappedIds <- dplyr::select(keggIds, !!keggIdCol, !!keytype) %>% 
+    tibble::deframe()
+  
+  mappedNames <- dplyr::select(keggIds, !!keggIdCol, !!geneNameCol) %>% 
+    tibble::deframe()
+  
   ## prepare a mapped gene list for the enriched pathways
-  assignedGenes <- sapply(
-    X = kp$detail,
-    FUN = function(x){
-      mappedIds <- suppressMessages(
-        AnnotationDbi::mapIds(
-          x = orgdb, keys = x, column = keytype, keytype = keggIdCol,
-          multiVals = function(x){paste(x, collapse = ",")})
-      )
-      
-      return(paste(mappedIds, collapse = ","))
+  assignedDf <- purrr::map_dfr(
+    .x = kp$detail,
+    .f = function(x){
+      list(geneIds = paste(mappedIds[x], collapse = ";"),
+           geneNames = paste(mappedNames[x], collapse = ";"))
     },
-    simplify = TRUE, USE.NAMES = TRUE)
-  
-  assignedDf <- data.frame("pathway_id" = names(assignedGenes),
-                           "genes" = assignedGenes, stringsAsFactors = FALSE)
-  
-  
-  ## need to add a modification to return original gene IDs instead of KEGG gene IDs
+    .id = "pathway_id"
+  )
   
   ## a final result dataframe
   keggDf <- tibble::rownames_to_column(.data = kp$stastic, var = "pathway_id") %>% 
     dplyr::filter(Pathway_Name != "Metabolic pathways") %>% 
-    dplyr::left_join(y = assignedDf, by = c("pathway_id" = "pathway_id")) %>% 
+    dplyr::left_join(y = assignedDf, by = "pathway_id") %>% 
     dplyr::rename(Annotated = Gene_Pathway,
                   Significant = Gene_Found,
                   richness = Percentage) %>% 

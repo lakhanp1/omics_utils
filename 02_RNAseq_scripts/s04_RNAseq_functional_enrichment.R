@@ -29,8 +29,11 @@ col_lfc <- "log2FoldChange"
 
 orgDb <- org.HSapiens.gencodev30.eg.db
 keggOrg <- 'hsa'
+col_degOrgdbKey <- "ENSEMBL_VERSION"
 col_kegg <- "NCBI_ID"
+col_gsea <- "NCBI_ID"
 col_topGO <- "ENSEMBL"
+col_geneName <- "GENE_NAME"
 file_topGO <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/geneid2go.HSapiens.GRCh38p12.topGO.map"
 # file_msigDesc <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/msigDB_geneset_desc.tab"
 
@@ -65,15 +68,13 @@ file_RNAseq_info <- args$config
 degResult <- args$deg
 
 # file_RNAseq_info <- here::here("data", "DESeq2_DEG_info.txt")
-# degResult <- "SCX1_WT_treat025_vs_WT_ctrl"
+# degResult <- "SCX1_KO_ctrl_vs_WT_ctrl"
 
 outDir <- here::here("analysis", "02_DESeq2_diff", degResult)
 outPrefix <- paste(outDir, "/", degResult, sep = "")
 
 ###########################################################################
 
-
-###########################################################################
 
 rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
   dplyr::filter(comparison == degResult)
@@ -87,15 +88,15 @@ degs <- suppressMessages(readr::read_tsv(file = rnaseqInfo$deg[1])) %>%
   dplyr::arrange(desc(rankMetric)) %>% 
   dplyr::filter(!is.na(rankMetric))
 
-if(! col_kegg %in% colnames(degs)){
-  keggInfo <- suppressMessages(
+if(! col_gsea %in% colnames(degs)){
+  gseaInfo <- suppressMessages(
     AnnotationDbi::select(x = orgDb, keys = degs$geneId,
-                          keytype = "GID", columns = col_kegg)
+                          keytype = col_degOrgdbKey, columns = col_gsea)
   ) %>% 
-    dplyr::filter(!is.na(!!sym(col_kegg))) %>% 
-    dplyr::rename(geneId = ENSEMBL_VERSION)
+    dplyr::filter(!is.na(!!sym(col_gsea))) %>% 
+    dplyr::rename(geneId = !!col_degOrgdbKey)
   
-  degs <- dplyr::left_join(x = degs, y = keggInfo, by = "geneId")
+  degs <- dplyr::left_join(x = degs, y = gseaInfo, by = "geneId")
 }
 
 downDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) <= cutoff_down) %>% 
@@ -172,19 +173,23 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 ## topGO GO enrichment
 topgo_up <- topGO_enrichment(goMapFile = file_topGO,
                              genes = unique(upDegs[[col_topGO]]),
-                             type = "BP",
-                             goNodeSize = 5)
+                             type = "BP", goNodeSize = 5,
+                             orgdb = orgDb, geneNameCol = col_geneName,
+                             keytype = col_topGO)
 
 topgo_down <- topGO_enrichment(goMapFile = file_topGO,
                                genes = unique(downDegs[[col_topGO]]),
-                               type = "BP",
-                               goNodeSize = 5)
+                               type = "BP", goNodeSize = 5,
+                               orgdb = orgDb, geneNameCol = col_geneName,
+                               keytype = col_topGO)
 
 topgo_res <- dplyr::bind_rows(
   dplyr::mutate(.data = as.data.frame(topgo_up), category = "up"),
   dplyr::mutate(.data = as.data.frame(topgo_down), category = "down")
 ) %>%
   dplyr::mutate(contrast = contrast)
+
+# dplyr::glimpse(topgo_res)
 
 readr::write_tsv(x = topgo_res, path = paste(outPrefix, ".topGO.tab", sep = ""))
 
@@ -249,13 +254,13 @@ dev.off()
 
 ## KEGGprofile::find_enriched_pathway
 keggp_up <- keggprofile_enrichment(
-  genes = as.character(na.omit(unique(upDegs[[col_kegg]]))), orgdb = orgDb,
-  keytype = col_kegg, keggIdCol = col_kegg, keggOrg = keggOrg
+  genes = unique(upDegs$geneId), orgdb = orgDb, geneNameCol = col_geneName,
+  keytype = col_degOrgdbKey, keggIdCol = col_kegg, keggOrg = keggOrg
 )
 
 keggp_down <- keggprofile_enrichment(
-  genes = as.character(na.omit(unique(downDegs[[col_kegg]]))), orgdb = orgDb,
-  keytype = col_kegg, keggIdCol = col_kegg, keggOrg = keggOrg
+  genes = unique(downDegs$geneId), orgdb = orgDb, geneNameCol = col_geneName,
+  keytype = col_degOrgdbKey, keggIdCol = col_kegg, keggOrg = keggOrg
 )
 
 keggp_res <- dplyr::bind_rows(
@@ -263,6 +268,8 @@ keggp_res <- dplyr::bind_rows(
   dplyr::mutate(.data = as.data.frame(keggp_down), category = "down")
 ) %>%
   dplyr::mutate(contrast = contrast)
+
+# dplyr::glimpse(keggp_res)
 
 readr::write_tsv(x = keggp_res, path = paste(outPrefix, ".keggProfile.tab", sep = ""))
 
@@ -403,10 +410,14 @@ headerStyle <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#e6e6e6"
 
 wrkSheet <- "topGO"
 openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
-openxlsx::writeDataTable(
+openxlsx::writeData(
+  wb = wb, sheet = wrkSheet, startCol = 2, startRow = 1,
+  x = paste("GO enrichment using topGO:", degResult)
+)
+openxlsx::writeData(
   wb = wb, sheet = wrkSheet, x = topgo_res,
-  keepNA = TRUE, na.string = "NA",
-  tableStyle = "none", stack = FALSE
+  startCol = 1, startRow = 2, withFilter = TRUE,
+  keepNA = TRUE, na.string = "NA"
 )
 openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 1, cols = 1:ncol(topgo_res))
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
@@ -416,10 +427,14 @@ openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 2, firstActiveC
 
 wrkSheet <- "keggProfile"
 openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
-openxlsx::writeDataTable(
+openxlsx::writeData(
+  wb = wb, sheet = wrkSheet, startCol = 2, startRow = 1,
+  x = paste("KEGG pathway enrichment using keggProfiler:", degResult)
+)
+openxlsx::writeData(
   wb = wb, sheet = wrkSheet, x = keggp_res,
-  keepNA = TRUE, na.string = "NA",
-  tableStyle = "none", stack = FALSE
+  startCol = 1, startRow = 2, withFilter = TRUE,
+  keepNA = TRUE, na.string = "NA"
 )
 openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 1, cols = 1:ncol(keggp_res))
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
