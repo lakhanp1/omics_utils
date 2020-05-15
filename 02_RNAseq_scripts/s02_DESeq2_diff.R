@@ -42,6 +42,7 @@ cutoff_down <- cutoff_lfc * -1
 
 orgDb <- org.Anidulans.FGSCA4.eg.db
 col_geneId <- "GID"
+otherCols <- c("GENE_NAME", "DESCRIPTION")
 
 ###########################################################################
 #############################################
@@ -186,7 +187,7 @@ dds <- DESeq(ddsTxi)
 ## Add gene symbol for each Ensembl ID
 geneInfo <- AnnotationDbi::select(x = orgDb,
                                   keys = keys(x = orgDb, keytype = col_geneId),
-                                  columns = c("GENE_NAME", "DESCRIPTION"),
+                                  columns = otherCols,
                                   keytype = col_geneId) %>%
   dplyr::rename(geneId = !!col_geneId)
 
@@ -235,18 +236,40 @@ pcaData <- plotPCA(rld, intgroup=c(col_compare), returnData = TRUE)
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
 pltTitle <- paste("Principal Component Analysis:", compare[1], "vs", compare[2])
-pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData[[col_compare]])), name = "Set1"),
-                            names = levels(pcaData[[col_compare]]))
+
+# pcaData$treatment <- forcats::as_factor(pcaData$treatment)
+# pcaData$time <- forcats::as_factor(pcaData$time)
+pcaData$condition <- forcats::as_factor(pcaData$condition)
+
+
+fillColumn <- "condition"
+# shapeColumn <- "time"
+
+if(length(unique(pcaData[[fillColumn]])) <= 9){
+  pointCol <- base::structure(
+    .Data = RColorBrewer::brewer.pal(n = length(unique(pcaData[[fillColumn]])), name = "Set1"),
+    names = levels(pcaData[[fillColumn]])
+  )
+} else{
+  pointCol <- base::structure(
+    .Data = rainbow(n = length(unique(pcaData[[fillColumn]]))),
+    names = levels(pcaData[[fillColumn]])
+  )
+}
 
 
 pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
-  geom_point(mapping = aes(color = !!sym(col_compare)), size=4) +
-  geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
+  geom_point(mapping = aes(color = !!sym(fillColumn)),
+             size = 6, stroke = 2) +
+  # scale_shape_manual(values = c(1, 15, 17)) +
+  # guides(fill=guide_legend(override.aes=list(shape=21))) +
+  scale_color_manual(values = pointCol) +
+  geom_text_repel(mapping = aes(label = name), size = 4,  
+                  point.padding = unit(0.5, "lines")) +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  scale_color_manual(values = pointCol) +
   ggtitle(pltTitle) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
@@ -499,11 +522,13 @@ readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
 
 ## write data to excel file
 wb <- openxlsx::createWorkbook(creator = "Lakhansing Pardehi Genomics Core")
-openxlsx::addWorksheet(wb = wb, sheetName = analysisName)
+openxlsx::addWorksheet(wb = wb, sheetName = "DESeq2_DEGs")
 openxlsx::writeData(
   wb = wb, sheet = 1, startCol = 2, startRow = 1,
-  x = paste("Differential gene expression analysis by DESeq2 for",
-            col_compare,":", compare[1], "/", compare[2])
+  x = paste("## Differential gene expression analysis by DESeq2 for",
+            col_compare,":", compare[1], "/", compare[2],
+            "## log2FoldChange cutoff =", cutoff_up, "(up) /", cutoff_down, "(down);",
+            "q-value cutoff =", cutoff_fdr)
 )
 openxlsx::writeData(
   wb = wb, sheet = 1, x = degData,
@@ -513,6 +538,7 @@ openxlsx::writeData(
 headerStyle <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#e6e6e6")
 openxlsx::addStyle(wb = wb, sheet = 1, style = headerStyle, rows = 2, cols = 1:ncol(degData))
 openxlsx::setColWidths(wb = wb, sheet = 1, cols = 1, widths = "auto")
+openxlsx::setColWidths(wb = wb, sheet = 1, cols = 2, widths = str_length(coefName))
 openxlsx::freezePane(wb = wb, sheet = 1, firstActiveRow = 3, firstActiveCol = 2)
 
 # openxlsx::openXL(wb)

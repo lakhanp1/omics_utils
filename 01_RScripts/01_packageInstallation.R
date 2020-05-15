@@ -1,29 +1,29 @@
-
-rm(list = ls())
-
-############################################################################
-###############         uninstall packages          ########################
-############################################################################
-
-# create a list of all installed packages
-ip <- as.data.frame(installed.packages())
-head(ip)
-
-# if you use MRO, make sure that no packages in this library will be removed
-ip <- subset(ip, !grepl("MRO", ip$LibPath))
-
-# we don't want to remove base or recommended packages either\
-ip <- ip[!(ip[,"Priority"] %in% c("base", "recommended")),]
-
-# determine the library where the packages are installed
-path.lib <- unique(ip$LibPath)
-
-# create a vector with all the names of the packages you want to remove
-pkgs.to.remove <- ip[,1]
-head(pkgs.to.remove)
-
-# remove the packages
-sapply(pkgs.to.remove, remove.packages, lib = path.lib)
+# 
+# rm(list = ls())
+# 
+# ############################################################################
+# ###############         uninstall packages          ########################
+# ############################################################################
+# 
+# # create a list of all installed packages
+# ip <- as.data.frame(installed.packages())
+# head(ip)
+# 
+# # if you use MRO, make sure that no packages in this library will be removed
+# ip <- subset(ip, !grepl("MRO", ip$LibPath))
+# 
+# # we don't want to remove base or recommended packages either\
+# ip <- ip[!(ip[,"Priority"] %in% c("base", "recommended")),]
+# 
+# # determine the library where the packages are installed
+# path.lib <- unique(ip$LibPath)
+# 
+# # create a vector with all the names of the packages you want to remove
+# pkgs.to.remove <- ip[,1]
+# head(pkgs.to.remove)
+# 
+# # remove the packages
+# sapply(pkgs.to.remove, remove.packages, lib = path.lib)
 
 
 ############################################################################
@@ -32,13 +32,15 @@ sapply(pkgs.to.remove, remove.packages, lib = path.lib)
 
 rm(list = ls())
 
+chooseCRANmirror(graphics = FALSE, ind = 14)
+
 install.packages(
-  pkgs = c("installr", "Rcpp", "tidyverse", "ggplot2", "ggpubr", "dplyr",
+  pkgs = c("installr", "Rcpp", "ggplot2", "tidyverse", "ggpubr", "dplyr",
            "tidyr", "data.table", "tibble", "purrr", "stringr", "readxl",
            "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
            "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram",
            "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram", "here",
-           "matrixStats", "NbClust", "DT", "msigdbr"),
+           "matrixStats", "NbClust", "DT", "msigdbr", "openxlsx"),
   dependencies = T)
 
 
@@ -91,6 +93,9 @@ devtools::install_github(
 devtools::install_github(
   "lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.FGSCA4.AspGD",
   upgrade = "never")
+devtools::install(
+  "E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.tRNA.removed",
+  upgrade = "never")
 
 ## C. albicans
 devtools::install_github(
@@ -141,11 +146,11 @@ devtools::install(
 ###############         BSgenome packages            #######################
 ############################################################################
 
-## install A_fumigatus_293 genome as BSgenome object
-path = "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/"
-setwd(dir = path)
-
-forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
+# ## install A_fumigatus_293 genome as BSgenome object
+# path = "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/"
+# setwd(dir = path)
+# 
+# forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 ## run following commands on CMD
 # R.exe CMD build BSgenome.Afumigatus.AspGD.Af293
 # R.exe CMD check BSgenome.Afumigatus.AspGD.Af293_03.05.06.tar.gz

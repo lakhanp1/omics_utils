@@ -419,10 +419,10 @@ openxlsx::writeData(
   startCol = 1, startRow = 2, withFilter = TRUE,
   keepNA = TRUE, na.string = "NA"
 )
-openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 1, cols = 1:ncol(topgo_res))
+openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 2, cols = 1:ncol(topgo_res))
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
-openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 2, firstActiveCol = 2)
+openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 3, firstActiveCol = 2)
 
 
 wrkSheet <- "keggProfile"
@@ -436,10 +436,10 @@ openxlsx::writeData(
   startCol = 1, startRow = 2, withFilter = TRUE,
   keepNA = TRUE, na.string = "NA"
 )
-openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 1, cols = 1:ncol(keggp_res))
+openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 2, cols = 1:ncol(keggp_res))
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
-openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 2, firstActiveCol = 2)
+openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 3, firstActiveCol = 2)
 
 # openxlsx::openXL(wb)
 openxlsx::saveWorkbook(wb = wb, file = paste(outPrefix, ".enrichment.xlsx", sep = ""), overwrite = TRUE)
