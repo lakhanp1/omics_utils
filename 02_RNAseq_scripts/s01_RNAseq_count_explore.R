@@ -11,6 +11,7 @@ library(DESeq2)
 library(tximport)
 library(matrixStats)
 library(ComplexHeatmap)
+library(RColorBrewer)
 library(org.HSapiens.gencodev30.eg.db)
 
 ## This script uses tximport to extract the FPKM matrix from the stringTie output
@@ -19,8 +20,8 @@ rm(list = ls())
 
 analysisName <- "count_data"
 
-file_sampleInfo <- here::here("data", "sample_info.txt")
-readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
+file_sampleInfo <- here::here("data", "reference_data", "sample_info.txt")
+readLength <- as.numeric(readr::read_file(file = here::here("data", "reference_data", "read_length.config")))
 
 outDir <- here("analysis", "01_count_data")
 outPrefix <- paste(outDir, "/", analysisName, sep = "")
@@ -137,28 +138,46 @@ rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
 
 readr::write_tsv(x = rldCount, path = paste0(c(outPrefix,".rlogCounts.tab"), collapse = ""))
 
-plotPCA(rld, intgroup=c("genotype", "treatment"), ntop = 4000)
+plotPCA(rld, intgroup=c("treatment", "time"), ntop = 4000)
 
-pcaData <- plotPCA(rld, intgroup= "condition", returnData = TRUE, ntop = 4000)
+pcaData <- plotPCA(rld, intgroup = c("treatment", "time", "condition"),
+                   returnData = TRUE, ntop = 4000)
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
-# pcaData$treatment <- forcats::as_factor(pcaData$treatment)
-# pcaData$genotype <- forcats::as_factor(pcaData$genotype)
+pcaData$treatment <- forcats::as_factor(pcaData$treatment)
+pcaData$time <- forcats::as_factor(pcaData$time)
 pcaData$condition <- forcats::as_factor(pcaData$condition)
 
 pltTitle <- "Principal Component Analysis"
-pointCol <- base::structure(RColorBrewer::brewer.pal(n = length(unique(pcaData$condition)), name = "Set1"),
-                            names = levels(pcaData$condition))
+
+fillColumn <- "treatment"
+shapeColumn <- "time"
+
+if(length(unique(pcaData[[fillColumn]])) <= 9){
+  pointCol <- base::structure(
+    .Data = RColorBrewer::brewer.pal(n = length(unique(pcaData[[fillColumn]])), name = "Set1"),
+    names = levels(pcaData[[fillColumn]])
+  )
+} else{
+  pointCol <- base::structure(
+    .Data = rainbow(n = length(unique(pcaData[[fillColumn]]))),
+    names = levels(pcaData[[fillColumn]])
+  )
+}
 
 
 pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
-  geom_point(mapping = aes(color = condition), shape = 16, size=4) +
-  geom_text_repel(mapping = aes(label = name), size = 3, point.padding = 0.5) +
+  geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
+             size = 6, stroke = 2) +
+  # scale_shape_manual(values = c(1, 15, 17)) +
+  # guides(fill=guide_legend(override.aes=list(shape=21))) +
+  scale_color_manual(values = pointCol) +
+  geom_text_repel(mapping = aes(label = name), size = 4,  
+                  point.padding = unit(0.5, "lines")) +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  scale_color_manual(values = pointCol) +
   ggtitle(pltTitle) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
@@ -188,7 +207,9 @@ plot_dist <- ComplexHeatmap::Heatmap(
   matrix = sampleDistMatrix,
   col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
   column_title = "Distance matrix of normalized read counts",
-  column_title_gp = gpar(fontface = "bold", fontsize = 14),
+  column_title_gp = gpar(fontface = "bold", fontsize = 16),
+  row_names_gp = gpar(fontsize = 14),
+  column_names_gp = gpar(fontsize = 14),
   heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
                               title_position = "topcenter")
 )
@@ -287,30 +308,39 @@ pairs(x = plotData[, 2:6],
 
 ## set the factor levels
 plotData$condition <- forcats::as_factor(plotData$condition)
-plotData$genotype <- forcats::as_factor(plotData$genotype)
+plotData$time <- forcats::as_factor(plotData$time)
 plotData$treatment <- forcats::as_factor(plotData$treatment)
 
-pointCol <- base::structure(
-  RColorBrewer::brewer.pal(n = length(unique(plotData$condition)), name = "Set1"),
-  names = levels(plotData$condition))
 
 pltTitle <- "Principal Component Analysis"
-
 
 ## decide which PCs to use for plotting
 pcToPlot <- c(1, 2)
 pcCols <- grep(pattern = "Dim.", x = colnames(plotData), value = T)[pcToPlot]
-fillColumn <- "condition"
-# shapeColumn <- "treatment"
+fillColumn <- "treatment"
+shapeColumn <- "time"
+
+if(length(unique(plotData[[fillColumn]])) <= 9){
+  pointCol <- base::structure(
+    .Data = RColorBrewer::brewer.pal(n = length(unique(plotData[[fillColumn]])), name = "Set1"),
+    names = levels(plotData[[fillColumn]])
+  )
+} else{
+  pointCol <- base::structure(
+    .Data = rainbow(n = length(unique(plotData[[fillColumn]]))),
+    names = levels(plotData[[fillColumn]])
+  )
+}
+
 
 pcaPlot <- ggplot(data = plotData,
                   mapping = aes(x = !!sym(pcCols[1]), y = !!sym(pcCols[2]), label = sampleId)) +
-  geom_point(mapping = aes(color = !!sym(fillColumn)),
-             size = 4, stroke = 2) +
+  geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
+             size = 6, stroke = 2) +
   # scale_shape_manual(values = c(1, 15, 17)) +
   # guides(fill=guide_legend(override.aes=list(shape=21))) +
   scale_color_manual(values = pointCol) +
-  geom_text_repel(size = 3, point.padding = 0.5) +
+  geom_text_repel(size = 4, point.padding = 0.5) +
   geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) + 
   geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
   xlab( paste("PC",pcToPlot[1]," (", sprintf("%.2f", eig.val[pcToPlot[1], "variance.percent"]), "%)", sep = "") ) +
@@ -335,9 +365,9 @@ dev.off()
 ## correlation scatter plot
 pt <- ggpairs(
   data = dplyr::select(rldCount, -geneId),
-              upper = list(continuous = wrap("points", size = 0.1)),
-              lower = list(continuous = wrap("cor", size = 10)),
-              diag = list(continuous = "densityDiag"),
+  upper = list(continuous = wrap("points", size = 0.1)),
+  lower = list(continuous = wrap("cor", size = 10)),
+  diag = list(continuous = "densityDiag"),
   title = "scatter plot of rlog transformed normalized read counts") +
   theme_bw() +
   theme(
