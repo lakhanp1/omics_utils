@@ -24,6 +24,9 @@ suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 #' Default: "weight01"
 #' @param bgNodeLimit Any GO term with more than this number of genes in background is removed from the
 #' topGO output. Default: NULL i.e. no such limit is used.
+#' @param orgdb org.db for mapping gene names for gene IDs
+#' @param geneNameCol gene name column from org.db
+#' @param keytype org.db keytype for input genes
 #'
 #' @return A topGO enrichment result table
 #' @export
