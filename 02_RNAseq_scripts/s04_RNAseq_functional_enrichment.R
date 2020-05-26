@@ -29,6 +29,7 @@ col_lfc <- "log2FoldChange"
 
 orgDb <- org.HSapiens.gencodev30.eg.db
 keggOrg <- 'hsa'
+col_degId <- "ENSEMBL_VERSION"
 col_degOrgdbKey <- "ENSEMBL_VERSION"
 col_kegg <- "NCBI_ID"
 col_gsea <- "NCBI_ID"
@@ -172,13 +173,13 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 
 ## topGO GO enrichment
 topgo_up <- topGO_enrichment(goMapFile = file_topGO,
-                             genes = unique(upDegs[[col_topGO]]),
+                             genes = unique(upDegs[[col_degId]]),
                              type = "BP", goNodeSize = 5,
                              orgdb = orgDb, geneNameCol = col_geneName,
                              keytype = col_topGO)
 
 topgo_down <- topGO_enrichment(goMapFile = file_topGO,
-                               genes = unique(downDegs[[col_topGO]]),
+                               genes = unique(downDegs[[col_degId]]),
                                type = "BP", goNodeSize = 5,
                                orgdb = orgDb, geneNameCol = col_geneName,
                                keytype = col_topGO)

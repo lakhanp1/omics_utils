@@ -139,8 +139,8 @@ volcano_plot <- function(
     geom_hline(yintercept = -log10(fdr_cut), color = "black", linetype = "dashed") +
     geom_vline(xintercept = -lfc_cut, color = "black", linetype = "dashed") +
     geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
-    scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expand_scale(mult = 0.02)) +
-    scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expand_scale(mult = 0.02)) +
+    scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expansion(mult = 0.02)) +
+    scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expansion(mult = 0.02)) +
     guides(color = guide_legend(nrow = 2, byrow = T)) +
     labs(
       title = stringr::str_wrap(title),

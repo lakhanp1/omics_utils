@@ -367,8 +367,8 @@ pt_lfcFreq <- ggplot() +
     bins = 100, alpha = 0.5) +
   annotate(geom = "text", x = -4.5, y = Inf, label = resultSummary, vjust = 1, hjust = 0) +
   geom_vline(xintercept = 0, linetype = "dashed", size = 1) +
-  scale_x_continuous(limits = c(-5, 5), expand = expand_scale(mult = 0.01)) +
-  scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  scale_x_continuous(limits = c(-5, 5), expand = expansion(mult = 0.01)) +
+  scale_y_continuous(expand = expansion(mult = 0.01)) +
   scale_fill_manual(
     name = NULL,
     values = c("unshrunken" = "#999999", "shrunken" = "red"),
@@ -403,8 +403,8 @@ pt_pqDensity <- ggplot(data = as.data.frame(res)) +
     breaks = c("pvalue", "padj"),
     labels = c("p-value", "q-value")
   ) +
-  scale_x_continuous(expand = expand_scale(mult = 0.01)) +
-  scale_y_continuous(expand = expand_scale(mult = 0.01)) +
+  scale_x_continuous(expand = expansion(mult = 0.01)) +
+  scale_y_continuous(expand = expansion(mult = 0.01)) +
   labs(title = paste("p-value and q-value density distribution:", compare[1], "vs", compare[2]),
        x = "p-value or q-value", y = "Density") +
   theme_bw() +
