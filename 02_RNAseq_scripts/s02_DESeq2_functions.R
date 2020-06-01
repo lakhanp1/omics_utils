@@ -17,9 +17,8 @@
 #' @param xlimit X axis limit for volcano plot
 #' @param markGenes A vector of genes to mark with gene name. Default: NULL
 #' @param geneNameCol column from which gene name to use for marking. Default: NULL
-#' @param showNames whether to show gene names on volcano plot. Default: TRUE
-#' @param highlightGenes A named list of gene IDs for highlighting on volcano plot. Default: NULL
-#' @param highlightColor A named vector of colors for each list member. Default: NULL
+#' @param highlightGenesets A named list of gene IDs for highlighting on volcano plot. Default: NULL
+#' @param genesetColor A named vector of colors for each list member. Default: NULL
 #'
 #' @return A list object with following elements:
 #' \itemize{
@@ -34,8 +33,8 @@ volcano_plot <- function(
   df, title = "volcano plot",
   fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1,
   ylimit = 150, xlimit = c(-4, 4),
-  markGenes = NULL, geneNameCol = NULL, showNames = TRUE,
-  highlightGenes = NULL, highlightColor = NULL){
+  markGenes = NULL, geneNameCol = NULL,
+  highlightGenesets = NULL, genesetColor = NULL){
   
   if(!is.null(geneNameCol)){
     if (is.null(df[[geneNameCol]])) {
@@ -59,7 +58,7 @@ volcano_plot <- function(
   degSummary <- dplyr::group_by(plotDf, category) %>% 
     dplyr::tally() %>% 
     dplyr::mutate(
-     str = paste(category, ":", n, sep = " ")
+      str = paste(category, ":", n, sep = " ")
     )
   
   subTitle <- stringr::str_c(degSummary$str, collapse = " || ")
@@ -69,12 +68,23 @@ volcano_plot <- function(
   plotDf$log10FDR <- scales::squish(x = plotDf$log10FDR, range = c(0, ylimit))
   plotDf[[lfc_col]] <- scales::squish(x = plotDf[[lfc_col]], range = xlimit)
   
+  if(!missing(markGenes) && !is.null(markGenes)){
+    plotDf <- dplyr::left_join(
+      x = plotDf, y = tibble(geneId = markGenes, markGene = TRUE), by = "geneId"
+    ) %>% 
+      dplyr::mutate(
+        geneLabel = dplyr::if_else(
+          condition = markGene, true = !!sym(geneNameCol), false = "", missing = ""
+        )
+      )
+  }
   
-  #Drwa Volcano plot
-  pt <- ggplot(mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
+  # Draw Volcano plot
+  pt <- ggplot(
+    data = plotDf,
+    mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
     geom_point(
-      data = plotDf,
-      mapping = aes(color = category), alpha=0.6, size=1.75
+      mapping = aes(color = category), alpha=0.7, size=1.75, shape = 19
     ) +
     scale_color_manual(
       values = c("Significant Up" = "red", "Significant Down" = "green",
@@ -84,15 +94,15 @@ volcano_plot <- function(
   
   
   ## optionally, color only genes of interest
-  if(is.list(highlightGenes)){
+  if(is.list(highlightGenesets)){
     
-    if(is.null(highlightColor)){
-      stop("No color provided for highlightGenes")
+    if(is.null(genesetColor)){
+      stop("No color provided for highlightGenesets")
     }
     
     ## prepare the data
     colorGeneDf <- purrr::map_dfr(
-      .x = highlightGenes,
+      .x = highlightGenesets,
       .f = ~ tibble::tibble(geneId = .x),
       .id = "colorGroup"
     ) %>% 
@@ -103,34 +113,33 @@ volcano_plot <- function(
       geom_point(data = plotDf, color = "grey", alpha = 0.8) +
       geom_point(data = colorGeneDf,
                  mapping = aes(color = colorGroup)) +
-      scale_color_manual(values = highlightColor)
+      scale_color_manual(values = genesetColor)
     
   }
   
   
   ## mark genes of interest with gene names
   if(!missing(markGenes) && !is.null(markGenes)){
-    tmpDf <- dplyr::filter(plotDf, !!sym(geneNameCol) %in% markGenes)
+    
+    pt <- pt +
+      geom_text_repel(
+        mapping = aes(label = geneLabel),
+        segment.color = 'black',
+        segment.size = 1, min.segment.length = 1,
+        xlim  = c(down_cut, up_cut),
+        ylim = c(-log10(fdr_cut), NA),
+        size = 5) 
+    
+    tmpDf <- dplyr::filter(plotDf, geneId %in% markGenes)
     
     ## draw the points
     pt <- pt +
       geom_point(
         data = tmpDf,
-        color = "black",
-        size=1.75, shape = 1
+        color = "green",
+        size=1.75, shape = 1, stroke = 1.5
       )
     
-    ## show the gene lables
-    if(isTRUE(showNames)){
-      pt <- pt +
-        geom_text_repel(
-          data = tmpDf,
-          mapping = aes(label = !!sym(geneNameCol)),
-          segment.color = 'black',
-          segment.size = 1,
-          ylim = c(-log10(fdr_cut), NA),
-          size = 5) 
-    }
   }
   
   
@@ -141,7 +150,7 @@ volcano_plot <- function(
     geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
     scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expansion(mult = 0.02)) +
     scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expansion(mult = 0.02)) +
-    guides(color = guide_legend(nrow = 2, byrow = T)) +
+    guides(color = guide_legend(nrow = 2, byrow = T, override.aes = list(size = 5))) +
     labs(
       title = stringr::str_wrap(title),
       subtitle = subTitle
@@ -152,10 +161,9 @@ volcano_plot <- function(
       legend.title = element_text(face = "bold", size = 16),
       legend.position = "bottom",
       plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-      axis.text = element_text(size = 13),
-      axis.title = element_text(face = "bold", size = 15),
+      axis.text = element_text(size = 20),
+      axis.title = element_text(face = "bold", size = 20),
       legend.text = element_text(size = 15),
-      legend.key.size = unit(1.2,"cm"),
       plot.margin = unit(c(1,1,1,1),"cm"),
     )
   
