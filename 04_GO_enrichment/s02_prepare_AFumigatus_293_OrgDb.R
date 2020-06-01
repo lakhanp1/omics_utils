@@ -122,6 +122,18 @@ afuMetadata <- data.frame(
   value = "http://www.aspgd.org/"
 )
 
+genomeSize <- suppressMessages(
+  readr::read_tsv(file = "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/genome.size",
+                  col_names = c("chr", "length"))) %>% 
+  dplyr::mutate(isCircular = FALSE)
+
+seqInfo <- Seqinfo(
+  seqnames = genomeSize$chr,
+  seqlengths = genomeSize$length,
+  isCircular = genomeSize$isCircular,
+  genome = "Aspergillus_fumigatus_Af293_s03-m05-r06")
+
+
 txdbData <- GenomicFeatures::makeTxDbFromGFF(file = file_gff,
                                              dataSource = "Af293 AspGD GFF",
                                              organism = "Aspergillus fumigatus",

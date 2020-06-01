@@ -7,7 +7,7 @@ library(BSgenome)
 
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 
 path <- "E:/Chris_UM/Database/A_Nidulans/annotation_resources/"
 setwd(path)
@@ -172,7 +172,7 @@ seqInfo <- Seqinfo(
   seqnames = genomeSize$chr,
   seqlengths = genomeSize$length,
   isCircular = genomeSize$isCircular,
-  genome = "Aspergillus_nidulans")
+  genome = "Aspergillus_nidulans_s10-m04-r03")
 
 txdbData <- GenomicFeatures::makeTxDbFromGFF(
   file = file_gff,
@@ -201,6 +201,11 @@ transcripts(txdbData, columns = c("TXID", "TXNAME", "TXTYPE"))
 genes(txdbData)
 fiveUtrs <- fiveUTRsByTranscript(txdbData)
 
+## install package
+install.packages("E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.FGSCA4.AspGD.GFF",
+                 repos = NULL, type = "source")
+
+
 ##############################################################################
 file_gff2 <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_version_s10-m04-r03_features_tRNA_removed.gff"
 
@@ -218,7 +223,7 @@ seqInfo <- Seqinfo(
   seqnames = genomeSize$chr,
   seqlengths = genomeSize$length,
   isCircular = genomeSize$isCircular,
-  genome = "Aspergillus_nidulans")
+  genome = "Aspergillus_nidulans_s10-m04-r03")
 
 txdbData2 <- GenomicFeatures::makeTxDbFromGFF(
   file = file_gff2,
@@ -243,4 +248,8 @@ makeTxDbPackage(
 ##############################################################################
 ## create BSgenome package
 forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
+
+## install package
+install.packages("E:/Chris_UM/Database/A_Nidulans/annotation_resources/BSgenome.Anidulans.FGSCA4.AspGD",
+                 repos = NULL, type = "source")
 
