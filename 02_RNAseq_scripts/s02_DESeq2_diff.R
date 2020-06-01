@@ -371,6 +371,28 @@ pt_theme <- pt_theme +
   theme(legend.position = c(0.95, 0.95),
         legend.justification = c(1, 1))
 
+## Independent filtering plot
+pt_indFil <- ggplot(data = metadata(res)$filterNumRej,
+                    mapping = aes(x = theta, y = numRej)) +
+  geom_point(shape = 1, size = 3, stroke = 1.5) +
+  geom_line(size = 1) +
+  geom_line(data = metadata(res)$lo.fit %>% as_tibble(),
+            mapping = aes(x = x, y = y),
+            color = "red", size = 1) +
+  geom_vline(xintercept = metadata(res)$filterTheta,
+             color = "blue", linetype = "dashed", size = 1) +
+  scale_x_continuous(
+    labels = scales::percent_format(), breaks = seq(0, 1, length.out = 6)) +
+  labs(
+    title = "Independent filtering cutoff by DESeq2",
+    subtitle = paste(
+      "alpha = ", metadata(res)$alpha, " || filter threshold quantile = ", 
+      scales::percent(metadata(res)$filterTheta, accuracy = 0.01),
+      "; || filter threshold read count = ", round(metadata(res)$filterThreshold, 2), sep = ""),
+    x = "quantiles of filter",
+    y = "genes with adjusted p-value < 0.05"
+  ) +
+  pt_theme
 
 
 ## log2FoldChange density plot
@@ -594,6 +616,8 @@ plotMA(
 )
 
 par(op)
+
+print(pt_indFil)
 
 ## volcano plot
 print(pt_volc$plot)
