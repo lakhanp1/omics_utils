@@ -258,6 +258,18 @@ if(length(unique(pcaData[[fillColumn]])) <= 9){
 }
 
 
+
+pt_theme <- theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(face = "bold", size = 20),
+        legend.text = element_text(size = 15),
+        legend.key.size = unit(1.2,"cm"),
+        panel.grid = element_blank(),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
+        legend.title = element_text(face = "bold", size = 15)
+  )
+
 pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   geom_point(mapping = aes(color = !!sym(fillColumn)),
              size = 6, stroke = 2) +
@@ -271,16 +283,9 @@ pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   ggtitle(pltTitle) +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        axis.text.x = element_text(size = 13),
-        axis.text.y = element_text(size = 15),
-        axis.title.x = element_text(face = "bold", size = 15),
-        axis.title.y = element_text(face = "bold", size = 15),
-        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
-        legend.text = element_text(size = 13),
-        legend.position = "bottom",
-        legend.title = element_text(face = "bold", size = 15)
+  pt_theme +
+  theme(
+    legend.position = "bottom",
   )
 
 
@@ -308,8 +313,13 @@ pt_dist <- ComplexHeatmap::Heatmap(
   col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
   column_title = "Distance matrix of normalized read counts",
   column_title_gp = gpar(fontface = "bold", fontsize = 14),
-  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
-                              title_position = "topcenter")
+  row_names_gp = gpar(fontface = "bold", fontsize = 18),
+  column_names_gp = gpar(fontface = "bold", fontsize = 18),
+  row_names_max_width = max_text_width(rownames(sampleDistMatrix), gp = gpar(fontsize = 18)),
+  column_names_max_height = max_text_width(rownames(sampleDistMatrix), gp = gpar(fontsize = 18)),
+  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 16, fontface = "bold"),
+                              title_position = "lefttop", direction = "horizontal",
+                              labels_gp = gpar(fontsize = 16))
 )
 
 
@@ -356,6 +366,14 @@ fcDensity <- hist(x = pmin(pmax(res$log2FoldChange, -5), 5),
 # 
 # hist(x = res$padj, breaks = 100, main = "q-value distribution")
 
+
+pt_theme <- pt_theme +
+  theme(legend.position = c(0.95, 0.95),
+        legend.justification = c(1, 1))
+
+
+
+## log2FoldChange density plot
 pt_lfcFreq <- ggplot() +
   geom_histogram(
     data = as.data.frame(res),
@@ -377,19 +395,10 @@ pt_lfcFreq <- ggplot() +
   ) +
   labs(title = paste("log2(fold change) frequency distribution:", compare[1], "vs", compare[2]),
        x = "log2(fold change)", y = "Frequency") +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        axis.text = element_text(size = 13),
-        axis.title = element_text(face = "bold", size = 15),
-        panel.grid = element_blank(),
-        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
-        legend.position = c(0.95, 0.95),
-        legend.justification = c(1, 1),
-        legend.text = element_text(size = 15),
-        legend.key.size = unit(1.2,"cm")
-  )
+  pt_theme
 
 
+## pvalue and qvalue density plot
 pt_pqDensity <- ggplot(data = as.data.frame(res)) +
   geom_histogram(mapping = aes(x = pvalue, y = ..density.. , fill = "pvalue"),
                  bins = 100, alpha = 0.5) +
@@ -407,19 +416,7 @@ pt_pqDensity <- ggplot(data = as.data.frame(res)) +
   scale_y_continuous(expand = expansion(mult = 0.01)) +
   labs(title = paste("p-value and q-value density distribution:", compare[1], "vs", compare[2]),
        x = "p-value or q-value", y = "Density") +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        axis.text = element_text(size = 13),
-        axis.title = element_text(face = "bold", size = 15),
-        legend.text = element_text(size = 15),
-        legend.key.size = unit(1.2,"cm"),
-        # legend.direction = "horizontal",
-        panel.grid = element_blank(),
-        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
-        legend.title = element_text(face = "bold", size = 15),
-        legend.position = c(0.95, 0.95),
-        legend.justification = c(1, 1)
-  )
+  pt_theme
 
 
 ###########################################################################
@@ -566,7 +563,7 @@ pt_volc <- volcano_plot(df = diffData,
 
 pt_pca_volc <- ggpubr::ggarrange(pt_pca, pt_volc$plot, ncol = 2, align = "h")
 png(filename = paste(outPrefix, ".PCA_volcano.png", sep = ""), width = 5000, height = 3000, res = 300)
-plot(pt_pca_volc)
+print(pt_pca_volc)
 dev.off()
 
 # plot all data in single PDF file
@@ -574,11 +571,12 @@ dev.off()
 pdf(file = paste(outPrefix, ".summary_plots.pdf", sep = ""), width = 10, height = 10, onefile = TRUE)
 
 ## PCA
-plot(pt_pca)
+print(pt_pca)
 
 ## distance heatmap
 draw(pt_dist,
-     padding = unit(rep(0.5, 4), "cm")
+     padding = unit(rep(0.5, 4), "cm"),
+     heatmap_legend_side = "bottom"
 )
 
 ## MA plots
@@ -598,13 +596,14 @@ plotMA(
 par(op)
 
 ## volcano plot
-plot(pt_volc$plot)
+print(pt_volc$plot)
 
 ## p-value distribution plots
-plot(pt_lfcFreq)
-plot(pt_pqDensity)
+print(pt_lfcFreq)
+print(pt_pqDensity)
 
 dev.off()
+
 
 ###########################################################################
 
