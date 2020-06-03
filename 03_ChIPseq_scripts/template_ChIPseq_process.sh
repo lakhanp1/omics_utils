@@ -6,7 +6,7 @@ mappedReads=`grep -P ' 0 mapped \(' alignment.stats | grep -P -o '^\d+'`
 scale=`perl -e "printf('%.3f', 1000000/$mappedReads)"`
 
 ##macs2 pileup with 200bp extension
-macs2 pileup --extsize 200 -i SAMPLE_ID_bt2.bam -o SAMPLE_ID_pileup.bdg
+macs2 pileup --extsize 200 -i SAMPLE_ID_bt2.bam -o SAMPLE_ID_pileup.bdg -f BAM
 error_exit $?
 
 ##normalize
