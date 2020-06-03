@@ -353,6 +353,10 @@ resShrink <- lfcShrink(dds, coef = coefName,
 
 resultSummary <- paste(capture.output(summary(resShrink))[1:8], collapse = "\n")
 
+readr::write_lines(
+  x = c(paste("DESeq2 analysis:", analysisName), resultSummary),
+  path = paste(outPrefix, ".DESeq2_summary.txt", sep = ""))
+
 # mcols(resShrink, use.names=TRUE)
 
 
