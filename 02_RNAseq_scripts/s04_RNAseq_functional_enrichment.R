@@ -13,14 +13,14 @@ suppressPackageStartupMessages(library(argparse))
 
 rm(list = ls())
 
-source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
 ###########################################################################
 
 diffDataPath <- here::here("analysis", "02_DESeq2_diff")
 
-cutoff_qval <- 0.05
+cutoff_fdr <- 0.05
 cutoff_lfc <- 0.585
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
@@ -100,10 +100,10 @@ if(! col_gsea %in% colnames(degs)){
   degs <- dplyr::left_join(x = degs, y = gseaInfo, by = "geneId")
 }
 
-downDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) <= cutoff_down) %>% 
+downDegs <- dplyr::filter(degs, padj <= cutoff_fdr & !!sym(col_lfc) <= cutoff_down) %>% 
   dplyr::mutate(category = "down")
 
-upDegs <- dplyr::filter(degs, padj <= cutoff_qval & !!sym(col_lfc) >= cutoff_up) %>% 
+upDegs <- dplyr::filter(degs, padj <= cutoff_fdr & !!sym(col_lfc) >= cutoff_up) %>% 
   dplyr::mutate(category = "up")
 
 degData <- dplyr::bind_rows(upDegs, downDegs)
@@ -405,6 +405,10 @@ dev.off()
 
 ###########################################################################
 ## write data to excel file
+
+descString <- paste("## log2FoldChange cutoff =", cutoff_up, "(up) /", cutoff_down, "(down)",
+                    "; q-value cutoff =", cutoff_fdr)
+
 wb <- openxlsx::createWorkbook(creator = "Lakhansing Pardeshi Genomics Core")
 headerStyle <- openxlsx::createStyle(textDecoration = "bold", fgFill = "#e6e6e6")
 
@@ -413,7 +417,7 @@ wrkSheet <- "topGO"
 openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
 openxlsx::writeData(
   wb = wb, sheet = wrkSheet, startCol = 2, startRow = 1,
-  x = paste("GO enrichment using topGO:", degResult)
+  x = paste("## GO enrichment using topGO:", degResult, descString)
 )
 openxlsx::writeData(
   wb = wb, sheet = wrkSheet, x = topgo_res,
@@ -430,7 +434,7 @@ wrkSheet <- "keggProfile"
 openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
 openxlsx::writeData(
   wb = wb, sheet = wrkSheet, startCol = 2, startRow = 1,
-  x = paste("KEGG pathway enrichment using keggProfiler:", degResult)
+  x = paste("KEGG pathway enrichment using keggProfiler:", degResult, descString)
 )
 openxlsx::writeData(
   wb = wb, sheet = wrkSheet, x = keggp_res,
