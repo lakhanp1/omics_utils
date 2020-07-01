@@ -203,6 +203,13 @@ dev.off()
 resultsNames(dds)
 
 ########################
+## explained below using following design
+## genotype : I | I | I | II | II | II | I | I | I | II | II | II
+## condition: A | A | A |  A |  A |  A | B | B | B |  B |  B |  B
+## ~ genotype + condition + genotype:condition
+########################
+
+########################
 ## the condition effect B_vs_A for genotype I (the main effect)
 res_BA_gt1 <- results(dds, name = "treatment_casp_vs_ctrl")
 

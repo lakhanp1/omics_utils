@@ -376,36 +376,53 @@ dev.off()
 # dev.off()
 
 
-# ###########################################################################
+###########################################################################
 # ## GSEA enrichment using fgsea
-# gseaRes <- fgsea(pathways = msig_list, stats = geneList, nperm = 10000)
+# fgseaRes <- fgsea(pathways = msig_list, stats = geneList)
 # 
-# gseaRes <- dplyr::filter(gseaRes, pval < 0.05) %>%
+# collapsedPathways <- collapsePathways(
+#   fgseaRes = fgseaRes[order(pval)][pval <= 0.05],
+#   pathways = msig_list,
+#   stats = geneList
+# )
+# 
+# uniqueFgsea <- fgseaRes[pathway %in% collapsedPathways$mainPathways]
+# 
+# uniqueFgsea <- dplyr::filter(uniqueFgsea, padj <= 0.05) %>%
 #   dplyr::left_join(y = msigDescDf, by = c("pathway" = "STANDARD_NAME")) %>%
-#   dplyr::mutate(contrast = contrast)
+#   dplyr::mutate(
+#     contrast = contrast,
+#     leadingEdge = mapIdsList(
+#       x = orgDb, keys = leadingEdge, column = col_geneName, keytype = col_gsea
+#     ),
+#     leadingEdgeIds = mapIdsList(
+#       x = orgDb, keys = leadingEdge, column = col_degOrgdbKey, keytype = col_gsea
+#     )
+#   ) %>% 
+#   dplyr::select(pathway, contrast, everything())
 # 
-# topPathways <- gseaRes[head(order(pval), n=15)][order(NES), pathway]
-# plotGseaTable(msig_list[topPathways], geneList,
-#               gseaRes, gseaParam=0.5)
+# topPathways <- uniqueFgsea[head(order(pval), n=20)][order(NES), pathway]
 # 
-# pt2 <- plotEnrichment(pathway = msig_list[[setId]],
-#                       stats = geneList) +
-#   labs(
-#     title = paste(setId, ":", contrast),
-#     subtitle = wrap_100(x = msigDesc[[setId]]),
-#     x = "Rank in ordered dataset",
-#     y = "Enrichment Score") +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         axis.text = element_text(size = 12),
-#         axis.title = element_text(size = 14, face = "bold"))
-
-
-
-
+# pt_gsea <- plotGseaTable(
+#   msig_list[topPathways], geneList,
+#   uniqueFgsea, gseaParam=0.5,
+#   colwidths = c(10, 5, 1, 1.5, 1.5),
+#   render = FALSE
+# )
+# 
+# png(filename = paste(outPrefix, ".fgsea_plot.png", sep = ""),
+#     width = 2500, height = 2500, res = 250)
+# grid.draw(pt_gsea)
+# dev.off()
+# 
+# ## use data.table::fwrite because of list columns
+# data.table::fwrite(
+#   x = uniqueFgsea, file = paste(outPrefix, ".fgsea.tab", sep = ""),
+#   sep = "\t", sep2 = c("",";",""), eol = "\n"
+# )
+# 
 ###########################################################################
 ## write data to excel file
-
 descString <- paste("## log2FoldChange cutoff =", cutoff_up, "(up) /", cutoff_down, "(down)",
                     "; q-value cutoff =", cutoff_fdr)
 
@@ -445,6 +462,23 @@ openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 2, col
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
 openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
 openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 3, firstActiveCol = 2)
+
+
+# wrkSheet <- "fgsea"
+# openxlsx::addWorksheet(wb = wb, sheetName = wrkSheet)
+# openxlsx::writeData(
+#   wb = wb, sheet = wrkSheet, startCol = 2, startRow = 1,
+#   x = paste("preranked gene set enrichment analysis (GSEA):", degResult)
+# )
+# openxlsx::writeData(
+#   wb = wb, sheet = wrkSheet, x = uniqueFgsea,
+#   startCol = 1, startRow = 2, withFilter = TRUE,
+#   keepNA = TRUE, na.string = "NA"
+# )
+# openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 2, cols = 1:ncol(uniqueFgsea))
+# openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
+# openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
+# openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 3, firstActiveCol = 2)
 
 # openxlsx::openXL(wb)
 openxlsx::saveWorkbook(wb = wb, file = paste(outPrefix, ".enrichment.xlsx", sep = ""), overwrite = TRUE)

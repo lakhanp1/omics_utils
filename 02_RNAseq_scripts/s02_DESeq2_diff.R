@@ -237,12 +237,14 @@ percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
 pltTitle <- paste("Principal Component Analysis:", compare[1], "vs", compare[2])
 
-# pcaData$treatment <- forcats::as_factor(pcaData$treatment)
-# pcaData$time <- forcats::as_factor(pcaData$time)
-pcaData$condition <- forcats::as_factor(pcaData$condition)
+pcaData <- dplyr::mutate(
+  pcaData,
+  # !!sym(treatment) := forcats::as_factor(!!sym(treatment)),
+  # !!sym(time) := forcats::as_factor(!!sym(time)),
+  !!sym(col_compare) := forcats::as_factor(!!sym(col_compare))
+)
 
-
-fillColumn <- "condition"
+fillColumn <- col_compare
 # shapeColumn <- "time"
 
 if(length(unique(pcaData[[fillColumn]])) <= 9){
