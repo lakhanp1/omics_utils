@@ -361,6 +361,34 @@ png(filename = paste(outPrefix, ".rld_PCA.png", sep = ""), width = 4000, height 
 print(pcaPlot)
 dev.off()
 
+
+
+## PC scatter plot
+pt_pcScatter <- ggpairs(
+  data = plotData, columns = 2:6,
+  mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
+  lower = list(continuous = wrap("points", size = 2)),
+  upper = "blank",
+  diag = list(continuous = wrap("diagAxis", colour = "black")),
+  legend = 6,
+  showStrips = FALSE
+) +
+  scale_color_manual(values = pointCol) +
+  labs(title = "Principal components scatter plot") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_blank(),
+    strip.text = element_text(size = 14),
+    strip.background = element_rect(fill = "white"),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+
+png(filename = paste(outPrefix, ".PCA_scatter.png", sep = ""), width = 4000, height = 4000, res = 400)
+print(pt_pcScatter)
+dev.off()
+
 #############################################################################
 ## correlation scatter plot
 pt <- ggpairs(
