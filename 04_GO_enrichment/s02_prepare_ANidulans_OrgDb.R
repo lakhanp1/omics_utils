@@ -168,6 +168,7 @@ genomeSize <- suppressMessages(
                   col_names = c("chr", "length"))) %>% 
   dplyr::mutate(isCircular = FALSE)
 
+
 seqInfo <- Seqinfo(
   seqnames = genomeSize$chr,
   seqlengths = genomeSize$length,
@@ -198,7 +199,7 @@ makeTxDbPackage(
 columns(txdbData)
 exons(txdbData)
 transcripts(txdbData, columns = c("TXID", "TXNAME", "TXTYPE"))
-genes(txdbData)
+GenomicFeatures::genes(txdbData)
 fiveUtrs <- fiveUTRsByTranscript(txdbData)
 
 ## install package
