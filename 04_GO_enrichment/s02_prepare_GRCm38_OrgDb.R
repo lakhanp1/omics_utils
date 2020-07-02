@@ -44,7 +44,7 @@ makeTxDbPackage(txdb = txdbData,
                 maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
                 author = "Lakhansing Pardeshi Chris Lab",
                 destDir = ".",
-                pkgname = "TxDb.Mmusculus.GRCm38p6.Ensembl100"
+                pkgname = "TxDb.GRCm38p6.Ensembl100"
 )
 
 
@@ -137,8 +137,8 @@ makeOrgPackage(
   author = "Lakhansing Pardeshi Chris Lab",
   outputDir = ".",
   tax_id = "10090",
-  genus = "Mus",
-  species = "musculus.GRCm38p6.Ensembl100",
+  genus = "G",
+  species = "RCm38p6.Ensembl100",
   goTable = "go",
   verbose = TRUE)
 

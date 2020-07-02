@@ -25,8 +25,9 @@ suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 #' @param bgNodeLimit Any GO term with more than this number of genes in background is removed from the
 #' topGO output. Default: NULL i.e. no such limit is used.
 #' @param orgdb org.db for mapping gene names for gene IDs
-#' @param geneNameCol gene name column from org.db
+#' @param geneNameColumn gene name column from org.db
 #' @param keytype org.db keytype for input genes
+#' @param topgoColumn org.db keytype for topGO mapping file geneIds
 #'
 #' @return A topGO enrichment result table
 #' @export
@@ -35,10 +36,17 @@ suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 #' 
 topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
                              algo = "weight01", bgNodeLimit = NULL,
-                             orgdb, geneNameCol, keytype){
+                             orgdb, keytype = "GID", topgoColumn = "GID", geneNameColumn){
   
   geneID2GO <- topGO::readMappings(file = goMapFile)
   geneNames <- names(geneID2GO)
+  
+  
+  if(keytype != topgoColumn){
+    genes <- suppressMessages(
+      AnnotationDbi::mapIds(x = orgdb, keys = genes, column = topgoColumn, keytype = keytype)
+    )
+  }
   
   genes <- unique(genes)
   
@@ -62,12 +70,14 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   )
   
   ## get the result table, filter by pValue cutoff 0.05 and calculate Rich factor
-  resultTab <- topGO::GenTable(goData, 
-                               weightedFisher = resFisherWeight,
-                               orderBy = "resFisherWeight", 
-                               ranksOf = "weightedFisher", 
-                               topNodes = nodeCount, 
-                               numChar = 1000)
+  resultTab <- topGO::GenTable(
+    goData, 
+    weightedFisher = resFisherWeight,
+    orderBy = "resFisherWeight", 
+    ranksOf = "weightedFisher", 
+    topNodes = nodeCount, 
+    numChar = 1000
+  )
   
   
   ## filtering and new column calculations
@@ -87,10 +97,9 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
     return(resultTab)
   }
   
-  
-  ## add gene name column
   ann.genes <- topGO::genesInTerm(object = goData, whichGO = resultTab$GO.ID)
   
+  ## prepare mapped gene list
   enrichedGenes <- purrr::map_dfr(
     .x = ann.genes,
     .f = function(x){
@@ -102,16 +111,16 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   
   ## optionally get gene names from orgDb
   if(!missing(orgdb)){
-    ## extract KEGG gene IDs 
+    ## extract gene names
     mappedNames <- suppressMessages(
-      AnnotationDbi::select(x = orgdb, keys = genes, keytype = keytype,
-                            columns = c(geneNameCol))
+      AnnotationDbi::select(
+        x = orgdb, keys = genes, keytype = topgoColumn, columns = geneNameColumn)
     ) %>% 
       dplyr::mutate(
-        !!sym(geneNameCol) := if_else(
-          condition = is.na(!!sym(geneNameCol)),
-          true = !!sym(keytype),
-          false = !!sym(geneNameCol)
+        !!sym(geneNameColumn) := if_else(
+          condition = is.na(!!sym(geneNameColumn)),
+          true = !!sym(topgoColumn),
+          false = !!sym(geneNameColumn)
         )
       ) %>% 
       tibble::deframe()
@@ -146,6 +155,105 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   # dplyr::glimpse(resultTab)
   
   return(resultTab)
+}
+
+##################################################################################
+
+#' KEGG pathway enrichment using KEGGprofile::find_enriched_pathway
+#'
+#' @param genes a vector of gene IDs
+#' @param orgdb OrgDB database for the organism. 
+#' @param keggIdColumn Column name from org.db which has ids matching to KEGG database.
+#' Usually NCBI gene ids are used as KEGG gene ids.
+#' @param keytype Appropriate keytype for the gene list. This keytype is used to extract
+#' the geneID to KEGG_gene_id mappings
+#' @param keggOrg Three letter organism code. Please refer to KEGG website for details
+#' @param pvalCut p-value cutoff for the enriched pathway. Default: 0.05
+#' @param qvalCut adjusted p-value cutoff. Default: 1
+#' @param minGenes minimum number of annotated genes for enriched pathways. Default: 1
+#' @param geneNameColumn org.db column which has gene name
+#' @param ... Other arguments to function KEGGprofile::find_enriched_pathway
+#'
+#' @return A dataframe with enriched pathways
+#' @export
+#'
+#' @examples NA
+keggprofile_enrichment <- function(
+  genes, orgdb, keytype, keggIdColumn, keggOrg, geneNameColumn,
+  pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
+  
+  if(keytype != keggIdColumn){
+    genes <- suppressMessages(
+      AnnotationDbi::mapIds(x = orgdb, keys = genes, column = keggIdColumn, keytype = keytype)
+    )
+    genes <- na.omit(genes)
+    
+    mappedIds <- suppressMessages(
+      AnnotationDbi::mapIds(x = orgdb, keys = genes, column = keytype, keytype = keggIdColumn)
+    )
+  }
+  
+  genes <- unique(genes)
+  
+  
+  ## KEGG enrichment
+  kp <- suppressMessages(
+    KEGGprofile::find_enriched_pathway(
+      gene = genes, species = keggOrg,
+      returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
+      download_latest = TRUE, returned_genenumber = minGenes,
+      ...)
+  )
+  
+  ## prepare a mapped gene list for the enriched pathways
+  assignedDf <- purrr::map_dfr(
+    .x = kp$detail,
+    .f = function(x){
+      list(geneIds = paste(mappedIds[x], collapse = ";"))
+    },
+    .id = "pathway_id"
+  )
+  
+  ## optionally extract gene names
+  if(!missing(geneNameColumn) && !missing(orgdb)){
+    ## extract gene names
+    mappedNames <- suppressMessages(
+      AnnotationDbi::select(
+        x = orgdb, keys = genes, keytype = keggIdColumn, columns = c(keytype, geneNameColumn))
+    ) %>% 
+      dplyr::mutate(
+        !!sym(geneNameColumn) := if_else(
+          condition = is.na(!!sym(geneNameColumn)),
+          true = !!sym(keytype),
+          false = !!sym(geneNameColumn)
+        )
+      ) %>% 
+      dplyr::select(!!keggIdColumn, !!geneNameColumn) %>% 
+      tibble::deframe()
+    
+    ## prepare a mapped gene list for the enriched pathways
+    assignedDf <- purrr::map_dfr(
+      .x = kp$detail,
+      .f = function(x){
+        list(geneIds = paste(mappedIds[x], collapse = ";"),
+             geneNames = paste(mappedNames[x], collapse = ";"))
+      },
+      .id = "pathway_id"
+    )
+  }
+  
+  
+  ## a final result dataframe
+  keggDf <- tibble::rownames_to_column(.data = kp$stastic, var = "pathway_id") %>% 
+    dplyr::filter(Pathway_Name != "Metabolic pathways") %>% 
+    dplyr::left_join(y = assignedDf, by = "pathway_id") %>% 
+    dplyr::rename(Annotated = Gene_Pathway,
+                  Significant = Gene_Found,
+                  richness = Percentage) %>% 
+    dplyr::mutate(inputSize = length(genes)) %>% 
+    dplyr::arrange(pvalue)
+  
+  return(keggDf)
 }
 
 ##################################################################################
@@ -397,82 +505,6 @@ clusterProfiler_groupGO <- function(genes, orgDb, goLevel = 3, type = "BP", ...)
   return(df)
 }
 
-
-##################################################################################
-
-
-#' KEGG pathway enrichment using KEGGprofile::find_enriched_pathway
-#'
-#' @param genes a vector of gene IDs
-#' @param orgdb OrgDB database for the organism. 
-#' @param keggIdCol Column name from org.db which has ids matching to KEGG database.
-#' Usually NCBI gene ids are used as KEGG gene ids.
-#' @param keytype Appropriate keytype for the gene list. This keytype is used to extract
-#' the geneID to KEGG_gene_id mappings
-#' @param keggOrg Three letter organism code. Please refer to KEGG website for details
-#' @param pvalCut p-value cutoff for the enriched pathway. Default: 0.05
-#' @param qvalCut adjusted p-value cutoff. Default: 1
-#' @param minGenes minimum number of annotated genes for enriched pathways. Default: 1
-#' @param ... Other arguments to function KEGGprofile::find_enriched_pathway
-#'
-#' @return A dataframe with enriched pathways
-#' @export
-#'
-#' @examples NA
-keggprofile_enrichment <- function(genes, orgdb, keytype, keggIdCol, keggOrg, geneNameCol,
-                                   pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
-  
-  
-  ## extract KEGG gene IDs 
-  keggIds <- suppressMessages(
-    AnnotationDbi::select(x = orgdb, keys = genes, keytype = keytype,
-                          columns = c(keytype, keggIdCol, geneNameCol))
-  ) %>% 
-    dplyr::filter(!is.na(!!sym(keggIdCol))) %>% 
-    dplyr::group_by(!!sym(keggIdCol)) %>% 
-    dplyr::summarise(
-      !!sym(keytype) := paste(!!sym(keytype), collapse = ","),
-      !!sym(geneNameCol) := paste(!!sym(geneNameCol), collapse = ",")
-    )
-  
-  ## KEGG enrichment
-  kp <- suppressMessages(
-    KEGGprofile::find_enriched_pathway(
-      gene = keggIds[[keggIdCol]], species = keggOrg,
-      returned_pvalue = pvalCut, returned_adjpvalue = qvalCut,
-      download_latest = TRUE, returned_genenumber = minGenes,
-      ...)
-  )
-  
-  
-  mappedIds <- dplyr::select(keggIds, !!keggIdCol, !!keytype) %>% 
-    tibble::deframe()
-  
-  mappedNames <- dplyr::select(keggIds, !!keggIdCol, !!geneNameCol) %>% 
-    tibble::deframe()
-  
-  ## prepare a mapped gene list for the enriched pathways
-  assignedDf <- purrr::map_dfr(
-    .x = kp$detail,
-    .f = function(x){
-      list(geneIds = paste(mappedIds[x], collapse = ";"),
-           geneNames = paste(mappedNames[x], collapse = ";"))
-    },
-    .id = "pathway_id"
-  )
-  
-  ## a final result dataframe
-  keggDf <- tibble::rownames_to_column(.data = kp$stastic, var = "pathway_id") %>% 
-    dplyr::filter(Pathway_Name != "Metabolic pathways") %>% 
-    dplyr::left_join(y = assignedDf, by = "pathway_id") %>% 
-    dplyr::rename(Annotated = Gene_Pathway,
-                  Significant = Gene_Found,
-                  richness = Percentage) %>% 
-    dplyr::mutate(inputSize = nrow(keggIds)) %>% 
-    dplyr::arrange(pvalue)
-  
-  return(keggDf)
-}
 
 
 ##################################################################################
