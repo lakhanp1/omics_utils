@@ -140,13 +140,14 @@ readr::write_tsv(x = rldCount, path = paste0(c(outPrefix,".rlogCounts.tab"), col
 
 pt_theme <- theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        axis.text.x = element_text(size = 13),
-        axis.text.y = element_text(size = 15),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(face = "bold", size = 20),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(face = "bold", size = 15),
+        legend.key.size = unit(1.2,"cm"),
         axis.title.x = element_text(face = "bold", size = 15),
         axis.title.y = element_text(face = "bold", size = 15),
-        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
-        legend.text = element_text(size = 13),
-        legend.title = element_text(face = "bold", size = 15)
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm")
   )
 
 plotPCA(rld, intgroup=c("treatment", "time"), ntop = 4000)
@@ -179,17 +180,19 @@ if(length(unique(pcaData[[fillColumn]])) <= 9){
 
 pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
-             size = 6, stroke = 2) +
-  # scale_shape_manual(values = c(1, 15, 17)) +
+             size = 6, stroke = 1) +
+  scale_shape_manual(values = c("12hr" = 16, "24hr" = 17)) +
   # guides(fill=guide_legend(override.aes=list(shape=21))) +
   scale_color_manual(values = pointCol) +
   geom_text_repel(mapping = aes(label = name), size = 4,  
                   point.padding = unit(0.5, "lines")) +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_vline(xintercept = 0, linetype = 2) +
-  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
-  ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle(pltTitle) +
+  labs(
+    title = pltTitle,
+    x = paste0("PC1: ",percentVar[1],"% variance"),
+    y = paste0("PC2: ",percentVar[2],"% variance")
+  ) +
   pt_theme
 
 
@@ -277,21 +280,24 @@ if(length(unique(plotData[[fillColumn]])) <= 9){
 }
 
 
-pt_rldPca <- ggplot(data = plotData,
-                  mapping = aes(x = !!sym(pcCols[1]), y = !!sym(pcCols[2]), label = sampleId)) +
+pt_rldPca <- ggplot(
+  data = plotData,
+  mapping = aes(x = !!sym(pcCols[1]), y = !!sym(pcCols[2]), label = sampleId)
+) +
   geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
              size = 6, stroke = 2) +
-  # scale_shape_manual(values = c(1, 15, 17)) +
-  # guides(fill=guide_legend(override.aes=list(shape=21))) +
+  scale_shape_manual(values = shapeCode) +
+  # guides(color=guide_legend(override.aes=list(shape=16))) +
   scale_color_manual(values = pointCol) +
-  geom_text_repel(size = 4, point.padding = 0.5) +
+  geom_text_repel(size = 4, point.padding = unit(0.5, "lines")) +
   geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) + 
   geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
-  xlab( paste("PC",pcToPlot[1]," (", sprintf("%.2f", eig.val[pcToPlot[1], "variance.percent"]), "%)", sep = "") ) +
-  ylab( paste("PC",pcToPlot[2]," (", sprintf("%.2f", eig.val[pcToPlot[2], "variance.percent"]), "%)", sep = "") ) +
-  ggtitle(pltTitle) + 
+  labs(
+    title = pltTitle,
+    x = paste("PC",pcToPlot[1]," (", sprintf("%.2f", eig.val[pcToPlot[1], "variance.percent"]), "%)", sep = ""),
+    y = paste("PC",pcToPlot[2]," (", sprintf("%.2f", eig.val[pcToPlot[2], "variance.percent"]), "%)", sep = "")
+  ) +
   pt_theme
-
 
 
 # pdf(file = paste(outPrefix, ".rld_PCA.pdf", sep = ""), width = 10, height = 10)
@@ -300,14 +306,12 @@ print(pt_rldPca)
 dev.off()
 
 
-
 ## PC scatter plot
 pt_pcScatter <- GGally::ggpairs(
   data = plotData, columns = 2:6,
   mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
-  lower = list(continuous = wrap("points", size = 2)),
+  lower = list(continuous = wrap("points", size = 3)),
   upper = "blank",
-  # diag = "blank",
   diag = list(continuous = wrap("diagAxis", colour = "black")),
   labeller = as_labeller(
     x = structure(
@@ -319,16 +323,20 @@ pt_pcScatter <- GGally::ggpairs(
   showStrips = FALSE
 ) +
   scale_color_manual(values = pointCol) +
-  labs(title = "Principal components scatter plot") +
+  labs(title = pltTitle) +
   theme_bw() +
   theme(
     panel.grid = element_blank(),
     legend.position = "bottom",
+    legend.text = element_text(size = 15),
+    legend.title = element_text(face = "bold", size = 15),
+    legend.key.size = unit(1.2,"cm"),
     axis.text = element_blank(),
     strip.text = element_text(size = 14),
     strip.background = element_rect(fill = "white"),
     plot.title = element_text(size = 16, face = "bold")
   )
+
 
 png(filename = paste(outPrefix, ".PCA_scatter.png", sep = ""), width = 4000, height = 4000, res = 400)
 print(pt_pcScatter)
@@ -352,8 +360,6 @@ sampleDistMatrix <- as.matrix(sampleDists)
 pt_dist <- ComplexHeatmap::Heatmap(
   matrix = sampleDistMatrix,
   col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
-  column_title = "Distance matrix of normalized read counts",
-  column_title_gp = gpar(fontface = "bold", fontsize = 16),
   row_names_gp = gpar(fontsize = 14),
   column_names_gp = gpar(fontsize = 14),
   row_dend_reorder = TRUE, column_dend_reorder = TRUE,
@@ -364,9 +370,12 @@ pt_dist <- ComplexHeatmap::Heatmap(
 
 
 png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
-    width = 3000, height = 3000, res = 300)
-draw(pt_dist,
-     padding = unit(rep(0.5, 4), "cm")
+    width = 3000, height = 3000, res = 400)
+draw(
+  pt_dist,
+  column_title = paste("Distance matrix of normalized read counts:", analysisName),
+  column_title_gp = gpar(fontface = "bold", fontsize = 16),
+  padding = unit(rep(0.5, 4), "cm")
 )
 dev.off()
 
@@ -377,7 +386,8 @@ pt_pairs <- GGally::ggpairs(
   upper = list(continuous = wrap("points", size = 0.1)),
   lower = list(continuous = wrap("cor", size = 10)),
   diag = list(continuous = "densityDiag"),
-  title = "scatter plot of rlog transformed normalized read counts") +
+  title = paste("scatter plot of rlog transformed normalized read counts:", analysisName)
+) +
   theme_bw() +
   theme(
     strip.text.y = element_text(size = 18, angle = 0, hjust = 0, face = "bold"),

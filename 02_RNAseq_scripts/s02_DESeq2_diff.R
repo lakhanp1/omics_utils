@@ -262,8 +262,6 @@ if(length(unique(pcaData[[fillColumn]])) <= 9){
   )
 }
 
-
-
 pt_theme <- theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
         axis.text = element_text(size = 20),
@@ -308,7 +306,7 @@ pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
 #
 # plotPCA( DESeqTransform(seTemp))
 
-
+###########################################################################
 sampleDists <- dist(t(assay(rld)))
 sampleDistMatrix <- as.matrix(sampleDists)
 
@@ -316,15 +314,15 @@ sampleDistMatrix <- as.matrix(sampleDists)
 pt_dist <- ComplexHeatmap::Heatmap(
   matrix = sampleDistMatrix,
   col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
-  column_title = "Distance matrix of normalized read counts",
-  column_title_gp = gpar(fontface = "bold", fontsize = 14),
   row_names_gp = gpar(fontface = "bold", fontsize = 18),
   column_names_gp = gpar(fontface = "bold", fontsize = 18),
   row_names_max_width = max_text_width(rownames(sampleDistMatrix), gp = gpar(fontsize = 18)),
   column_names_max_height = max_text_width(rownames(sampleDistMatrix), gp = gpar(fontsize = 18)),
-  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 16, fontface = "bold"),
-                              title_position = "lefttop", direction = "horizontal",
-                              labels_gp = gpar(fontsize = 16))
+  heatmap_legend_param = list(
+    title = "Distance", title_gp = gpar(fontsize = 16, fontface = "bold"),
+    title_position = "lefttop", direction = "horizontal",
+    labels_gp = gpar(fontsize = 16)
+  )
 )
 
 
@@ -605,9 +603,12 @@ pdf(file = paste(outPrefix, ".summary_plots.pdf", sep = ""), width = 10, height 
 print(pt_pca)
 
 ## distance heatmap
-draw(pt_dist,
-     padding = unit(rep(0.5, 4), "cm"),
-     heatmap_legend_side = "bottom"
+draw(
+  pt_dist,
+  column_title = paste("Distance matrix of normalized read counts:", analysisName),
+  column_title_gp = gpar(fontface = "bold", fontsize = 16),
+  padding = unit(rep(0.5, 4), "cm"),
+  heatmap_legend_side = "bottom"
 )
 
 ## MA plots
