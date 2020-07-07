@@ -45,10 +45,11 @@ rownames(exptInfo) <- exptInfo$sampleId
 exptInfo$condition <- forcats::as_factor(exptInfo$condition)
 
 ## Add gene symbol for each Ensembl ID
-geneInfo <- AnnotationDbi::select(x = orgDb,
-                                  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
-                                  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION"),
-                                  keytype = "ENSEMBL_VERSION") %>% 
+geneInfo <- AnnotationDbi::select(
+  x = orgDb, keytype = "ENSEMBL_VERSION", 
+  keys = keys(x = orgDb, keytype = "ENSEMBL_VERSION"),
+  columns = c("ENSEMBL", "GENE_NAME", "DESCRIPTION")
+) %>% 
   dplyr::rename(geneId = ENSEMBL_VERSION)
 
 design <- ~ condition
@@ -105,7 +106,6 @@ dds <- DESeq(ddsTxi)
 ###########################################################################
 ## raw counts
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
-
 readr::write_tsv(x = rawCounts, path = paste0(c(outPrefix,".rawCounts.tab"), collapse = ""))
 
 ## FPKM
@@ -127,7 +127,6 @@ if(all(fpkmCounts$geneId %in% geneInfo$geneId)){
 }
 
 
-
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
 readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
@@ -135,8 +134,20 @@ readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), c
 ## r-log normalized counts
 rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
-
 readr::write_tsv(x = rldCount, path = paste0(c(outPrefix,".rlogCounts.tab"), collapse = ""))
+
+###########################################################################
+
+pt_theme <- theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_text(size = 15),
+        axis.title.x = element_text(face = "bold", size = 15),
+        axis.title.y = element_text(face = "bold", size = 15),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
+        legend.text = element_text(size = 13),
+        legend.title = element_text(face = "bold", size = 15)
+  )
 
 plotPCA(rld, intgroup=c("treatment", "time"), ntop = 4000)
 
@@ -166,7 +177,7 @@ if(length(unique(pcaData[[fillColumn]])) <= 9){
 }
 
 
-pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
+pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
              size = 6, stroke = 2) +
   # scale_shape_manual(values = c(1, 15, 17)) +
@@ -179,79 +190,12 @@ pcaPlot <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   ggtitle(pltTitle) +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        axis.text.x = element_text(size = 13),
-        axis.text.y = element_text(size = 15),
-        axis.title.x = element_text(face = "bold", size = 15),
-        axis.title.y = element_text(face = "bold", size = 15),
-        plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
-        legend.text = element_text(size = 13),
-        legend.title = element_text(face = "bold", size = 15)
-  )
+  pt_theme
 
 
 png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 4000, height = 3000, res = 380)
-pcaPlot
+pt_pca
 dev.off()
-
-
-###########################################################################
-## sample distance matrix
-
-sampleDists <- dist(t(assay(rld)))
-sampleDistMatrix <- as.matrix(sampleDists)
-
-
-plot_dist <- ComplexHeatmap::Heatmap(
-  matrix = sampleDistMatrix,
-  col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
-  column_title = "Distance matrix of normalized read counts",
-  column_title_gp = gpar(fontface = "bold", fontsize = 16),
-  row_names_gp = gpar(fontsize = 14),
-  column_names_gp = gpar(fontsize = 14),
-  heatmap_legend_param = list(title = "Distance", title_gp = gpar(fontsize = 12),
-                              title_position = "topcenter")
-)
-
-
-png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
-    width = 3000, height = 3000, res = 300)
-draw(plot_dist,
-     padding = unit(rep(0.5, 4), "cm")
-)
-dev.off()
-
-
-###########################################################################
-## read the FPKM data from stringTie output using ballgown package
-## no clearity on how ballgown calculate gene level FPKM scores using transcript score.
-## so use stringTie -> tximport way
-## tximport calculate gene level FPKM/TPM scores by using weighted average over all transcripts
-## for a gene. See tximport code for the details
-# filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, sep = "")
-# 
-# bg <- ballgown(samples = filesStringtie, meas='all')
-# 
-# geneExpression <- data.frame(gexpr(bg)) %>%
-#   rownames_to_column(var = "geneId")
-# 
-# 
-# ## rename the sample names
-# renameCols <- base::structure(gsub(pattern = "FPKM.stringTie_", replacement = "", x = names(geneExpression)),
-#                               names = names(geneExpression))
-# 
-# 
-# renameCols[colnames(geneExpression)]
-# 
-# colnames(geneExpression) <- renameCols[colnames(geneExpression)]
-# 
-# 
-# fwrite(x = geneExpression, file = paste(outPrefix, "FPKM_ballgown.tab", sep = "_"),
-#        sep = "\t", col.names = T, row.names = F, quote = F)
-# 
-# 
-
 
 
 ###########################################################################
@@ -312,7 +256,7 @@ plotData$time <- forcats::as_factor(plotData$time)
 plotData$treatment <- forcats::as_factor(plotData$treatment)
 
 
-pltTitle <- "Principal Component Analysis"
+pltTitle <- "Principal Component Analysis: rld"
 
 ## decide which PCs to use for plotting
 pcToPlot <- c(1, 2)
@@ -333,7 +277,7 @@ if(length(unique(plotData[[fillColumn]])) <= 9){
 }
 
 
-pcaPlot <- ggplot(data = plotData,
+pt_rldPca <- ggplot(data = plotData,
                   mapping = aes(x = !!sym(pcCols[1]), y = !!sym(pcCols[2]), label = sampleId)) +
   geom_point(mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
              size = 6, stroke = 2) +
@@ -346,30 +290,31 @@ pcaPlot <- ggplot(data = plotData,
   xlab( paste("PC",pcToPlot[1]," (", sprintf("%.2f", eig.val[pcToPlot[1], "variance.percent"]), "%)", sep = "") ) +
   ylab( paste("PC",pcToPlot[2]," (", sprintf("%.2f", eig.val[pcToPlot[2], "variance.percent"]), "%)", sep = "") ) +
   ggtitle(pltTitle) + 
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-        axis.text.x = element_text(size = 13),
-        axis.text.y = element_text(size = 15),
-        axis.title = element_text(face = "bold"),
-        legend.text = element_text(size = 13),
-        legend.title = element_text(size = 13, face = "bold"))
+  pt_theme
 
 
 
 # pdf(file = paste(outPrefix, ".rld_PCA.pdf", sep = ""), width = 10, height = 10)
 png(filename = paste(outPrefix, ".rld_PCA.png", sep = ""), width = 4000, height = 3000, res = 350)
-print(pcaPlot)
+print(pt_rldPca)
 dev.off()
 
 
 
 ## PC scatter plot
-pt_pcScatter <- ggpairs(
+pt_pcScatter <- GGally::ggpairs(
   data = plotData, columns = 2:6,
   mapping = aes(color = !!sym(fillColumn), shape = !!sym(shapeColumn)),
   lower = list(continuous = wrap("points", size = 2)),
   upper = "blank",
+  # diag = "blank",
   diag = list(continuous = wrap("diagAxis", colour = "black")),
+  labeller = as_labeller(
+    x = structure(
+      paste(rownames(eig.val)," (", sprintf("%.2f", eig.val[, "variance.percent"]), "%)", sep = ""),
+      names = rownames(eig.val)
+    )
+  ),
   legend = 6,
   showStrips = FALSE
 ) +
@@ -389,9 +334,45 @@ png(filename = paste(outPrefix, ".PCA_scatter.png", sep = ""), width = 4000, hei
 print(pt_pcScatter)
 dev.off()
 
+###########################################################################
+## sample distance matrix
+scaledMat <- chipmine::scale_matrix_rows(normCountMatFiltered)
+M <- cor(scaledMat)
+
+png(filename = paste(outPrefix, ".zscore_corrplot.png", sep = ""),
+    width = 3000, height = 3000, res = 280)
+corrplot(corr = M, method = "circle", order = "AOE")
+dev.off()
+
+sampleDists <- dist(t(assay(rld)))
+# sampleDists <- dist(t(scaledMat))
+sampleDistMatrix <- as.matrix(sampleDists)
+
+
+pt_dist <- ComplexHeatmap::Heatmap(
+  matrix = sampleDistMatrix,
+  col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
+  column_title = "Distance matrix of normalized read counts",
+  column_title_gp = gpar(fontface = "bold", fontsize = 16),
+  row_names_gp = gpar(fontsize = 14),
+  column_names_gp = gpar(fontsize = 14),
+  row_dend_reorder = TRUE, column_dend_reorder = TRUE,
+  heatmap_legend_param = list(
+    title = "Distance", title_gp = gpar(fontsize = 12),
+    title_position = "topcenter")
+)
+
+
+png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
+    width = 3000, height = 3000, res = 300)
+draw(pt_dist,
+     padding = unit(rep(0.5, 4), "cm")
+)
+dev.off()
+
 #############################################################################
 ## correlation scatter plot
-pt <- ggpairs(
+pt_pairs <- GGally::ggpairs(
   data = dplyr::select(rldCount, -geneId),
   upper = list(continuous = wrap("points", size = 0.1)),
   lower = list(continuous = wrap("cor", size = 10)),
@@ -406,7 +387,7 @@ pt <- ggpairs(
 png(filename = paste(outPrefix, ".scatter_matrix.png", sep = ""),
     width = 10000, height = 10000, res = 300)
 
-pt
+pt_pairs
 dev.off()
 
 # ###########################################################################
