@@ -172,17 +172,21 @@ geneList[is.infinite(geneList) & geneList < 0] <- min(geneList[is.finite(geneLis
 
 
 ## topGO GO enrichment
-topgo_up <- topGO_enrichment(goMapFile = file_topGO,
-                             genes = unique(upDegs[[col_degId]]),
-                             type = "BP", goNodeSize = 5,
-                             orgdb = orgDb, geneNameCol = col_geneName,
-                             keytype = col_topGO)
+topgo_up <- topGO_enrichment(
+  goMapFile = file_topGO,
+  genes = unique(upDegs$geneId),
+  type = "BP", goNodeSize = 5,
+  orgdb = orgDb, keytype = col_degOrgdbKey,
+  topgoColumn = col_topGO, geneNameColumn = col_geneName
+)
 
-topgo_down <- topGO_enrichment(goMapFile = file_topGO,
-                               genes = unique(downDegs[[col_degId]]),
-                               type = "BP", goNodeSize = 5,
-                               orgdb = orgDb, geneNameCol = col_geneName,
-                               keytype = col_topGO)
+topgo_down <- topGO_enrichment(
+  goMapFile = file_topGO,
+  genes = unique(downDegs$geneId),
+  type = "BP", goNodeSize = 5,
+  orgdb = orgDb, keytype = col_degOrgdbKey,
+  topgoColumn = col_topGO, geneNameColumn = col_geneName
+)
 
 topgo_res <- dplyr::bind_rows(
   dplyr::mutate(.data = as.data.frame(topgo_up), category = "up"),
@@ -256,12 +260,12 @@ dev.off()
 ## KEGGprofile::find_enriched_pathway
 keggp_up <- keggprofile_enrichment(
   genes = unique(upDegs$geneId), orgdb = orgDb, geneNameCol = col_geneName,
-  keytype = col_degOrgdbKey, keggIdCol = col_kegg, keggOrg = keggOrg
+  keytype = col_degOrgdbKey, keggIdColumn = col_kegg, keggOrg = keggOrg
 )
 
 keggp_down <- keggprofile_enrichment(
   genes = unique(downDegs$geneId), orgdb = orgDb, geneNameCol = col_geneName,
-  keytype = col_degOrgdbKey, keggIdCol = col_kegg, keggOrg = keggOrg
+  keytype = col_degOrgdbKey, keggIdColumn = col_kegg, keggOrg = keggOrg
 )
 
 keggp_res <- dplyr::bind_rows(

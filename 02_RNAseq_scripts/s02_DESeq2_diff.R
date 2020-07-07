@@ -142,7 +142,7 @@ design <- as.formula(paste("~", col_compare))
 ## import the counts data using tximport and run DESeq2
 readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
 path_stringtie <- here::here("data", "stringTie")
-filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
+filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$stringtieId, "/t_data.ctab", sep = "")
 names(filesStringtie) <- exptInfo$sampleId
 
 tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
@@ -232,7 +232,10 @@ readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = 
 
 plotPCA(rld, intgroup=c(col_compare))
 
-pcaData <- plotPCA(rld, intgroup=c(col_compare), returnData = TRUE)
+pcaData <- plotPCA(rld, intgroup=c(col_compare), returnData = TRUE) %>% 
+  tibble::rownames_to_column(var = "sampleId") %>% 
+  dplyr::left_join(y = exptInfo, by = c("sampleId", col_compare))
+
 percentVar <- sprintf("%.2f", 100 * attr(pcaData, "percentVar"))
 
 pltTitle <- paste("Principal Component Analysis:", compare[1], "vs", compare[2])

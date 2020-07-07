@@ -1,13 +1,13 @@
-library(DESeq2)
-library(tidyverse)
-library(data.table)
-library(ggrepel)
-library(tximport)
-library(RColorBrewer)
-library(ComplexHeatmap)
-library(circlize)
-library(org.AFumigatus.Af293.eg.db)
-library(here)
+suppressPackageStartupMessages(library(DESeq2))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(tximport))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(ComplexHeatmap))
+suppressPackageStartupMessages(library(circlize))
+suppressPackageStartupMessages(library(org.AFumigatus.Af293.eg.db))
+suppressPackageStartupMessages(library(here))
 
 ## This script:
 ## read the stringtie output using tximport or as raw counts
@@ -204,17 +204,15 @@ resultsNames(dds)
 
 ########################
 ## explained below using following design
-## genotype : I | I | I | II | II | II | I | I | I | II | II | II
-## condition: A | A | A |  A |  A |  A | B | B | B |  B |  B |  B
+## genotype : I | I | I | I | I | I | II | II | II | II | II | II
+## condition: A | A | A | B | B | B |  A |  A |  A |  B |  B |  B
 ## ~ genotype + condition + genotype:condition
 ########################
 
 ########################
 ## the condition effect B_vs_A for genotype I (the main effect)
+## contrast=c("condition","B","A")
 res_BA_gt1 <- results(dds, name = "treatment_casp_vs_ctrl")
-
-## another way to extract condition effect for genotype I using contrast argument
-# res_BA_gt1_2 <- results(dds, contrast = c("treatment", "AA", "Control"), lfcThreshold = cutoff_lfc)
 
 summary(res_BA_gt1)
 mcols(res_BA_gt1)
@@ -234,8 +232,13 @@ readr::write_tsv(x = rownames_to_column(as.data.frame(res_BA_gt1), var = "geneId
 
 ########################
 ## the condition effect B_vs_A for genotype II:
+## this is, by definition, the main effect *plus* the interaction term
+## (the extra condition effect in genotype II compared to genotype I).
+## results(dds, list( c("condition_B_vs_A","genotypeII.conditionB") ))
+##
 ## remember that the contrast has to be a list with first element as a vector of 
 ## genotype I effect and interaction term
+
 res_BA_gt2 <- results(
   dds,
   contrast = list(c("treatment_casp_vs_ctrl", "genotypedel_znfA.treatmentcasp"))

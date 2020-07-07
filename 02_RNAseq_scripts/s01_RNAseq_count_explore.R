@@ -1,18 +1,18 @@
-# library(ballgown)
-library(here)
-library(tidyverse)
-library(FactoMineR)
-library(factoextra)
-library(corrplot)
-library(ggrepel)
-library(GGally)
-library(data.table)
-library(DESeq2)
-library(tximport)
-library(matrixStats)
-library(ComplexHeatmap)
-library(RColorBrewer)
-library(org.HSapiens.gencodev30.eg.db)
+# suppressPackageStartupMessages(library(ballgown))
+suppressPackageStartupMessages(library(here))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(FactoMineR))
+suppressPackageStartupMessages(library(factoextra))
+suppressPackageStartupMessages(library(corrplot))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(GGally))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(DESeq2))
+suppressPackageStartupMessages(library(tximport))
+suppressPackageStartupMessages(library(matrixStats))
+suppressPackageStartupMessages(library(ComplexHeatmap))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(org.HSapiens.gencodev30.eg.db))
 
 ## This script uses tximport to extract the FPKM matrix from the stringTie output
 ## It also perform PCA analysis using FPKM values
@@ -58,7 +58,7 @@ design <- ~ condition
 
 ## import the counts data using tximport and run DESeq2
 path_stringtie <- here::here("data", "stringTie")
-filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$sampleId, "/t_data.ctab", sep = "")
+filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$stringtieId, "/t_data.ctab", sep = "")
 names(filesStringtie) <- exptInfo$sampleId
 
 tmp <- data.table::fread(file = filesStringtie[1], sep = "\t", header = T, stringsAsFactors = F)
