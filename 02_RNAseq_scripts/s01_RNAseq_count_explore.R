@@ -9,6 +9,7 @@ suppressPackageStartupMessages(library(GGally))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(DESeq2))
 suppressPackageStartupMessages(library(tximport))
+suppressPackageStartupMessages(library(PoiClaClu))
 suppressPackageStartupMessages(library(matrixStats))
 suppressPackageStartupMessages(library(ComplexHeatmap))
 suppressPackageStartupMessages(library(RColorBrewer))
@@ -197,7 +198,7 @@ pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
 
 
 png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 4000, height = 3000, res = 380)
-pt_pca
+print(pt_pca)
 dev.off()
 
 
@@ -379,6 +380,40 @@ draw(
 )
 dev.off()
 
+###########################################################################
+## Poisson dissimilarity matrix: remember it does its own normalization of counts
+poisd <- PoiClaClu::PoissonDistance(t(counts(dds)))
+samplePoisDistMatrix <- as.matrix( poisd$dd )
+
+rownames(samplePoisDistMatrix) <- dds$sampleId
+colnames(samplePoisDistMatrix) <- dds$sampleId
+
+## use Poisson distance to generate cluster using hclust
+poisDistClust <- hclust(poisd$dd)
+
+## plot heatmap
+pt_poisDist <- ComplexHeatmap::Heatmap(
+  matrix = samplePoisDistMatrix,
+  col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
+  row_names_gp = gpar(fontsize = 14),
+  column_names_gp = gpar(fontsize = 14),
+  cluster_rows = poisDistClust, cluster_columns = poisDistClust,
+  row_dend_reorder = F, column_dend_reorder = F,
+  heatmap_legend_param = list(
+    title = "Distance", title_gp = gpar(fontsize = 12),
+    legend_height = unit(5, "cm"), title_position = "topcenter")
+)
+
+png(filename = paste(outPrefix, ".poisson_distance_heatmap.png", sep = ""),
+    width = 3000, height = 3000, res = 400)
+draw(
+  pt_poisDist,
+  column_title = paste("Poisson distance matrix read counts:", analysisName),
+  column_title_gp = gpar(fontface = "bold", fontsize = 16),
+  padding = unit(rep(0.5, 4), "cm")
+)
+dev.off()
+
 #############################################################################
 ## correlation scatter plot
 pt_pairs <- GGally::ggpairs(
@@ -397,7 +432,7 @@ pt_pairs <- GGally::ggpairs(
 png(filename = paste(outPrefix, ".scatter_matrix.png", sep = ""),
     width = 10000, height = 10000, res = 300)
 
-pt_pairs
+print(pt_pairs)
 dev.off()
 
 # ###########################################################################

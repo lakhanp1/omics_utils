@@ -2,7 +2,7 @@ suppressPackageStartupMessages(library(DESeq2))
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(ggrepel))
-suppressPackageStartupMessages(library("ggpubr"))
+suppressPackageStartupMessages(library(ggpubr))
 suppressPackageStartupMessages(library(tximport))
 suppressPackageStartupMessages(library(here))
 suppressPackageStartupMessages(library(RColorBrewer))
@@ -324,10 +324,6 @@ pt_dist <- ComplexHeatmap::Heatmap(
     labels_gp = gpar(fontsize = 16)
   )
 )
-
-
-###########################################################################
-
 
 
 ###########################################################################
