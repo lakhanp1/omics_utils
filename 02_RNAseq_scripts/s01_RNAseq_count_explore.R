@@ -391,10 +391,28 @@ colnames(samplePoisDistMatrix) <- dds$sampleId
 ## use Poisson distance to generate cluster using hclust
 poisDistClust <- hclust(poisd$dd)
 
+anDf <- tibble::tibble(sampleId = rownames(samplePoisDistMatrix)) %>% 
+  dplyr::left_join(y = exptInfo, by = "sampleId") %>% 
+  as.data.frame()
+
+htAn <- ComplexHeatmap::HeatmapAnnotation(
+  treatment = anDf$treatment,
+  time = anno_simple(
+    x = anDf$time, pch = shapeCode[anDf$time],
+    col = structure(c("white", "white"), names = names(shapeCode))
+  ),
+  which = "column",
+  # df = dplyr::select(anDf, treatment, time),
+  col = list(
+    treatment = pointCol
+  )
+)
+
 ## plot heatmap
 pt_poisDist <- ComplexHeatmap::Heatmap(
   matrix = samplePoisDistMatrix,
   col = colorRampPalette( rev(brewer.pal(9, "YlGnBu")) )(255),
+  top_annotation = htAn,
   row_names_gp = gpar(fontsize = 14),
   column_names_gp = gpar(fontsize = 14),
   cluster_rows = poisDistClust, cluster_columns = poisDistClust,
@@ -404,15 +422,18 @@ pt_poisDist <- ComplexHeatmap::Heatmap(
     legend_height = unit(5, "cm"), title_position = "topcenter")
 )
 
+
 png(filename = paste(outPrefix, ".poisson_distance_heatmap.png", sep = ""),
-    width = 3000, height = 3000, res = 400)
+    width = 3500, height = 3000, res = 380)
 draw(
   pt_poisDist,
   column_title = paste("Poisson distance matrix read counts:", analysisName),
   column_title_gp = gpar(fontface = "bold", fontsize = 16),
+  merge_legends = TRUE,
   padding = unit(rep(0.5, 4), "cm")
 )
 dev.off()
+
 
 #############################################################################
 ## correlation scatter plot
