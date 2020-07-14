@@ -197,9 +197,8 @@ pt_pca <- ggplot(pcaData, aes(x = PC1, y = PC2)) +
   pt_theme
 
 
-png(filename = paste(outPrefix, ".PCA.png", sep = ""), width = 4000, height = 3000, res = 380)
-print(pt_pca)
-dev.off()
+ggsave(filename = paste(outPrefix, ".PCA.png", sep = ""), device = "png",
+       plot = pt_pca, width = 10, height = 8, dpi = 400)
 
 
 ###########################################################################
@@ -301,11 +300,11 @@ pt_rldPca <- ggplot(
   pt_theme
 
 
-# pdf(file = paste(outPrefix, ".rld_PCA.pdf", sep = ""), width = 10, height = 10)
-png(filename = paste(outPrefix, ".rld_PCA.png", sep = ""), width = 4000, height = 3000, res = 350)
-print(pt_rldPca)
-dev.off()
+ggsave(filename = paste(outPrefix, ".rld_PCA.pdf", sep = ""), device = "pdf",
+       plot = pt_rldPca, width = 10, height = 8, dpi = 400)
 
+ggsave(filename = paste(outPrefix, ".rld_PCA.png", sep = ""), device = "png",
+       plot = pt_rldPca, width = 10, height = 8, dpi = 400)
 
 ## PC scatter plot
 pt_pcScatter <- GGally::ggpairs(
@@ -339,9 +338,8 @@ pt_pcScatter <- GGally::ggpairs(
   )
 
 
-png(filename = paste(outPrefix, ".PCA_scatter.png", sep = ""), width = 4000, height = 4000, res = 400)
-print(pt_pcScatter)
-dev.off()
+ggsave(filename = paste(outPrefix, ".PCA_scatter.png", sep = ""), device = "png",
+       plot = pt_pcScatter, width = 12, height = 10, dpi = 400)
 
 ###########################################################################
 ## sample distance matrix
@@ -370,14 +368,21 @@ pt_dist <- ComplexHeatmap::Heatmap(
 )
 
 
-png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
-    width = 3000, height = 3000, res = 400)
-draw(
+pt_dist <- draw(
   pt_dist,
   column_title = paste("Distance matrix of normalized read counts:", analysisName),
   column_title_gp = gpar(fontface = "bold", fontsize = 16),
   padding = unit(rep(0.5, 4), "cm")
 )
+
+png(filename = paste(outPrefix, ".distance_heatmap.png", sep = ""),
+    width = 3000, height = 3000, res = 400)
+draw(pt_dist)
+dev.off()
+
+pdf(file = paste(outPrefix, ".distance_heatmap.pdf", sep = ""),
+    width = 8, height = 8)
+draw(pt_dist)
 dev.off()
 
 ###########################################################################
@@ -423,15 +428,22 @@ pt_poisDist <- ComplexHeatmap::Heatmap(
 )
 
 
-png(filename = paste(outPrefix, ".poisson_distance_heatmap.png", sep = ""),
-    width = 3500, height = 3000, res = 380)
-draw(
+pt_poisDist <- draw(
   pt_poisDist,
   column_title = paste("Poisson distance matrix read counts:", analysisName),
   column_title_gp = gpar(fontface = "bold", fontsize = 16),
   merge_legends = TRUE,
   padding = unit(rep(0.5, 4), "cm")
 )
+
+png(filename = paste(outPrefix, ".poisson_distance_heatmap.png", sep = ""),
+    width = 3500, height = 3000, res = 380)
+draw(pt_poisDist)
+dev.off()
+
+pdf(file = paste(outPrefix, ".poisson_distance_heatmap.pdf", sep = ""),
+    width = 9, height = 8)
+draw(pt_poisDist)
 dev.off()
 
 
