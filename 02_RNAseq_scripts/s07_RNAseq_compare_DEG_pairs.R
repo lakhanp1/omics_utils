@@ -160,18 +160,26 @@ comb_name(cm)
 comb_size(cm)
 comb_degree(cm)
 
+## identify the up-up and down-down combinations and use different color
 grpsDD <- degLists$group[which(degLists$diff == "down")]
 combDD <- paste(as.numeric(set_name(cm) %in% grpsDD), collapse = "")
 grpsUU <- degLists$group[which(degLists$diff == "up")]
 combUU <- paste(as.numeric(set_name(cm) %in% grpsUU), collapse = "")
 
 colorComb <- structure(rep("black", times = length(comb_name(cm))), names = comb_name(cm))
-colorComb[c(combDD, combUU)] <- c("red", "blue")
+colorComb[c(combDD, combUU)] <- c("blue", "red")
 
+## show the up-up and down-down combination first 
+combOrder <- forcats::as_factor(comb_name(cm)) %>% 
+  forcats::fct_relevel(combDD, combUU) %>% 
+  order()
+
+## generate Upset plot
 pt <- UpSet(
   m = cm,
   pt_size = unit(7, "mm"), lwd = 3,
   set_order = names(geneList),
+  comb_order = combOrder,
   comb_col = colorComb,
   top_annotation = HeatmapAnnotation(
     foo = anno_empty(border = FALSE),
