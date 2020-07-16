@@ -35,11 +35,13 @@ rm(list = ls())
 chooseCRANmirror(graphics = FALSE, ind = 14)
 
 install.packages(
-  pkgs = c("installr", "Rcpp", "tidyverse", "ggpubr", "data.table", "readxl",
-           "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
-           "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram",
-           "imputeTS", "summarytools", "UpSetR", "esquisse", "corrgram", "here",
-           "matrixStats", "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm"),
+  pkgs = c(
+    "installr", "Rcpp", "tidyverse", "ggpubr", "data.table", "readxl",
+    "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
+    "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram", "imputeTS",
+    "summarytools", "UpSetR", "esquisse", "corrgram", "here", "matrixStats",
+    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu"
+  ),
   dependencies = T)
 
 
@@ -50,15 +52,19 @@ BiocManager::install()
 
 ## core bioc packages
 BiocManager::install(
-  pkgs = c("BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings", "GenomeInfoDbData",
-           "AnnotationHub", "AnnotationDbi", "GenomicFeatures", "rtracklayer", "BSgenome",
-           "GenomicAlignments", "BiocParallel", "SummarizedExperiment", "plyranges")
+  pkgs = c(
+    "BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings",
+    "GenomeInfoDbData", "AnnotationHub", "AnnotationDbi", "GenomicFeatures",
+    "rtracklayer", "BSgenome", "GenomicAlignments", "BiocParallel",
+    "SummarizedExperiment", "plyranges"
+  )
 )
 
 BiocManager::install(
-  pkgs = c("Rsamtools", "DESeq2", "tximport", "topGO", "DiffBind", "regioneR",
-           "ballgown", "pathview", "DO.db", "KEGGprofile", "preprocessCore", 
-           "clusterProfiler", "apeglm", "Gviz", "KEGGREST", "KEGG.db"
+  pkgs = c(
+    "Rsamtools", "DESeq2", "tximport", "topGO", "DiffBind", "regioneR",
+    "ballgown", "pathview", "DO.db", "KEGGprofile", "preprocessCore",
+    "clusterProfiler", "apeglm", "Gviz", "KEGGREST", "KEGG.db"
   )
 )
 
@@ -138,11 +144,11 @@ devtools::install(
 
 ## Mouse
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/TxDb.Mmusculus.GRCm38p6.Ensembl100",
+  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/TxDb.GRCm38p6.Ensembl100",
   upgrade = "never")
 
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/org.Mmusculus.GRCm38p6.Ensembl100.eg.db",
+  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/org.GRCm38p6.Ensembl100.eg.db",
   upgrade = "never")
 
 

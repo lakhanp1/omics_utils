@@ -403,7 +403,7 @@ dev.off()
 #       x = orgDb, keys = leadingEdge, column = col_degOrgdbKey, keytype = col_gsea
 #     )
 #   ) %>% 
-#   dplyr::select(pathway, contrast, everything())
+#   dplyr::select(pathway, DESCRIPTION_BRIEF, everything(), -contrast, contrast)
 # 
 # topPathways <- uniqueFgsea[head(order(pval), n=20)][order(NES), pathway]
 # 
