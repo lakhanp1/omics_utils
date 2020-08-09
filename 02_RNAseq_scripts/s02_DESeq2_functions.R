@@ -126,8 +126,8 @@ volcano_plot <- function(
         mapping = aes(label = geneLabel),
         segment.color = 'black',
         segment.size = 1, min.segment.length = 1,
-        xlim  = c(down_cut, up_cut),
-        ylim = c(-log10(fdr_cut), NA),
+        # xlim  = c(down_cut, up_cut),
+        # ylim = c(-log10(fdr_cut), NA),
         size = 5) 
     
     tmpDf <- dplyr::filter(plotDf, geneId %in% markGenes)
@@ -136,7 +136,7 @@ volcano_plot <- function(
     pt <- pt +
       geom_point(
         data = tmpDf,
-        color = "green",
+        color = "black",
         size=1.75, shape = 1, stroke = 1.5
       )
     

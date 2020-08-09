@@ -28,13 +28,12 @@ cutoff_down <- -1 * cutoff_lfc
 col_lfc <- "log2FoldChange"
 
 orgDb <- org.HSapiens.gencodev30.eg.db
-keggOrg <- 'hsa'
-col_degId <- "ENSEMBL_VERSION"
-col_degOrgdbKey <- "ENSEMBL_VERSION"
-col_kegg <- "NCBI_ID"
-col_gsea <- "NCBI_ID"
-col_topGO <- "ENSEMBL"
-col_geneName <- "GENE_NAME"
+keggOrg <- 'mmu'									                  ## KEGG organism code
+col_degIdKeytype <- "ENSEMBL_VERSION"               ## org.db keytype of DEG file geneId
+col_kegg <- "NCBI_ID"																## org.db column for NCBI ID
+col_gsea <- "NCBI_ID"																## org.db column to use for gsea analysis
+col_topGO <- "ENSEMBL"															## org.db keytype of topGO map file geneId
+col_geneName <- "GENE_NAME"													## org.db column for Gene name
 file_topGO <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/geneid2go.HSapiens.GRCh38p12.topGO.map"
 # file_msigDesc <- "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/msigDB_geneset_desc.tab"
 
@@ -92,10 +91,10 @@ degs <- suppressMessages(readr::read_tsv(file = rnaseqInfo$deg[1])) %>%
 if(! col_gsea %in% colnames(degs)){
   gseaInfo <- suppressMessages(
     AnnotationDbi::select(x = orgDb, keys = degs$geneId,
-                          keytype = col_degOrgdbKey, columns = col_gsea)
+                          keytype = col_degIdKeytype, columns = col_gsea)
   ) %>% 
     dplyr::filter(!is.na(!!sym(col_gsea))) %>% 
-    dplyr::rename(geneId = !!col_degOrgdbKey)
+    dplyr::rename(geneId = !!col_degIdKeytype)
   
   degs <- dplyr::left_join(x = degs, y = gseaInfo, by = "geneId")
 }
@@ -110,8 +109,8 @@ degData <- dplyr::bind_rows(upDegs, downDegs)
 
 contrast <- unique(upDegs$contrast)
 
-geneList <- dplyr::filter(degs, !is.na(!!sym(col_kegg))) %>% 
-  dplyr::select(!!col_kegg, rankMetric) %>% 
+geneList <- dplyr::filter(degs, !is.na(!!sym(col_gsea))) %>% 
+  dplyr::select(!!col_gsea, rankMetric) %>% 
   tibble::deframe()
 
 ## replace +Inf and -Inf values with max and min
@@ -176,7 +175,7 @@ topgo_up <- topGO_enrichment(
   goMapFile = file_topGO,
   genes = unique(upDegs$geneId),
   type = "BP", goNodeSize = 5,
-  orgdb = orgDb, keytype = col_degOrgdbKey,
+  orgdb = orgDb, keytype = col_degIdKeytype,
   topgoColumn = col_topGO, geneNameColumn = col_geneName
 )
 
@@ -184,7 +183,7 @@ topgo_down <- topGO_enrichment(
   goMapFile = file_topGO,
   genes = unique(downDegs$geneId),
   type = "BP", goNodeSize = 5,
-  orgdb = orgDb, keytype = col_degOrgdbKey,
+  orgdb = orgDb, keytype = col_degIdKeytype,
   topgoColumn = col_topGO, geneNameColumn = col_geneName
 )
 
@@ -260,12 +259,12 @@ dev.off()
 ## KEGGprofile::find_enriched_pathway
 keggp_up <- keggprofile_enrichment(
   genes = unique(upDegs$geneId), orgdb = orgDb, geneNameCol = col_geneName,
-  keytype = col_degOrgdbKey, keggIdColumn = col_kegg, keggOrg = keggOrg
+  keytype = col_degIdKeytype, keggIdColumn = col_kegg, keggOrg = keggOrg
 )
 
 keggp_down <- keggprofile_enrichment(
   genes = unique(downDegs$geneId), orgdb = orgDb, geneNameCol = col_geneName,
-  keytype = col_degOrgdbKey, keggIdColumn = col_kegg, keggOrg = keggOrg
+  keytype = col_degIdKeytype, keggIdColumn = col_kegg, keggOrg = keggOrg
 )
 
 keggp_res <- dplyr::bind_rows(
@@ -400,7 +399,7 @@ dev.off()
 #       x = orgDb, keys = leadingEdge, column = col_geneName, keytype = col_gsea
 #     ),
 #     leadingEdgeIds = mapIdsList(
-#       x = orgDb, keys = leadingEdge, column = col_degOrgdbKey, keytype = col_gsea
+#       x = orgDb, keys = leadingEdge, column = col_degIdKeytype, keytype = col_gsea
 #     )
 #   ) %>% 
 #   dplyr::select(pathway, DESCRIPTION_BRIEF, everything(), -contrast, contrast)

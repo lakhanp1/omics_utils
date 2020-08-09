@@ -279,6 +279,9 @@ if(length(unique(plotData[[fillColumn]])) <= 9){
   )
 }
 
+pointCol <- c("DMSO" = "black", "Tet_5uM" = "#a6cee3", "Tet_15uM" = "#1f78b4",
+              "ADTet_5uM" = "#fb9a99", "ADTet_15uM" = "#e31a1c")
+shapeCode <- c("12hr" = 16, "24hr" = 17)
 
 pt_rldPca <- ggplot(
   data = plotData,
