@@ -1,10 +1,9 @@
-library(ComplexHeatmap)
-library(circlize)
-library(dplyr)
-library(RColorBrewer)
-library(data.table)
-library(tibble)
-library(org.Mmusculus.GRCm38p6.99.eg.db)
+suppressPackageStartupMessages(library(ComplexHeatmap))
+suppressPackageStartupMessages(library(circlize))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(org.GRCm38p6.Ensembl100.eg.db))
 
 ## This script
 ## 1) read the tabular config file for different genesets and plots
@@ -22,57 +21,73 @@ library(org.Mmusculus.GRCm38p6.99.eg.db)
 
 
 rm(list = ls())
-
-source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
-analysisName <- "geneset_plots"
-degResult <- "DKO_vs_WT"
+####################################################################
 
 diffDataPath <- here::here("analysis", "02_DESeq2_diff")
-outDir <- here::here("analysis", "02_DESeq2_diff", degResult, analysisName)
+file_geneset <- here::here("analysis", "02_DESeq2_diff", "geneset_heatmap.config.tab")
 
-if(!dir.exists(outDir)){
-  dir.create(path = outDir)
-}
+file_RNAseq_info <- here::here("data", "reference_data", "DESeq2_DEG_info.txt")
+file_sampleInfo <- here::here("data", "reference_data", "sample_info.txt")
 
-outPrefix <- paste(outDir, "/", degResult, ".geneset", sep = "")
-
-file_geneset <- paste(outDir, "/heatmap.config.tab", sep = "")
-
-file_sampleInfo <- here::here("data", "sample_info.txt")
-file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
-
-orgDb <- org.Mmusculus.GRCm38p6.99.eg.db
+orgDb <- org.GRCm38p6.Ensembl100.eg.db
+col_geneId <- "GID"
+col_geneName <- "GENE_NAME"
 
 cutoff_fdr <- 0.05
 cutoff_lfc <- 0.585
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
+
+col_lfc <- "log2FoldChange"
+col_fdr <- "padj"
+
 ####################################################################
-
-geneSets <- suppressMessages(readr::read_tsv(file = file_geneset))
-rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
-  dplyr::filter(comparison == degResult)
-
-exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
-
-sampleIds <- unlist(stringr::str_split(string = rnaseqInfo$samples, pattern = ";"))
-
-exptInfo <- dplyr::filter(exptInfo, sampleId %in% sampleIds)
-
-
-lfcCol <- "log2FoldChange"
 
 ## use org.db
 geneInfo <- AnnotationDbi::select(
   x = orgDb,
-  keys = keys(x = orgDb, keytype = "GID"),
-  columns = c("GENE_NAME", "DESCRIPTION"),
-  keytype = "GID") %>% 
-  dplyr::rename(geneId = GID)
+  keys = keys(x = orgDb, keytype = col_geneId),
+  columns = col_geneName,
+  keytype = col_geneId) %>% 
+  dplyr::rename(geneId = !!sym(col_geneId))
+
+
+geneSets <- suppressMessages(readr::read_tsv(file = file_geneset))
+
+geneSets <- dplyr::mutate(
+  geneSets,
+  geneId = stringr::str_split(string = geneId, pattern = ";")
+) %>% 
+  dplyr::mutate(
+    geneId = purrr::map(geneId, unique)
+  )
+
+####################################################################
+
+i <- 1
+
+degResult <- geneSets$deg[i]
+outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
+
+if(!dir.exists(outDir)){
+  dir.create(path = outDir)
+}
+
+outPrefix <- paste(outDir, "/", degResult, ".heatmap.", sep = "")
+
+rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
+  dplyr::filter(comparison == geneSets$deg[i])
+
+sampleIds <- unlist(stringr::str_split(string = rnaseqInfo$samples, pattern = ";"))
+
+exptInfo <- read.table(file = file_sampleInfo, header = T, sep = "\t", stringsAsFactors = F)
+exptInfo <- dplyr::filter(exptInfo, sampleId %in% sampleIds)
 
 wrap_80 <- scales::wrap_format(80)
+
 ####################################################################
 ## import data
 nromCount <- suppressMessages(readr::read_tsv(file = rnaseqInfo$normCount)) %>% 
@@ -92,8 +107,11 @@ get_foldchange <- function(degFile, name, lfcCol = "log2FoldChange", fdrCol = "p
                           names = paste(c("lfc.", "padj." ), name, sep = ""))
   
   df <- degs %>%
-    dplyr::mutate(!! lfcCol := if_else(condition = !!sym(fdrCol) < fdr_cut,
-                                       true = !! as.name(lfcCol), false = 0)) %>% 
+    # dplyr::mutate(
+    #   !! lfcCol := if_else(
+    #     condition = !!sym(fdrCol) < fdr_cut, true = !! as.name(lfcCol), false = 0
+    #   )
+    # ) %>% 
     tidyr::replace_na(purrr::set_names(list(0), nm = c(lfcCol))) %>% 
     dplyr::select(geneId, !!lfcCol, !!fdrCol) %>%
     dplyr::distinct() %>% 
@@ -107,18 +125,10 @@ i <- 1
 
 for(i in 1:nrow(rnaseqInfo)){
   dt <- get_foldchange(degFile = rnaseqInfo$deseq2[i], name = rnaseqInfo$comparison[i],
-                       lfcCol = lfcCol, fdr_cut = cutoff_fdr)
+                       lfcCol = col_lfc, fdr_cut = cutoff_fdr)
   geneInfo <- dplyr::left_join(geneInfo, dt, by = c("geneId" = "geneId"))
 }
 
-
-geneSets <- dplyr::mutate(
-  geneSets,
-  geneId = stringr::str_split(string = geneId, pattern = ";")
-) %>% 
-  dplyr::mutate(
-    geneId = purrr::map(geneId, unique)
-  )
 
 # genes <- dplyr::distinct(geneSets, geneId, .keep_all = TRUE) %>% 
 #   dplyr::left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
@@ -136,16 +146,13 @@ geneSets <- dplyr::mutate(
 # 
 
 ####################################################################
-
+## generate heatmaps
 
 rownameCol <- "GENE_NAME"
 showRowNames <- TRUE
 rowNameFontSize <- 8
 colNameFontSize <- 14
 
-
-## generate the plot for each row of configuration file
-i <- 1
 
 plotData <- tibble::tibble(geneId = unlist(geneSets$geneId[i])) %>% 
   dplyr::left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
@@ -276,8 +283,8 @@ plotHt <- nrow(plotData) * 0.1 + 1
 plotWd <- length(sampleIds)
 # png(filename = paste(outPrefix, ".fc_rld_heatmap.png", sep = ""), width=6000, height=6000, res = 550)
 
-pdf(file = paste(outPrefix, ".heatmap_fc_rld.", plotOutSuffix, ".pdf", sep = ""),
-    height = 5, width = 10)
+pdf(file = paste(outPrefix, plotOutSuffix, ".pdf", sep = ""),
+    height = 8, width = 8)
 
 draw(
   object = htList3,
@@ -287,19 +294,6 @@ draw(
 )
 
 dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

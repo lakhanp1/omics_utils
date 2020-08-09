@@ -5,7 +5,7 @@ suppressPackageStartupMessages(library(RColorBrewer))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(ggrepel))
-suppressPackageStartupMessages(library(org.Anidulans.FGSCA4.eg.db))
+suppressPackageStartupMessages(library(org.GRCm38p6.Ensembl100.eg.db))
 
 ## This script
 ## 1) read the tabular config file for different genesets
@@ -21,23 +21,22 @@ suppressPackageStartupMessages(library(org.Anidulans.FGSCA4.eg.db))
 
 
 rm(list = ls())
-
-source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
 ####################################################################
 
-diffDataPath <- here::here("analysis", "07_polII_diff")
-file_geneset <- here::here("analysis", "07_polII_diff", "geneset_volcano.config.tab")
+diffDataPath <- here::here("analysis", "02_DESeq2_diff")
+file_geneset <- here::here("analysis", "02_DESeq2_diff", "geneset_volcano.config.tab")
 
-file_RNAseq_info <- here::here("data", "reference_data", "polII_DESeq2_DEG_info.txt")
+file_RNAseq_info <- here::here("data", "reference_data", "DESeq2_DEG_info.txt")
 
-orgDb <- org.Anidulans.FGSCA4.eg.db
+orgDb <- org.GRCm38p6.Ensembl100.eg.db
 col_geneId <- "GID"
 col_geneName <- "GENE_NAME"
 
 cutoff_fdr <- 0.05
-cutoff_lfc <- 1
+cutoff_lfc <- 0.585
 cutoff_up <- cutoff_lfc
 cutoff_down <- -1 * cutoff_lfc
 
@@ -70,14 +69,13 @@ geneSets <- dplyr::mutate(
 i <- 1
 
 degResult <- geneSets$deg[i]
-outDir <- here::here("analysis", "07_polII_diff", degResult, "geneset_plots")
+outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
 
 if(!dir.exists(outDir)){
   dir.create(path = outDir)
 }
 
-outPrefix <- paste(outDir, "/", degResult, ".geneset", sep = "")
-
+outPrefix <- paste(outDir, "/", degResult, ".volcano.", sep = "")
 
 rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
   dplyr::filter(comparison == geneSets$deg[i])
@@ -102,7 +100,7 @@ pt_vol <- volcano_plot(
   fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc,
   markGenes = unlist(geneSets$geneId[i]),
   geneNameCol = "GENE_NAME",
-  ylimit = 15, xlimit = c(-4, 4)
+  ylimit = 15, xlimit = c(-5, 5)
 )
 
 
@@ -113,17 +111,17 @@ pt_vol$plot <- pt_vol$plot +
   )
 
 
-png(filename = paste(outPrefix, ".volcano.", plotOutSuffix, ".png", sep = ""), width = 2000, height = 2000, res = 250)
+png(filename = paste(outPrefix, plotOutSuffix, ".png", sep = ""), width = 2000, height = 2000, res = 250)
 pt_vol$plot
 dev.off()
 
-# ggsave(
-#   filename = paste(outPrefix, ".volcano.", plotOutSuffix, ".svg", sep = ""),
-#   plot = pt_vol$plot,
-#   device = "svg", width = 10, height = 10, units = "in"
-# )
-# 
-# 
+ggsave(
+  filename = paste(outPrefix, plotOutSuffix, ".svg", sep = ""),
+  plot = pt_vol$plot,
+  device = "svg", width = 10, height = 10, units = "in"
+)
+
+
 
 
 

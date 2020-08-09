@@ -16,30 +16,32 @@ library(tidyverse)
 
 
 rm(list = ls())
-
-source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
-
-analysisName <- "enrichment_plots"
-degResult <- "DKO_vs_WT"
+####################################################################
 
 diffDataPath <- here::here("analysis", "02_DESeq2_diff")
-outDir <- here::here("analysis", "02_DESeq2_diff", degResult, analysisName)
+file_termSet <- here::here("analysis", "02_DESeq2_diff", "enrichment_scatter.config.tab")
 
-if(!dir.exists(outDir)){
-  dir.create(path = outDir)
-}
+file_RNAseq_info <- here::here("data", "reference_data", "DESeq2_DEG_info.txt")
+file_sampleInfo <- here::here("data", "reference_data", "sample_info.txt")
 
-outPrefix <- paste(outDir, "/", degResult, ".enrichment_scatter", sep = "")
 
-file_termSet <- paste(outDir, "/enrichment_scatter.config.tab", sep = "")
-
-file_sampleInfo <- here::here("data", "sample_info.txt")
-file_RNAseq_info <- here::here("data", "RNAseq_info.txt")
+# analysisName <- "enrichment_plots"
+# degResult <- "DKO_vs_WT"
+# 
+# diffDataPath <- here::here("analysis", "02_DESeq2_diff")
+# outDir <- here::here("analysis", "02_DESeq2_diff", degResult, analysisName)
+# 
+# if(!dir.exists(outDir)){
+#   dir.create(path = outDir)
+# }
+# 
+# outPrefix <- paste(outDir, "/", degResult, ".enrichment_scatter", sep = "")
+# 
 
 ###########################################################################
-
 
 colList <- list(
   topGO = list(
@@ -59,11 +61,6 @@ colList <- list(
 
 termSet <- suppressMessages(readr::read_tsv(file = file_termSet))
 
-rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
-  dplyr::filter(comparison == degResult)
-
-
-
 termSet <- dplyr::mutate(
   termSet,
   termId = stringr::str_split(string = termId, pattern = ";")
@@ -72,45 +69,59 @@ termSet <- dplyr::mutate(
     termId = purrr::map(termId, unique)
   )
 
+# rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
+#   dplyr::filter(comparison == degResult)
+# 
+
 ###########################################################################
 
-setRow <- 4
+setRow <- 1
+
+degResult <- termSet$deg[setRow]
+outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
+
+if(!dir.exists(outDir)){
+  dir.create(path = outDir)
+}
+
+outPrefix <- paste(outDir, "/", degResult, ".enrichment_scatter.", sep = "")
+
+
+rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
+  dplyr::filter(comparison == termSet$deg[setRow])
+
 
 enrichmentType <- termSet$enrichmentType[setRow]
+degCategories <- unlist(stringr::str_split(string = termSet$degCategory[setRow], pattern = ";"))
 plotTitle <- termSet$title[setRow]
 plotOutSuffix <- termSet$output[setRow]
 
-enrichmentData <- NULL
 
-for (i in 1:nrow(rnaseqInfo)) {
-  
-  df <- suppressMessages(readr::read_tsv(rnaseqInfo[[enrichmentType]][i])) %>% 
-    dplyr::mutate(comparison = rnaseqInfo$comparison[i])
-  
-  enrichmentData <- dplyr::bind_rows(enrichmentData, df)
-}
+enrichmentData <- suppressMessages(readr::read_tsv(rnaseqInfo[[enrichmentType]])) %>% 
+  dplyr::mutate(comparison = rnaseqInfo$comparison)
 
 
-enrichmentSet <- tibble::tibble(
-  termId = unlist(termSet$termId[setRow]),
-  category = termSet$degCategory[setRow]) %>% 
+enrichmentSet <- tibble::tibble(termId = unlist(termSet$termId[setRow])) %>% 
   dplyr::left_join(
     y = enrichmentData,
-    by = structure(c(colList[[enrichmentType]]$col_id, "category"), names = c("termId", "category"))
-  )
+    by = structure(c(colList[[enrichmentType]]$col_id), names = c("termId"))
+  ) %>% 
+  dplyr::filter(category %in% degCategories)
 
 
-pt <- enrichment_scatter(df = enrichmentSet,
-                         title = paste(colList[[enrichmentType]]$title, ":", plotTitle),
-                         pvalCol = colList[[enrichmentType]]$col_pval,
-                         termCol = colList[[enrichmentType]]$col_term,
-                         xVar = colList[[enrichmentType]]$col_richness,
-                         sizeVar = colList[[enrichmentType]]$col_geneCount)
+pt <- enrichment_scatter(
+  df = enrichmentSet,
+  title = paste(colList[[enrichmentType]]$title, ":", plotTitle),
+  pvalCol = colList[[enrichmentType]]$col_pval,
+  termCol = colList[[enrichmentType]]$col_term,
+  xVar = colList[[enrichmentType]]$col_richness,
+  sizeVar = colList[[enrichmentType]]$col_geneCount
+)
 
 
-## optional facetting for multiple RNAseq enrichment results
+# ## optional facetting for multiple RNAseq enrichment results
 # pt <- pt +
-#   facet_grid(facets = . ~ comparison) +
+#   facet_grid(facets = category ~ ., scales = "free_y") +
 #   theme(strip.background = element_rect(fill = "white"),
 #         strip.text = element_text(size = 14, face = "bold"))
 
