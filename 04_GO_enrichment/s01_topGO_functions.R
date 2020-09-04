@@ -109,7 +109,7 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
     .id = "GO.ID"
   )
   
-  ## optionally get gene names from orgDb
+  ## optionally get gene names from orgdb
   if(!missing(orgdb)){
     ## extract gene names
     mappedNames <- suppressMessages(
@@ -182,18 +182,20 @@ keggprofile_enrichment <- function(
   genes, orgdb, keytype, keggIdColumn, keggOrg, geneNameColumn,
   pvalCut = 0.05, qvalCut = 1, minGenes = 1, ...){
   
+  genes <- unique(na.omit(genes))
+  mappedIds <- structure(genes, names = genes)
+  
+  ## extract the KEGG IDs if the input geneId format is not compatible with KEGG
   if(keytype != keggIdColumn){
     genes <- suppressMessages(
       AnnotationDbi::mapIds(x = orgdb, keys = genes, column = keggIdColumn, keytype = keytype)
     )
-    genes <- na.omit(genes)
+    genes <- unique(na.omit(genes))
     
     mappedIds <- suppressMessages(
       AnnotationDbi::mapIds(x = orgdb, keys = genes, column = keytype, keytype = keggIdColumn)
     )
   }
-  
-  genes <- unique(genes)
   
   
   ## KEGG enrichment
@@ -219,7 +221,8 @@ keggprofile_enrichment <- function(
     ## extract gene names
     mappedNames <- suppressMessages(
       AnnotationDbi::select(
-        x = orgdb, keys = genes, keytype = keggIdColumn, columns = c(keytype, geneNameColumn))
+        x = orgdb, keys = as.character(genes),
+        keytype = keggIdColumn, columns = c(keytype, geneNameColumn))
     ) %>% 
       dplyr::mutate(
         !!sym(geneNameColumn) := if_else(
@@ -480,7 +483,7 @@ topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
 #' Group genes into GO terms at specific level
 #'
 #' @param genes A vector of gene IDs
-#' @param orgDb OrgDb
+#' @param orgdb OrgDb
 #' @param goLevel GO graph level at which grouping to be performed. Default: 3
 #' @param type GO category. One of "MF", "BP", and "CC". Default: "BP"
 #' @param ... Other arguments to groupGO function
@@ -489,11 +492,11 @@ topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
 #' @export
 #'
 #' @examples NA
-clusterProfiler_groupGO <- function(genes, orgDb, goLevel = 3, type = "BP", ...){
+clusterProfiler_groupGO <- function(genes, orgdb, goLevel = 3, type = "BP", ...){
   
   grpGo <- suppressMessages(
     clusterProfiler::groupGO(gene = genes,
-                             OrgDb = orgDb,
+                             OrgDb = orgdb,
                              ont = type,
                              level = goLevel,
                              ...)
@@ -521,14 +524,14 @@ clusterProfiler_groupGO <- function(genes, orgDb, goLevel = 3, type = "BP", ...)
 #'
 #' @param genes A vector of gene Ids
 #' @param goTerms GO term ID vector
-#' @param orgDb an org.db object
+#' @param orgdb an org.db object
 #' @param keytype keytype in org.db for the input genes
 #'
 #' @return A dataframe with GO term to gene mapping statistics
 #' @export
 #'
 #' @examples
-GO_map <- function(genes, goTerms, orgDb, keytype){
+GO_map <- function(genes, goTerms, orgdb, keytype){
   
   # Ontology(goTerms[1])
   # AnnotationDbi::get(goTerms[1], GO.db::GOBPOFFSPRING)
@@ -545,8 +548,8 @@ GO_map <- function(genes, goTerms, orgDb, keytype){
   ## get the total number of genes annotated for each ONTOLOGY category
   ontStats <- suppressMessages(
     AnnotationDbi::select(
-      x = orgDb,
-      keys = AnnotationDbi::keys(x = orgDb, keytype = keytype),
+      x = orgdb,
+      keys = AnnotationDbi::keys(x = orgdb, keytype = keytype),
       keytype = keytype,
       columns = c("GOALL", "ONTOLOGYALL")
     )
@@ -562,7 +565,7 @@ GO_map <- function(genes, goTerms, orgDb, keytype){
   ## true for GO column
   goData <- suppressMessages(
     AnnotationDbi::select(
-      x = orgDb,
+      x = orgdb,
       keys = goTerms, columns = c(keytype),
       keytype = "GOALL"
     )) %>% 
@@ -597,13 +600,13 @@ GO_map <- function(genes, goTerms, orgDb, keytype){
 #'
 #' @param genes 
 #' @param pathways 
-#' @param orgDb 
+#' @param orgdb 
 #'
 #' @return
 #' @export
 #'
 #' @examples
-KEGG_map <- function(genes, pathways, orgDb){
+KEGG_map <- function(genes, pathways, orgdb){
   
   
 }
