@@ -30,8 +30,8 @@ source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 ###########################################################################
 ## configuration and cutoffs
 
-diffDataPath <- here::here("analysis", "07_polII_diff")
-file_sampleInfo <- here::here("data", "reference_data", "polII_sample_info.txt")
+diffDataPath <- here::here("analysis", "02_DESeq2_diff")
+file_sampleInfo <- here::here("data", "reference_data", "sample_info.txt")
 
 useAllGroupsSamples <- FALSE
 
@@ -57,7 +57,7 @@ parser <- ArgumentParser(
 parser$add_argument(
   "-c", "--config", action="store",
   dest = "config", type = "character", nargs = 1, required = TRUE,
-  # default = here::here("data", "reference_data", "polII_DESeq2_info.txt"),
+  # default = here::here("data", "reference_data", "DESeq2_DEG_info.txt"),
   help = "DEG configuration TAB delimited file with columns: comparison, type, group1, group2, design, samples"
 )
 
@@ -69,7 +69,7 @@ parser$add_argument(
 
 # parser$print_help()
 
-# file_RNAseq_info <- here::here("data", "reference_data", "polII_DESeq2_DEG_info.txt")
+# file_RNAseq_info <- here::here("data", "reference_data", "DESeq2_DEG_info.txt")
 # analysisName <- "AN10021_sCopy_OE_vs_MH11036"
 
 args <- parser$parse_args()
@@ -211,8 +211,8 @@ rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = F
 readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
 
 # ## FPKM
-# fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-# readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
+fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
+readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")

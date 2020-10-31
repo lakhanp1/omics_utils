@@ -180,7 +180,7 @@ volcano_plot <- function(
 
 ###########################################################################
 ## Function for donut/stacked pie chart plot
-geneStatsPieChart <- function(df, namePrefix, title, fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1){
+gene_stats_pie_chart <- function(df, namePrefix, title, fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1){
   
   up_cut <- lfc_cut
   down_cut <- lfc_cut * -1
