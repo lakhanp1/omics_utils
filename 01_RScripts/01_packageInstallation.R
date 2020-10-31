@@ -40,7 +40,7 @@ install.packages(
     "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
     "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram", "imputeTS",
     "summarytools", "UpSetR", "esquisse", "corrgram", "here", "matrixStats",
-    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu"
+    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm"
   ),
   dependencies = T)
 
@@ -64,7 +64,7 @@ BiocManager::install(
   pkgs = c(
     "Rsamtools", "DESeq2", "tximport", "topGO", "DiffBind", "regioneR",
     "ballgown", "pathview", "DO.db", "KEGGprofile", "preprocessCore",
-    "clusterProfiler", "apeglm", "Gviz", "KEGGREST", "KEGG.db"
+    "clusterProfiler", "apeglm", "Gviz", "ggbio", "KEGGREST", "KEGG.db"
   )
 )
 
@@ -84,11 +84,16 @@ devtools::install_github("jokergoo/EnrichedHeatmap")
 
 ## install my own packages
 library(devtools)
+
+devtools::document(pkg = "E:/Chris_UM/GitHub/markPeaks")
+devtools::install("E:/Chris_UM/GitHub/markPeaks", upgrade = "never")
+
 # devtools::load_all(path = "E:/Chris_UM/GitHub/chipmine", reset = TRUE)
 devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
 devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 # devtools::install("E:/Chris_UM/GitHub/chipmine")
 # devtools::install_github(repo = "lakhanp1/chipmine", ref = "dev_v.2")
+# devtools::install_github(repo = "lakhanp1/chipmine", ref = "1.6")
 
 ##########################################################################
 ###############         Org.Db packages            #######################
