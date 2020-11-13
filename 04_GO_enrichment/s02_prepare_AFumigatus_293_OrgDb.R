@@ -6,7 +6,7 @@ library(BSgenome)
 
 rm(list = ls())
 
-source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 
 path <- "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/annotation_resources/"
 setwd(path)

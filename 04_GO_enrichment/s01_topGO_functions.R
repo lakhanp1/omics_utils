@@ -72,9 +72,9 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   ## get the result table, filter by pValue cutoff 0.05 and calculate Rich factor
   resultTab <- topGO::GenTable(
     goData, 
-    weightedFisher = resFisherWeight,
+    pvalue = resFisherWeight,
     orderBy = "resFisherWeight", 
-    ranksOf = "weightedFisher", 
+    ranksOf = "resFisherWeight", 
     topNodes = nodeCount, 
     numChar = 1000
   )
@@ -82,17 +82,22 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
   
   ## filtering and new column calculations
   resultTab <- resultTab %>%
-    dplyr::mutate(weightedFisher = as.numeric(weightedFisher)) %>%
-    dplyr::filter(weightedFisher <= 0.05) %>%
-    dplyr::mutate(richness = as.numeric(sprintf(fmt = "%.3f", (Significant / Annotated)) ),
-                  log10_pval = as.numeric(sprintf(fmt = "%.3f", -log10(as.numeric(weightedFisher))))
+    dplyr::mutate(pvalue = as.numeric(pvalue)) %>%
+    dplyr::filter(pvalue <= 0.05) %>%
+    dplyr::rename(
+      Observed = Significant
+    ) %>% 
+    dplyr::mutate(
+      richness = as.numeric(sprintf(fmt = "%.3f", (Observed / Annotated)) ),
+      log10_pval = as.numeric(sprintf(fmt = "%.3f", -log10(as.numeric(pvalue))))
     ) %>%
-    dplyr::select(GO.ID,Term, weightedFisher, everything())
+    dplyr::select(GO.ID,Term, pvalue, everything())
   
   if(!is.null(bgNodeLimit)){
     resultTab <- dplyr::filter(.data = resultTab, Annotated <= bgNodeLimit)
   }
   
+  ## return empty DF if no enrichment
   if(nrow(resultTab) == 0){
     return(resultTab)
   }
@@ -190,7 +195,7 @@ keggprofile_enrichment <- function(
     genes <- suppressMessages(
       AnnotationDbi::mapIds(x = orgdb, keys = genes, column = keggIdColumn, keytype = keytype)
     )
-    genes <- unique(na.omit(genes))
+    genes <- as.character(unique(na.omit(genes)))
     
     mappedIds <- suppressMessages(
       AnnotationDbi::mapIds(x = orgdb, keys = genes, column = keytype, keytype = keggIdColumn)
@@ -248,13 +253,16 @@ keggprofile_enrichment <- function(
   
   ## a final result dataframe
   keggDf <- tibble::rownames_to_column(.data = kp$stastic, var = "pathway_id") %>% 
-    dplyr::filter(Pathway_Name != "Metabolic pathways") %>% 
-    dplyr::left_join(y = assignedDf, by = "pathway_id") %>% 
     dplyr::rename(Annotated = Gene_Pathway,
-                  Significant = Gene_Found,
+                  Observed = Gene_Found,
                   richness = Percentage) %>% 
-    dplyr::mutate(inputSize = length(genes)) %>% 
-    dplyr::arrange(pvalue)
+    dplyr::filter(Pathway_Name != "Metabolic pathways")
+  
+  if(nrow(keggDf) > 0){
+    keggDf <- dplyr::left_join(x = keggDf, y = assignedDf, by = "pathway_id") %>% 
+      dplyr::mutate(inputSize = length(genes)) %>% 
+      dplyr::arrange(pvalue)
+  }
   
   return(keggDf)
 }
@@ -265,17 +273,17 @@ keggprofile_enrichment <- function(
 #'
 #' @param df a dataframe returned by topGO enrichment function topGO_enrichment
 #' @param title title of the plot
-#' @param pvalCol pvalue column name used for point color. Default: weightedFisher
+#' @param pvalCol pvalue column name used for point color. Default: pvalue
 #' @param termCol GO term column name which is used as Y axis Default: Term
 #' @param colorCol column name for deciding bar color. Default: category
-#' @param countCol column name for gene count. Default: Significant
+#' @param countCol column name for gene count. Default: Observed
 #'
 #' @return A ggplot2 object
 #' @export
 #'
 #' @examples NA
-enrichment_bar <- function(df, title, pvalCol = "weightedFisher", termCol = "Term",
-                           colorCol = "category", countCol = "Significant"){
+enrichment_bar <- function(df, title, pvalCol = "pvalue", termCol = "Term",
+                           colorCol = "category", countCol = "Observed"){
   
   goData <- dplyr::arrange(df, !!sym(colorCol), desc(!!sym(pvalCol)))
   wrap_80 <- wrap_format(80)
@@ -324,18 +332,18 @@ enrichment_bar <- function(df, title, pvalCol = "weightedFisher", termCol = "Ter
 #'
 #' @param df a dataframe returned by topGO enrichment function topGO_enrichment
 #' @param title title of the plot
-#' @param pvalCol pvalue column name used for point color. Default: weightedFisher
+#' @param pvalCol pvalue column name used for point color. Default: pvalue
 #' @param termCol GO term column name which is used as Y axis Default: Term
 #' @param xVar X axis variable. Default: richness
-#' @param sizeVar Point size variable. Default: Significant
+#' @param sizeVar Point size variable. Default: Observed
 #'
 #' @return A ggplot object 
 #' @export
 #'
 #' @examples enrichment_scatter(df = goData, title = "topGO enrichment")
 #' 
-enrichment_scatter <- function(df, title, pvalCol = "weightedFisher", termCol = "Term",
-                               xVar = "richness", sizeVar = "Significant"){
+enrichment_scatter <- function(df, title, pvalCol = "pvalue", termCol = "Term",
+                               xVar = "richness", sizeVar = "Observed"){
   
   
   goData <- dplyr::arrange(df, desc(!!as.name(pvalCol)))

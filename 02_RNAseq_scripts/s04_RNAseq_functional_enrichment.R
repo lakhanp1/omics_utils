@@ -7,6 +7,7 @@ suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(org.HSapiens.gencodev30.eg.db))
 suppressPackageStartupMessages(require(openxlsx))
 suppressPackageStartupMessages(library(argparse))
+suppressPackageStartupMessages(library(grid))
 
 
 ## RNAseq DEG functional analysis using topGO and keggProfiler
@@ -67,11 +68,11 @@ args <- parser$parse_args()
 file_RNAseq_info <- args$config
 degResult <- args$deg
 
-# file_RNAseq_info <- here::here("data", "DESeq2_DEG_info.txt")
+# file_RNAseq_info <- here::here("data", "reference_data", "DESeq2_DEG_info.txt")
 # degResult <- "SCX1_KO_ctrl_vs_WT_ctrl"
 
-outDir <- here::here("analysis", "02_DESeq2_diff", degResult)
-outPrefix <- paste(outDir, "/", degResult, sep = "")
+outDir <- paste(diffDataPath, degResult, sep = "/")
+outPrefix <- paste(outDir, degResult, sep = "/")
 
 ###########################################################################
 
@@ -199,7 +200,7 @@ readr::write_tsv(x = topgo_res, path = paste(outPrefix, ".topGO.tab", sep = ""))
 
 ## top 10 GO term bar plot
 topgoPlotDf <- dplyr::group_by(topgo_res, category) %>% 
-  dplyr::arrange(weightedFisher, .by_group = TRUE) %>% 
+  dplyr::arrange(pvalue, .by_group = TRUE) %>% 
   dplyr::slice(1:10) %>% 
   dplyr::ungroup()
 
@@ -395,14 +396,16 @@ dev.off()
 #   dplyr::left_join(y = msigDescDf, by = c("pathway" = "STANDARD_NAME")) %>%
 #   dplyr::mutate(
 #     contrast = contrast,
-#     leadingEdge = mapIdsList(
-#       x = orgDb, keys = leadingEdge, column = col_geneName, keytype = col_gsea
-#     ),
 #     leadingEdgeIds = mapIdsList(
 #       x = orgDb, keys = leadingEdge, column = col_degIdKeytype, keytype = col_gsea
+#     ),
+#     leadingEdgeNames = mapIdsList(
+#       x = orgDb, keys = leadingEdge, column = col_geneName, keytype = col_gsea
 #     )
-#   ) %>% 
-#   dplyr::select(pathway, DESCRIPTION_BRIEF, everything(), -contrast, contrast)
+#   ) %>%
+#   dplyr::arrange(padj) %>% 
+#   dplyr::select(pathway, DESCRIPTION_BRIEF, everything(), -starts_with("leadingEdge"),
+#                 starts_with("leadingEdge"), -contrast, contrast)
 # 
 # topPathways <- uniqueFgsea[head(order(pval), n=20)][order(NES), pathway]
 # 
@@ -415,7 +418,7 @@ dev.off()
 # 
 # png(filename = paste(outPrefix, ".fgsea_plot.png", sep = ""),
 #     width = 2500, height = 2500, res = 250)
-# grid.draw(pt_gsea)
+# grid::grid.draw(pt_gsea)
 # dev.off()
 # 
 # ## use data.table::fwrite because of list columns
@@ -479,7 +482,7 @@ openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 3, firstActiveC
 #   keepNA = TRUE, na.string = "NA"
 # )
 # openxlsx::addStyle(wb = wb, sheet = wrkSheet, style = headerStyle, rows = 2, cols = 1:ncol(uniqueFgsea))
-# openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = "auto")
+# openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 1, widths = 60)
 # openxlsx::setColWidths(wb = wb, sheet = wrkSheet, cols = 2, widths = 60)
 # openxlsx::freezePane(wb = wb, sheet = wrkSheet, firstActiveRow = 3, firstActiveCol = 2)
 
