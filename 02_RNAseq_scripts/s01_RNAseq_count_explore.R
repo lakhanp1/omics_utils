@@ -207,8 +207,13 @@ ggsave(filename = paste(outPrefix, ".PCA.png", sep = ""), device = "png",
 normCountMat <- as.matrix(rldCount[, c(exptInfo$sampleId), drop = FALSE])
 rownames(normCountMat) <- rldCount$geneId
 
+## select top 4000 rows with highest variation
+rv <- matrixStats::rowVars(normCountMat)
+keep <- order(rv, decreasing=TRUE)[seq_len(min(4000, length(rv)))]
+
 ## remove low count rows
-keep <- rowSums(normCountMat > 1) >= 2
+# keep<- rowSums(normCountMat > 1) >= 2
+
 normCountMatFiltered <- normCountMat[keep, ]
 
 ## transform the data such that the genes are columns and each sample is a row
@@ -220,7 +225,7 @@ df2 <- as.data.frame(t(normCountMatFiltered)) %>%
 
 row.names(df2) <- df2$sampleId
 
-res.pca <- PCA(df2, graph = FALSE, scale.unit = TRUE,
+res.pca <- PCA(df2, graph = FALSE, scale.unit = FALSE,
                quali.sup = 1:ncol(exptInfo), ncp = 10)
 
 eig.val <- get_eigenvalue(res.pca)

@@ -140,7 +140,7 @@ design <- as.formula(paste("~", col_compare))
 ## import counts data: either by tximport or as raw count matrix
 
 ## import the counts data using tximport and run DESeq2
-readLength <- as.numeric(readr::read_file(file = here::here("data", "read_length.config")))
+readLength <- as.numeric(readr::read_file(file = here::here("data", "reference_data", "read_length.config")))
 path_stringtie <- here::here("data", "stringTie")
 filesStringtie <- paste(path_stringtie, "/stringTie_", exptInfo$stringtieId, "/t_data.ctab", sep = "")
 names(filesStringtie) <- exptInfo$sampleId
