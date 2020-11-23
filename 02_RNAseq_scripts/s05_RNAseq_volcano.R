@@ -66,9 +66,9 @@ geneSets <- dplyr::mutate(
 
 ####################################################################
 
-i <- 1
+setRow <- 1
 
-degResult <- geneSets$deg[i]
+degResult <- geneSets$deg[setRow]
 outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
 
 if(!dir.exists(outDir)){
@@ -78,7 +78,7 @@ if(!dir.exists(outDir)){
 outPrefix <- paste(outDir, "/", degResult, ".volcano.", sep = "")
 
 rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
-  dplyr::filter(comparison == geneSets$deg[i])
+  dplyr::filter(comparison == geneSets$deg[setRow])
 
 diffData <- suppressMessages(
   readr::read_tsv(file = rnaseqInfo$deseq2)
@@ -89,8 +89,8 @@ diffData <- dplyr::left_join(x = diffData, y = geneInfo, by = "geneId")
 ####################################################################
 
 
-plotTitle <- paste(degResult, ":", geneSets$title[i])
-plotOutSuffix <- geneSets$output[i]
+plotTitle <- paste(degResult, ":", geneSets$title[setRow])
+plotOutSuffix <- geneSets$output[setRow]
 
 
 pt_vol <- volcano_plot(
@@ -98,9 +98,9 @@ pt_vol <- volcano_plot(
   title = plotTitle,
   fdr_col = col_fdr, lfc_col = col_lfc,
   fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc,
-  markGenes = unlist(geneSets$geneId[i]),
+  markGenes = unlist(geneSets$geneId[setRow]),
   geneNameCol = "GENE_NAME",
-  ylimit = 15, xlimit = c(-5, 5)
+  ylimit = 5, xlimit = c(-5, 5)
 )
 
 
@@ -110,10 +110,13 @@ pt_vol$plot <- pt_vol$plot +
     axis.text = element_text(size = 20)
   )
 
-
-png(filename = paste(outPrefix, plotOutSuffix, ".png", sep = ""), width = 2000, height = 2000, res = 250)
 pt_vol$plot
-dev.off()
+
+ggsave(
+  filename = paste(outPrefix, plotOutSuffix, ".png", sep = ""),
+  plot = pt_vol$plot,
+  width = 10, height = 10
+)
 
 ggsave(
   filename = paste(outPrefix, plotOutSuffix, ".svg", sep = ""),

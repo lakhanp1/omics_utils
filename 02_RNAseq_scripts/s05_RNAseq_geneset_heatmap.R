@@ -67,19 +67,19 @@ geneSets <- dplyr::mutate(
 
 ####################################################################
 
-i <- 1
+setRow <- 5
 
-degResult <- geneSets$deg[i]
+degResult <- geneSets$deg[setRow]
 outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
 
 if(!dir.exists(outDir)){
   dir.create(path = outDir)
 }
 
-outPrefix <- paste(outDir, "/", degResult, ".heatmap.", sep = "")
+outPrefix <- paste(outDir, "/", degResult, ".heatmap.", geneSets$output[setRow], sep = "")
 
 rnaseqInfo <- get_diff_info(degInfoFile = file_RNAseq_info, dataPath = diffDataPath) %>% 
-  dplyr::filter(comparison == geneSets$deg[i])
+  dplyr::filter(comparison == geneSets$deg[setRow])
 
 sampleIds <- unlist(stringr::str_split(string = rnaseqInfo$samples, pattern = ";"))
 
@@ -91,11 +91,11 @@ wrap_80 <- scales::wrap_format(80)
 ####################################################################
 ## import data
 nromCount <- suppressMessages(readr::read_tsv(file = rnaseqInfo$normCount)) %>% 
-  dplyr::select(geneId, sampleIds)
+  dplyr::select(geneId, !!!sampleIds)
 fpkmCount <- suppressMessages(readr::read_tsv(file = rnaseqInfo$fpkm)) %>% 
-  dplyr::select(geneId, sampleIds)
+  dplyr::select(geneId, !!!sampleIds)
 rldCount <- suppressMessages(readr::read_tsv(file = rnaseqInfo$rld)) %>% 
-  dplyr::select(geneId, sampleIds)
+  dplyr::select(geneId, !!!sampleIds)
 
 
 ## function to extract the log2FoldChange, padj and diff coulumns for each DEG result file
@@ -154,12 +154,11 @@ rowNameFontSize <- 8
 colNameFontSize <- 14
 
 
-plotData <- tibble::tibble(geneId = unlist(geneSets$geneId[i])) %>% 
+plotData <- tibble::tibble(geneId = unlist(geneSets$geneId[setRow])) %>% 
   dplyr::left_join(y = geneInfo, by = c("geneId" = "geneId")) %>%
   dplyr::left_join(y = rldCount, by = c("geneId" = "geneId"))
 
-plotTitle <- geneSets$title[i]
-plotOutSuffix <- geneSets$output[i]
+plotTitle <- geneSets$title[setRow]
 
 ## fold change heatmap
 foldChangeDf <- dplyr::select(plotData, geneId, starts_with("lfc")) %>%
@@ -283,8 +282,7 @@ plotHt <- nrow(plotData) * 0.1 + 1
 plotWd <- length(sampleIds)
 # png(filename = paste(outPrefix, ".fc_rld_heatmap.png", sep = ""), width=6000, height=6000, res = 550)
 
-pdf(file = paste(outPrefix, plotOutSuffix, ".pdf", sep = ""),
-    height = 8, width = 8)
+pdf(file = paste(outPrefix, ".pdf", sep = ""), height = 8, width = 8)
 
 draw(
   object = htList3,
@@ -294,7 +292,5 @@ draw(
 )
 
 dev.off()
-
-
 
 

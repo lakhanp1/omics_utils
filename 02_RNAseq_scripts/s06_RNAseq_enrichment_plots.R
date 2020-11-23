@@ -1,4 +1,4 @@
-library(tidyverse)
+suppressPackageStartupMessages(library(tidyverse))
 
 ## This script
 ## 1) read the tabular config file for different genesets
@@ -45,7 +45,7 @@ file_sampleInfo <- here::here("data", "reference_data", "sample_info.txt")
 
 colList <- list(
   topGO = list(
-    col_pval = "weightedFisher", col_richness = "richness",
+    col_pval = "pvalue", col_richness = "richness",
     col_geneCount = "Significant",
     col_term = "Term", col_id = "GO.ID",
     title = "topGO enrichment"
@@ -75,7 +75,7 @@ termSet <- dplyr::mutate(
 
 ###########################################################################
 
-setRow <- 1
+setRow <- 2
 
 degResult <- termSet$deg[setRow]
 outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
@@ -125,14 +125,11 @@ pt <- enrichment_scatter(
 #   theme(strip.background = element_rect(fill = "white"),
 #         strip.text = element_text(size = 14, face = "bold"))
 
-# png(filename = paste(outPrefix, ".png", sep = ""), width = 2500, height = 2500, res = 250)
 
-pdf(file = paste(outPrefix, ".", plotOutSuffix, ".pdf", sep = ""), width = 10, height = 10)
-pt
-dev.off()
-
-
-
-
+ggsave(
+  filename = paste(outPrefix, ".", plotOutSuffix, ".pdf", sep = ""),
+  plot = pt,
+  width = 11, height = 6, units = "in"
+)
 
 
