@@ -1,10 +1,10 @@
-library(tidyverse)
-library(ggrepel)
-library(ComplexHeatmap)
-library(circlize)
-library(org.HSapiens.gencodev30.eg.db)
-library(here)
-library(GO.db)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(ggrepel))
+suppressPackageStartupMessages(library(ComplexHeatmap))
+suppressPackageStartupMessages(library(circlize))
+suppressPackageStartupMessages(library(org.GRCm38p6.Ensembl100.eg.db))
+suppressPackageStartupMessages(library(here))
+suppressPackageStartupMessages(library(GO.db))
 
 
 ## This script
@@ -21,27 +21,24 @@ library(GO.db)
 ##
 
 
-
 rm(list = ls())
-
-source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
+source(file = "E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 source("E:/Chris_UM/GitHub/omics_util/02_RNAseq_scripts/s02_DESeq2_functions.R")
 
 ###########################################################################
 
-analysisName <- "geneset_plots"
-
-file_sampleInfo <- here::here("analysis", "09_RNAseq_CTCF", "sample_info_RNAseq.txt")
-file_RNAseq_info <- here::here("data", "RNAseq_info.txt", sep = "")
-diffDataPath <- here::here("analysis", "09_RNAseq_CTCF", "02_DESeq2_diff")
+diffDataPath <- here::here("analysis", "02_DESeq2_diff")
+file_sampleInfo <- here::here("data", "reference_data", "sample_info.txt")
+file_RNAseq_info <- here::here("data", "reference_data", "DESeq2_DEG_info.txt")
 
 file_goSet <- paste(diffDataPath, "/RNAseq_GO_geneset.config.tab", sep = "/")
 
-orgDb <- org.HSapiens.gencodev30.eg.db
+orgDb <- org.GRCm38p6.Ensembl100.eg.db
 
 col_lfc <- "log2FoldChange"
 col_fdr <- "padj"
-col_geneId <- "ENSEMBL"
+col_geneId <- "GID"
+col_geneName <- "GENE_NAME"
 
 cutoff_fdr <- 0.05
 cutoff_lfc <- 0.585
@@ -55,14 +52,15 @@ sampleInfo <- suppressMessages(readr::read_tsv(file = file_sampleInfo))
 
 termSet <- suppressMessages(readr::read_tsv(file = file_goSet))
 
+setRow <- 2
 
-i <- 2
+degResult <- termSet$deg[setRow]
 
+outDir <- paste(diffDataPath, "/", degResult, "/geneset_plots", sep = "")
 
-degResult <- termSet$deg[i]
+plotTitle <- paste(degResult, ":", termSet$title[setRow])
+outPrefix <- paste(outDir, "/", degResult, ".GO_geneset.", termSet$output[setRow], sep = "")
 
-outDir <- file.path(diffDataPath, degResult, analysisName)
-outPrefix <- paste(outDir, "/", degResult, ".GO_geneset", sep = "")
 
 if(!dir.exists(outDir)){
   dir.create(outDir)
@@ -76,49 +74,73 @@ sampleIds <- unlist(strsplit(x = rnaseqInfo$samples, split = ";"))
 diffData <- suppressMessages(readr::read_tsv(file = rnaseqInfo$deg[1])) 
 
 normCounts <- suppressMessages(readr::read_tsv(file = rnaseqInfo$normCount[1])) %>% 
-  dplyr::select(geneId, sampleIds)
+  dplyr::select(geneId, !!!sampleIds)
 
 rldCounts <- suppressMessages(readr::read_tsv(file = rnaseqInfo$rld[1])) %>% 
-  dplyr::select(geneId, sampleIds)
+  dplyr::select(geneId, !!!sampleIds)
 
 
+goTerms <- unlist(strsplit(x = termSet$go[setRow], split = ";"))
 
-goTerms <- unlist(strsplit(x = termSet$go[i], split = ";"))
 
-
-geneset <- AnnotationDbi::select(
+goGenes <- AnnotationDbi::select(
   x = orgDb, keys = goTerms, columns = c("GID"), keytype = "GOALL"
 ) %>% 
   dplyr::rename(
-    !!col_geneId := GID,
+    geneId = GID,
     termId = GOALL
   )
 
-geneset <- dplyr::left_join(x = geneset, y = diffData, by = col_geneId)
+geneset <- dplyr::left_join(x = goGenes, y = diffData, by = "geneId") %>% 
+  dplyr::filter(
+    abs(!!sym(col_lfc)) >= cutoff_lfc & !!sym(col_fdr) <= cutoff_fdr
+  ) %>% 
+  dplyr::mutate(
+    !!sym(col_geneName) := if_else(
+      condition = is.na(!!sym(col_geneName)), true = geneId, false = !!sym(col_geneName)
+    )
+  )
 
 readr::write_tsv(x = geneset, path = paste(outPrefix, ".data.tab", sep = ""))
 
 
 ###########################################################################
 ## volcano plot
-termColor <- structure(
-  .Data = RColorBrewer::brewer.pal(n = length(unique(geneset$termId)), name = "Set1"),
-  names = unique(geneset$termId)
-)
+
+if(length(unique(geneset$termId)) <= 9){
+  termColor <- structure(
+    .Data = RColorBrewer::brewer.pal(n = length(unique(geneset$termId)), name = "Set1"),
+    names = unique(geneset$termId)
+  )
+} else{
+  termColor <- base::structure(
+    .Data = rainbow(n = length(unique(geneset$termId))),
+    names = unique(geneset$termId)
+  )
+}
+
 
 termColor <- termColor[!is.na(names(termColor))]
 
-vp <- volcano_plot(df = diffData, fdr_col = col_fdr, lfc_col = col_lfc,
-                   ylimit = 40, xlimit = c(-5, 5),
-                   fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc,
-                   colorGenes = split(x = geneset$geneId, f = geneset$termId),
-                   geneColors = termColor)
+pt_vol <- volcano_plot(
+  df = diffData, fdr_col = col_fdr, lfc_col = col_lfc,
+  ylimit = 5, xlimit = c(-5, 5),
+  fdr_cut = cutoff_fdr, lfc_cut = cutoff_lfc,
+  title = plotTitle,
+  highlightGenesets = split(x = geneset$geneId, f = geneset$termId),
+  genesetColor = termColor
+)
 
 
-vp$plot
+pt_vol$plot <- pt_vol$plot +
+  theme(
+    axis.title = element_text(size = 22),
+    axis.text = element_text(size = 20)
+  ) +
+  guides(color=guide_legend(ncol=4))
 
-pdf(file = paste(outPrefix, ".volcano.pdf", sep = ""), width = 10, height = 10)
-vpt
+pdf(file = paste(outPrefix, ".volcano.pdf", sep = ""), width = 10, height = 12)
+pt_vol$plot
 dev.off()
 
 
@@ -128,7 +150,7 @@ dev.off()
 geneSubset <- dplyr::left_join(x = geneset, y = rldCounts, by = "geneId") %>% 
   dplyr::mutate(id = row_number())
 
-rownameCol <- "GENE_NAME"
+rownameCol <- col_geneName
 showRowNames <- TRUE
 rowNameFontSize <- 14
 colNameFontSize <- 14
@@ -193,7 +215,7 @@ pdf(file = paste(outPrefix, ".heatmap.pdf", sep = ""), width = 12, height = 14)
 
 draw(object = htList,
      main_heatmap = "countHt",
-     column_title = paste("Heatmap of DEGs belonging to GO terms:", analysisName),
+     column_title = plotTitle,
      split = geneSubset$termId,
      show_row_dend = FALSE,
      # auto_adjust = FALSE,
@@ -202,7 +224,5 @@ draw(object = htList,
 )
 
 dev.off()
-
-
 
 
