@@ -82,7 +82,10 @@ volcano_plot <- function(
   # Draw Volcano plot
   pt <- ggplot(
     data = plotDf,
-    mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
+    mapping = aes(x = !! sym(lfc_col), y = log10FDR, text = geneId)
+  )
+  
+  pt <- pt +
     geom_point(
       mapping = aes(color = category), alpha=0.7, size=1.75, shape = 19
     ) +
@@ -109,8 +112,8 @@ volcano_plot <- function(
       dplyr::left_join(y = plotDf, by = "geneId")
     
     ## draw the points
-    pt <- ggplot(mapping = aes(x = !! sym(lfc_col), y = log10FDR)) +
-      geom_point(data = plotDf, color = "grey", alpha = 0.8) +
+    pt <- pt +
+      geom_point(color = "grey", alpha = 0.8) +
       geom_point(data = colorGeneDf,
                  mapping = aes(color = colorGroup)) +
       scale_color_manual(values = genesetColor)

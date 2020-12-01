@@ -129,7 +129,8 @@ if(isFALSE(setequal(compare, exptInfo[[col_compare]]))){
 # ## ensure that reference level is same as compare[2] in the factor
 exptInfo <- exptInfo %>% dplyr::mutate(
   !!col_compare := forcats::fct_relevel(.f = !!sym(col_compare), compare[2], compare[1])
-)
+) %>% 
+  dplyr::arrange(!!sym(col_compare))
 
 rownames(exptInfo) <- exptInfo$sampleId
 
@@ -208,21 +209,21 @@ if(any(duplicated(geneInfo$geneId))){
 
 ## raw counts
 rawCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = FALSE)), var = "geneId")
-readr::write_tsv(x = rawCounts, path = paste(outPrefix, ".rawCounts.tab", sep = ""))
+readr::write_tsv(x = rawCounts, file = paste(outPrefix, ".rawCounts.tab", sep = ""))
 
 # ## FPKM
 fpkmCounts <- tibble::rownames_to_column(as.data.frame(fpkm(dds)), var = "geneId")
-readr::write_tsv(x = fpkmCounts, path = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
+readr::write_tsv(x = fpkmCounts, file = paste0(c(outPrefix,".FPKM.tab"), collapse = ""))
 
 ## normalized counts matrix
 normCounts <- tibble::rownames_to_column(as.data.frame(counts(dds, normalized = TRUE)), var = "geneId")
-readr::write_tsv(x = normCounts, path = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
+readr::write_tsv(x = normCounts, file = paste0(c(outPrefix,".normCounts.tab"), collapse = ""))
 
 
 ## r-log normalized counts
 rld <- rlog(dds, blind = FALSE)
 rldCount <- rownames_to_column(as.data.frame(assay(rld)), var = "geneId")
-readr::write_tsv(x = rldCount, path = paste(outPrefix, ".rlogCounts.tab", sep = ""))
+readr::write_tsv(x = rldCount, file = paste(outPrefix, ".rlogCounts.tab", sep = ""))
 
 
 ###########################################################################
@@ -354,7 +355,7 @@ resultSummary <- paste(capture.output(summary(resShrink))[1:8], collapse = "\n")
 
 readr::write_lines(
   x = c(paste("DESeq2 analysis:", analysisName), resultSummary),
-  path = paste(outPrefix, ".DESeq2_summary.txt", sep = ""))
+  file = paste(outPrefix, ".DESeq2_summary.txt", sep = ""))
 
 # mcols(resShrink, use.names=TRUE)
 
@@ -537,9 +538,9 @@ significant_down <- filter(degData, padj < cutoff_fdr, log2FoldChange <= cutoff_
 ###########################################################################
 ## store data
 
-readr::write_tsv(x = resDf, path = paste(outPrefix, ".DESeq2.tab", sep = ""))
-readr::write_tsv(x = resShrinkDf, path = paste(outPrefix, ".DESeq2_shrunken.tab", sep = ""))
-readr::write_tsv(x = degData, path = paste(outPrefix, ".DEG_all.txt", sep = ""))
+readr::write_tsv(x = resDf, file = paste(outPrefix, ".DESeq2.tab", sep = ""))
+readr::write_tsv(x = resShrinkDf, file = paste(outPrefix, ".DESeq2_shrunken.tab", sep = ""))
+readr::write_tsv(x = degData, file = paste(outPrefix, ".DEG_all.txt", sep = ""))
 
 
 ## write data to excel file
