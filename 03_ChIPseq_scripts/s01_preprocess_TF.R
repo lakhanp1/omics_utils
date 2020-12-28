@@ -1,8 +1,9 @@
-library(chipmine)
-library(org.Anidulans.FGSCA4.eg.db)
-library(TxDb.Anidulans.AspGD.GFF)
-library(BSgenome.Anidulans.AspGD.FGSCA4)
-library(here)
+suppressPackageStartupMessages(library(chipmine))
+suppressPackageStartupMessages(library(markPeaks))
+suppressPackageStartupMessages(library(org.Anidulans.FGSCA4.eg.db))
+suppressPackageStartupMessages(library(TxDb.Anidulans.FGSCA4.AspGD.GFF))
+suppressPackageStartupMessages(library(BSgenome.Anidulans.FGSCA4.AspGD))
+suppressPackageStartupMessages(library(here))
 
 
 ## 1) annotate peaks
@@ -10,22 +11,19 @@ library(here)
 
 rm(list = ls())
 
-# cl <- makeCluster(4) #not to overload your computer
-# registerDoParallel(cl)
-
 ##################################################################################
 
+file_exptInfo <- here::here("data", "reference_data", "sample_info.txt")
 
-file_exptInfo <- here::here("data", "referenceData/sample_info.txt")
-
-file_genes <- here::here("data", "referenceData/AN_genes_for_polII.bed")
+file_genes <- here::here("data", "reference_data", "AN_genes_for_polII.bed")
 orgDb <- org.Anidulans.FGSCA4.eg.db
-txDb <- TxDb.Anidulans.AspGD.GFF
+txDb <- TxDb.Anidulans.FGSCA4.AspGD.GFF
 
 TF_dataPath <- here::here("data", "TF_data")
 polII_dataPath <- here::here("data", "polII_data")
 hist_dataPath <- here::here("data", "histone_data")
 other_dataPath <- here::here("data", "other_data")
+file_blacklist <- here::here("data", "reference_data", "A_nidulans_FGSC_A4.blacklist_regions.bed")
 
 file_tf_macs2 <- paste(TF_dataPath, "/", "sample_tf_macs2.list", sep = "")
 file_tf <- paste(TF_dataPath, "/", "sample_tf.list", sep = "")
@@ -37,52 +35,62 @@ body <- 0
 bin <- 10
 matrixDim = c(c(up, body, down)/bin, bin)
 
+##################################################################################
+
 geneSet <- data.table::fread(file = file_genes, header = F,
                              col.names = c("chr", "start", "end", "geneId", "score", "strand")) %>%
-  dplyr::select(-score) %>%
-  dplyr::mutate(length = end - start)
-
-geneSet <- GenomicFeatures::genes(x = txDb, columns = c("gene_id", "tx_id", "tx_name"),
-                                  filter = list(gene_id = geneSet$geneId)) %>% 
-  as.data.frame() %>% 
-  dplyr::select(geneId = gene_id, chr = seqnames, start, end, strand)
+  dplyr::select(geneId)
 
 geneDesc <- AnnotationDbi::select(x = orgDb, keys = geneSet$geneId, columns = "DESCRIPTION", keytype = "GID")
 
 geneSet <- dplyr::left_join(x = geneSet, y = geneDesc, by = c("geneId" = "GID"))
 
-##################################################################################
 
-tfSampleList <- readr::read_tsv(file = file_tf_macs2, col_names = c("id"),  comment = "#")
+txInfo <- suppressMessages(
+  AnnotationDbi::select(
+    x = txDb, keys = AnnotationDbi::keys(x = txDb, keytype = "TXID"),
+    columns = c("GENEID", "TXNAME", "TXTYPE"), keytype = "TXID")) %>%
+  dplyr::mutate(TXID = as.character(TXID)) %>%
+  dplyr::rename(geneId = GENEID, txName = TXNAME, txType = TXTYPE)
+
+txInfo <- dplyr::filter(txInfo, !txType %in% c("tRNA", "rRNA", "snRNA", "snoRNA")) %>% 
+  dplyr::filter(!grepl(pattern = "uORF", x = geneId))
+
+tfSampleList <- readr::read_tsv(file = file_tf_macs2,  comment = "#")
 
 tfInfo <- get_sample_information(
   exptInfoFile = file_exptInfo,
-  samples = tfSampleList$id,
+  samples = tfSampleList$sampleId,
   dataPath = TF_dataPath,
   profileMatrixSuffix = matrixType)
 
+##################################################################################
 
-i <- 2
+i <- 3
+
 
 for(i in 1:nrow(tfInfo)){
+
+  cat(i, ":", tfInfo$sampleId[i], "\n")
   
   ## annotate peaks and prepare gene level annotation file
-  peakType <- dplyr::case_when(
-    tfInfo$peakType[i] == "narrow" ~ "narrowPeak",
-    tfInfo$peakType[i] == "broad" ~ "broadPeak"
-  )
+  peakType <- tfInfo$peakType[i]
   
-  peakAn <- narrowPeak_annotate(
+  peakAn <- markPeaks::annotate_peaks(
     peakFile = tfInfo$peakFile[i],
     txdb = txDb,
+    txIds = txInfo$TXID,
     fileFormat = peakType,
+    promoterLength = 500,
+    upstreamLimit = 1000,
+    bidirectionalDistance = 1000,
     includeFractionCut = 0.7,
     bindingInGene = FALSE,
-    promoterLength = 500,
     insideSkewToEndCut = 0.7,
+    blacklistRegions = file_blacklist,
     removePseudo = TRUE,
     output = tfInfo$peakAnno[i])
-
+  
   if( !is.null(peakAn) ){
     tfDf <- gene_level_peak_annotation(
       sampleId = tfInfo$sampleId[i],
@@ -101,11 +109,11 @@ for(i in 1:nrow(tfInfo)){
   #   if(peakType == "broadPeak"){
   #     mcols(peaksGr)$peak <- round(width(peaksGr) / 2)
   #   }
-  #   
+  # 
   #   peakSummitGr <- GenomicRanges::narrow(x = peaksGr,
   #                                         start = pmax(peaksGr$peak, 1),
   #                                         width = 1)
-  #   
+  # 
   #   profileMat <- bigwig_profile_matrix(bwFile = tfInfo$bwFile[i],
   #                                       regions = peakSummitGr,
   #                                       signalName = tfInfo$profileName[i],
@@ -114,8 +122,11 @@ for(i in 1:nrow(tfInfo)){
   #                                       storeLocal = T,
   #                                       localPath = tfInfo$matFile[i])
   # }
-
+  
 }
+
+
+
 
 
 

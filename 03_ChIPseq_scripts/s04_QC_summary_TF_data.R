@@ -1,14 +1,14 @@
-library(chipmine)
-library(org.Anidulans.eg.db)
-library(TxDb.Anidulans.AspGD.GFF)
-library(here)
-library(ggbeeswarm)
-library(ggpubr)
-library(ggrepel)
+suppressPackageStartupMessages(library(chipmine))
+suppressPackageStartupMessages(library(org.Anidulans.FGSCA4.eg.db))
+suppressPackageStartupMessages(library(TxDb.Anidulans.FGSCA4.AspGD.GFF))
+suppressPackageStartupMessages(library(here))
+suppressPackageStartupMessages(library(ggbeeswarm))
+suppressPackageStartupMessages(library(ggpubr))
+suppressPackageStartupMessages(library(ggrepel))
 
 ## 1) peak enrichment distribution
 ## 2) peak p-value distribution
-## 3) peak annottion pie chart
+## 3) peak annotation pie chart
 ## 4) combined matrix of peak enrichment distribution plots
 ## 5) combined matrix of peak p-value distribution plots
 
@@ -19,11 +19,11 @@ analysisName <- "TF_ChIP_summary"
 outDir <- here::here("analysis", "02_QC_TF")
 outPrefix <- paste(outDir, "/", analysisName, sep = "")
 
-file_exptInfo <- here::here("data", "referenceData/sample_info.txt")
+file_exptInfo <- here::here("data", "reference_data", "sample_info.txt")
 
-file_genes <- here::here("data", "referenceData/AN_genes_for_polII.bed")
-orgDb <- org.Anidulans.eg.db
-txDb <- TxDb.Anidulans.AspGD.GFF
+file_genes <- here::here("data", "reference_data", "AN_genes_for_polII.bed")
+orgDb <- org.Anidulans.FGSCA4.eg.db
+txDb <- TxDb.Anidulans.FGSCA4.AspGD.GFF
 
 TF_dataPath <- here::here("data", "TF_data")
 
@@ -49,11 +49,11 @@ smGenes <- suppressMessages(
 
 ##################################################################################
 
-tfSampleList <- readr::read_tsv(file = file_tf_macs2, col_names = c("id"),  comment = "#")
+tfSampleList <- readr::read_tsv(file = file_tf_macs2,  comment = "#")
 
 tfInfo <- get_sample_information(
   exptInfoFile = file_exptInfo,
-  samples = tfSampleList$id,
+  samples = tfSampleList$sampleId,
   dataPath = TF_dataPath,
   profileMatrixSuffix = matrixType)
 
@@ -63,62 +63,90 @@ tfInfoList <- purrr::transpose(tfInfo)  %>%
 
 allPlotData <- NULL
 
+peakCountsDf <- tibble::tibble(
+  sampleId = character(), peaks_total = numeric(), peaks_pval20 = numeric(),
+  peaks_fe3 = numeric(), peaks_pval20_fe3 = numeric()
+)
+
+
 pdf(file = paste(outPrefix, ".macs2.pdf", sep = ""), width = 15, height = 10,
     onefile = TRUE, pointsize = 10)
 
-i <- 2
+i <- 3
 
 for (i in 1:nrow(tfInfo)) {
   
-  print(tfInfo$sampleId[i])
+  cat(i, ":", tfInfo$sampleId[i], "\n")
   
-  peakType <- dplyr::case_when(
-    tfInfo$peakType[i] == "narrow" ~ "narrowPeak",
-    tfInfo$peakType[i] == "broad" ~ "broadPeak"
+  peakType <- tfInfo$peakType[i]
+  
+  ## extract the peak counts to decide best TF replicate
+  peaksGr <- rtracklayer::import(con = tfInfo$peakFile[i], format = peakType)
+  peakCountsDf <- dplyr::bind_rows(
+    peakCountsDf,
+    tibble(
+      sampleId = tfInfo$sampleId[i],
+      peaks_total = length(peaksGr),
+      peaks_pval20 = length(which(peaksGr$pValue >= 20)),
+      peaks_fe3 = length(which(peaksGr$signalValue > 3)),
+      peaks_pval20_fe3 = length(which(peaksGr$pValue >= 20 | peaksGr$signalValue > 3))
+    )
   )
   
-  
   backboneGene <- tfInfo$SM_TF[i]
-  
+
   ## few TFs are mapped to multiple SM clusters. So preparing the list of SM tf data
   smTfInfo <- suppressMessages(
     AnnotationDbi::select(
       x = orgDb,
       keys = na.omit(backboneGene),
       columns = c("SM_GENE", "SM_CLUSTER", "SM_ID"),
-      keytype = "GID")) %>% 
+      keytype = "GID")) %>%
     dplyr::filter(!is.na(SM_ID))
-  
+
   clusterGenes <- suppressMessages(
     AnnotationDbi::select(x = orgDb,
                           keys = smTfInfo$SM_ID,
                           columns = c("GID", "SM_GENE"),
                           keytype = "SM_ID")
   )
-  
+
   genesToMark <- list(
     SM_cluster = unique(clusterGenes$SM_GENE),
     other_SM_genes = setdiff(smGenes$SM_GENE, clusterGenes$SM_GENE)
   )
-  
+
   chipSummary <- chip_summary(
     sampleId = tfInfo$sampleId[i],
     peakAnnotation = tfInfo$peakAnno[i],
     peakFile = tfInfo$peakFile[i],
-    peakType = peakType,
+    peakFormat = peakType,
     markTargets = genesToMark,
     pointColor = structure(c("red", "blue"), names = names(genesToMark)),
     pointAlpha = structure(c(1, 0.5), names = names(genesToMark))
   )
-  
-  
+
+
   plot(chipSummary$figure)
-  
+
   allPlotData <- dplyr::bind_rows(allPlotData, chipSummary$data)
   
 }
 
 dev.off()
+
+bestReplicate <- dplyr::left_join(x = tfInfo, y = peakCountsDf, by = "sampleId") %>% 
+  dplyr::select(!!!colnames(peakCountsDf), SM_TF, copyNumber, condition, timePoint, rep) %>% 
+  dplyr::group_by(condition, timePoint) %>% 
+  dplyr::arrange(desc(peaks_pval20), .by_group = TRUE) %>% 
+  dplyr::mutate(
+    totalReps = n(),
+    bestRep = row_number()
+  ) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(sampleId, starts_with("peaks_"), bestRep, totalReps, everything())
+
+readr::write_tsv(x = bestReplicate, path = paste(outPrefix, ".best_replicates.tab", sep = ""))
 
 ##################################################################################
 ## combined summary plot matrix
@@ -135,6 +163,7 @@ theme_plot_matrix <- theme_bw() +
     strip.background = element_rect(fill = "white")
   )
 
+facetCols <- 14
 
 ## combined summary plot matrix: peak enrichment
 gg_all_enrichment <- ggplot(
@@ -144,12 +173,12 @@ gg_all_enrichment <- ggplot(
   geom_boxplot(width=0.1, fill = NA, outlier.colour = NA, color = alpha("black", 1)) +
   geom_hline(yintercept = 3, color = "blue") +
   labs(title = "masc2 fold enrichment distribution") +
-  facet_wrap(facets = ~ sampleId, ncol = 14, scales = "free") +
+  facet_wrap(facets = ~ sampleId, ncol = facetCols, scales = "free") +
   theme_plot_matrix
 
 # pdf(file = paste(outPrefix, ".macs2_enrichment.pdf", sep = ""), width = 16, height = 16, onefile = TRUE)
-png(filename = paste(outPrefix, ".macs2_enrichment.png", sep = ""), width = 15000, height = 10000, res = 350)
-gg_all_enrichment
+png(filename = paste(outPrefix, ".macs2_enrichment.png", sep = ""), width = 15000, height = 9000, res = 300)
+print(gg_all_enrichment)
 dev.off()
 
 ## combined summary plot matrix: peak p-value
@@ -160,12 +189,12 @@ gg_all_pval <- ggplot(
   geom_boxplot(width=0.1, fill = NA, outlier.colour = NA, color = alpha("black", 1)) +
   geom_hline(yintercept = 20, color = "red") +
   labs(title = "masc2 p-value distribution") +
-  facet_wrap(facets = ~ sampleId, ncol = 14, scales = "free") +
+  facet_wrap(facets = ~ sampleId, ncol = facetCols, scales = "free") +
   theme_plot_matrix
 
 # pdf(file = paste(outPrefix, ".macs2_enrichment.pdf", sep = ""), width = 16, height = 16, onefile = TRUE)
-png(filename = paste(outPrefix, ".macs2_pval.png", sep = ""), width = 15000, height = 10000, res = 350)
-gg_all_pval
+png(filename = paste(outPrefix, ".macs2_pval.png", sep = ""), width = 15000, height = 9000, res = 300)
+print(gg_all_pval)
 dev.off()
 
 
@@ -173,16 +202,16 @@ dev.off()
 gg_all_width <- ggplot(
   data = allPlotData,
   mapping = aes(x = sampleId, y = peakWidth)) +
-  geom_quasirandom(color = "#372b60") +
+  geom_quasirandom(color = "#8472c0") +
   geom_boxplot(width=0.1, fill = NA, outlier.colour = NA, color = alpha("black", 1)) +
   geom_hline(yintercept = 300, color = "red") +
   labs(title = "macs2 peak width distribution") +
-  facet_wrap(facets = ~ sampleId, ncol = 14, scales = "free") +
+  facet_wrap(facets = ~ sampleId, ncol = facetCols, scales = "free") +
   theme_plot_matrix
 
 # pdf(file = paste(outPrefix, ".peak_width.png", sep = ""), width = 16, height = 16, onefile = TRUE)
-png(filename = paste(outPrefix, ".peak_width.png", sep = ""), width = 15000, height = 10000, res = 350)
-gg_all_width
+png(filename = paste(outPrefix, ".peak_width.png", sep = ""), width = 15000, height = 9000, res = 300)
+print(gg_all_width)
 dev.off()
 
 
@@ -289,9 +318,6 @@ dev.off()
 # }
 # 
 # 
-
-
-
 
 
 
