@@ -5,7 +5,7 @@
 # ###############         uninstall packages          ########################
 # ############################################################################
 # 
-# # create a list of all installed packages
+# create a list of all installed packages
 # ip <- as.data.frame(installed.packages())
 # head(ip)
 # 
@@ -32,7 +32,7 @@
 
 rm(list = ls())
 
-chooseCRANmirror(graphics = FALSE, ind = 14)
+chooseCRANmirror(graphics = FALSE, ind = 18)
 
 install.packages(
   pkgs = c(
@@ -40,7 +40,8 @@ install.packages(
     "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
     "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram", "imputeTS",
     "summarytools", "UpSetR", "esquisse", "corrgram", "here", "matrixStats",
-    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm"
+    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm",
+    "renv"
   ),
   dependencies = T)
 
@@ -56,14 +57,14 @@ BiocManager::install(
     "BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings",
     "GenomeInfoDbData", "AnnotationHub", "AnnotationDbi", "GenomicFeatures",
     "rtracklayer", "BSgenome", "GenomicAlignments", "BiocParallel",
-    "SummarizedExperiment", "plyranges"
+    "SummarizedExperiment", "plyranges", "Rsamtools"
   )
 )
 
 BiocManager::install(
   pkgs = c(
-    "Rsamtools", "DESeq2", "tximport", "topGO", "DiffBind", "regioneR",
-    "ballgown", "pathview", "DO.db", "KEGGprofile", "preprocessCore",
+    "DESeq2", "tximport", "topGO", "DiffBind", "regioneR",
+    "ballgown", "pathview", "DO.db", "KEGGprofile", "preprocessCore", "GO.db",
     "clusterProfiler", "apeglm", "Gviz", "ggbio", "KEGGREST", "KEGG.db"
   )
 )
@@ -87,13 +88,14 @@ library(devtools)
 
 devtools::document(pkg = "E:/Chris_UM/GitHub/markPeaks")
 devtools::install("E:/Chris_UM/GitHub/markPeaks", upgrade = "never")
+devtools::install_github(repo = "lakhanp1/markPeaks", ref = "dev_v2")
 
 # devtools::load_all(path = "E:/Chris_UM/GitHub/chipmine", reset = TRUE)
 devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
 devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 # devtools::install("E:/Chris_UM/GitHub/chipmine")
-# devtools::install_github(repo = "lakhanp1/chipmine", ref = "dev_v.2")
-# devtools::install_github(repo = "lakhanp1/chipmine", ref = "1.6")
+# devtools::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2")
+# devtools::install_github(repo = "lakhanp1/chipmine", ref = "1.6.0")
 
 ##########################################################################
 ###############         Org.Db packages            #######################
@@ -116,12 +118,19 @@ devtools::install(
 devtools::install_github(
   "lakhanp1/fungal_resources/C_albicans/org.Calbicans.SC5314.eg.db",
   upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/C_albicans/TxDb.Calbicans.SC5314.CGD.GFF",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/C_albicans/BSgenome.CAlbicans.SC5314_A21.CGD",
+  upgrade = "never")
+
 
 ## C. auris
 devtools::install_github("lakhanp1/fungal_resources/C_auris/org.Cauris.eg.db",
                          upgrade = "never")
 
-## A. fumigatus
+## A. fumigatus Af293
 devtools::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_Af293/org.AFumigatus.Af293.eg.db",
   upgrade = "never")
@@ -132,11 +141,22 @@ devtools::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_Af293/BSgenome.Afumigatus.Af293.AspGD",
   upgrade = "never")
 
+## A. fumigatus A1163
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_fumigatus_A1163/org.AFumigatus.A1163.eg.db",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_fumigatus_A1163/TxDb.Afumigatus.A1163.AspGD.GFF",
+  upgrade = "never")
+devtools::install_github(
+  "lakhanp1/fungal_resources/A_fumigatus_A1163/BSgenome.Afumigatus.A1163.AspGD",
+  upgrade = "never")
+
+
 ## Human
 devtools::install(
   "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/TxDb.Hsapiens.GRCh38p12.gencodev30.basic",
   upgrade = "never")
-
 devtools::install(
   pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
   upgrade = "never")
@@ -151,25 +171,12 @@ devtools::install(
 devtools::install(
   pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/TxDb.GRCm38p6.Ensembl100",
   upgrade = "never")
-
 devtools::install(
   pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/org.GRCm38p6.Ensembl100.eg.db",
   upgrade = "never")
 
 
-############################################################################
-###############         BSgenome packages            #######################
-############################################################################
 
-# ## install A_fumigatus_293 genome as BSgenome object
-# path = "E:/Chris_UM/Database/A_fumigatus_293_version_s03-m05-r06/"
-# setwd(dir = path)
-# 
-# forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
-## run following commands on CMD
-# R.exe CMD build BSgenome.Afumigatus.AspGD.Af293
-# R.exe CMD check BSgenome.Afumigatus.AspGD.Af293_03.05.06.tar.gz
-# R.exe CMD INSTALL BSgenome.Afumigatus.AspGD.Af293_03.05.06.tar.gz
 
 
 
