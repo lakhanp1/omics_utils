@@ -97,8 +97,7 @@ makeOrgPackage(
 
 
 ## install package
-install.packages("E:/Chris_UM/Database/C_albicans/SC5314_A21/annotation_resources/org.Calbicans.SC5314.eg.db",
-                 repos = NULL, type = "source")
+install.packages("org.Calbicans.SC5314.eg.db", repos = NULL, type = "source")
 
 library(org.Calbicans.SC5314.eg.db)
 
@@ -142,12 +141,13 @@ makeTxDbPackage(
 )
 
 
-
 columns(txdbData)
 exons(txdbData)
 transcripts(txdbData, columns = c("TXID", "TXNAME", "TXTYPE"))
 genes(txdbData)
 fiveUtrs <- fiveUTRsByTranscript(txdbData)
+
+install.packages("TxDb.Calbicans.SC5314.CGD.GFF", repos = NULL, type = "source")
 
 ##############################################################################
 ## create BSgenome package
