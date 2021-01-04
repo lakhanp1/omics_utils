@@ -7,7 +7,7 @@ suppressPackageStartupMessages(library(KEGGprofile))
 suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(tm))  # for text mining
 suppressPackageStartupMessages(library(SnowballC)) # for text stemming
-suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator 
+suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 
 ## This script has functions for using topGO package for GO enrichment
 ##################################################################################
@@ -538,7 +538,7 @@ clusterProfiler_groupGO <- function(genes, orgdb, goLevel = 3, type = "BP", ...)
 #' @return A dataframe with GO term to gene mapping statistics
 #' @export
 #'
-#' @examples
+#' @examples NA
 GO_map <- function(genes, goTerms, orgdb, keytype){
   
   # Ontology(goTerms[1])
@@ -631,7 +631,7 @@ KEGG_map <- function(genes, pathways, orgdb){
 #' @return A vector of GO IDs at level of interest.
 #' @export
 #'
-#' @examples
+#' @examples NA
 GO_terms_at_level <- function(ont, level){
   
   ont <- match.arg(arg = ont, choices = c("BP", "CC", "MF"))
@@ -683,7 +683,7 @@ GO_terms_at_level <- function(ont, level){
 #' @return
 #' @export
 #'
-#' @examples
+#' @examples NA
 frequent_key_words = function(sentences, topn = Inf, remove = NULL){
   ## Load the data as a corpus
   docs = Corpus(VectorSource(sentences))
@@ -726,20 +726,38 @@ read_gaf <- function(file){
     "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by",
     "Annotation_Extension", "Gene_Product_From_ID")
   
-  gaf <- data.table::fread(file = file, sep = "\t", header = F,
-                           data.table = T, strip.white = T, stringsAsFactors = F,
-                           na.strings = "", col.names = gafCols) %>% 
-    tibble::as_tibble()
-  
+  gaf <- suppressMessages(readr::read_tsv(
+    file = file, col_names = gafCols, comment = "!"
+  ))
   
 }
 
 
 ##################################################################################
 
+#' Load TxDb SQLite database as AnnotationDb style object
+#'
+#' @param org organism code
+#' @param yaml YAML config file path which has sqlite file path for different organism codes
+#'
+#' @return TxDB object
+#' @export
+#'
+#' @examples NA
+get_TxDb_sqlite <- function(org, yaml){
+  config <- configr::read.config(file = yaml)
+  
+  file_sqlite <- list.files(
+    path = file.path(config[[org]]$TxDb, "inst/extdata"), pattern = "*.sqlite", full.names = T
+  )
+  
+  if(length(file_sqlite) != ``) stop("Unique sqlite file not found")
+  
+  txDb <- AnnotationDbi::loadDb(file = file_sqlite, packageName = basename(config[[org]]$TxDb))
+  
+  return(txDb)
+}
 
 
-
-
-
+##################################################################################
 
