@@ -8,6 +8,9 @@ suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(tm))  # for text mining
 suppressPackageStartupMessages(library(SnowballC)) # for text stemming
 suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
+suppressPackageStartupMessages(library(configr)) # word-cloud generator
+suppressPackageStartupMessages(library(AnnotationDbi)) # word-cloud generator
+
 
 ## This script has functions for using topGO package for GO enrichment
 ##################################################################################

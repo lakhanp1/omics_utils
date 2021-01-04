@@ -36,28 +36,27 @@ chooseCRANmirror(graphics = FALSE, ind = 18)
 
 install.packages(
   pkgs = c(
-    "installr", "Rcpp", "tidyverse", "ggpubr", "data.table", "readxl",
+    "installr", "Rcpp", "tidyverse", "ggpubr", "data.table", "configr", "renv",
     "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
     "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram", "imputeTS",
     "summarytools", "UpSetR", "esquisse", "corrgram", "here", "matrixStats",
-    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm",
-    "renv"
+    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm"
   ),
   dependencies = T)
 
+#Time series data imputation
+install.packages("imputeTS", dependencies = T)
 
-if (!requireNamespace("BiocManager"))
-  install.packages("BiocManager")
-
+install.packages("BiocManager")
 BiocManager::install()
 
 ## core bioc packages
 BiocManager::install(
   pkgs = c(
     "BiocGenerics", "S4Vectors", "IRanges", "GenomicRanges", "Biostrings",
-    "GenomeInfoDbData", "AnnotationHub", "AnnotationDbi", "GenomicFeatures",
-    "rtracklayer", "BSgenome", "GenomicAlignments", "BiocParallel",
-    "SummarizedExperiment", "plyranges", "Rsamtools"
+    "AnnotationForge", "GenomeInfoDbData", "AnnotationHub", "AnnotationDbi",
+    "GenomicFeatures", "rtracklayer", "BSgenome", "GenomicAlignments",
+    "BiocParallel", "SummarizedExperiment", "plyranges", "Rsamtools"
   )
 )
 
@@ -70,14 +69,14 @@ BiocManager::install(
 )
 
 
-#Time series data imputation
-install.packages("imputeTS", dependencies = T)
-
 install.packages(c("devtools"), dependencies = T)
-library(devtools)
-devtools::install_github("jokergoo/circlize")
-devtools::install_github("jokergoo/ComplexHeatmap")
-devtools::install_github("jokergoo/EnrichedHeatmap")
+
+library(remotes)
+Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS="true")
+
+remotes::install_github("jokergoo/circlize")
+remotes::install_github("jokergoo/ComplexHeatmap")
+remotes::install_github("jokergoo/EnrichedHeatmap")
 
 # BiocManager::install("ComplexHeatmap")
 # BiocManager::install("EnrichedHeatmap")
@@ -88,76 +87,79 @@ library(devtools)
 
 devtools::document(pkg = "E:/Chris_UM/GitHub/markPeaks")
 devtools::install("E:/Chris_UM/GitHub/markPeaks", upgrade = "never")
-devtools::install_github(repo = "lakhanp1/markPeaks", ref = "dev_v2")
+# remotes::install_github(repo = "lakhanp1/markPeaks", ref = "dev")
 
 # devtools::load_all(path = "E:/Chris_UM/GitHub/chipmine", reset = TRUE)
 devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
 devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 # devtools::install("E:/Chris_UM/GitHub/chipmine")
-# devtools::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2")
-# devtools::install_github(repo = "lakhanp1/chipmine", ref = "1.6.0")
+# remotes::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2")
+# remotes::install_github(repo = "lakhanp1/chipmine", ref = "1.6.0")
 
 ##########################################################################
 ###############         Org.Db packages            #######################
 ##########################################################################
 ## A. nidulans
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_nidulans/org.Anidulans.FGSCA4.eg.db",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_nidulans/TxDb.Anidulans.FGSCA4.AspGD.GFF",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.FGSCA4.AspGD",
   upgrade = "never")
-devtools::install(
+remotes::install(
   "E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.tRNA.removed",
   upgrade = "never")
 
+
 ## C. albicans
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/C_albicans/org.Calbicans.SC5314.eg.db",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/C_albicans/TxDb.Calbicans.SC5314.CGD.GFF",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/C_albicans/BSgenome.CAlbicans.SC5314_A21.CGD",
   upgrade = "never")
 
 
 ## C. auris
-devtools::install_github("lakhanp1/fungal_resources/C_auris/org.Cauris.eg.db",
+remotes::install_github("lakhanp1/fungal_resources/C_auris/org.Cauris.eg.db",
                          upgrade = "never")
 
+
 ## A. fumigatus Af293
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_Af293/org.AFumigatus.Af293.eg.db",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_Af293/TxDb.Afumigatus.Af293.AspGD.GFF",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_Af293/BSgenome.Afumigatus.Af293.AspGD",
   upgrade = "never")
 
+
 ## A. fumigatus A1163
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_A1163/org.AFumigatus.A1163.eg.db",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_A1163/TxDb.Afumigatus.A1163.AspGD.GFF",
   upgrade = "never")
-devtools::install_github(
+remotes::install_github(
   "lakhanp1/fungal_resources/A_fumigatus_A1163/BSgenome.Afumigatus.A1163.AspGD",
   upgrade = "never")
 
 
 ## Human
-devtools::install(
+remotes::install(
   "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/TxDb.Hsapiens.GRCh38p12.gencodev30.basic",
   upgrade = "never")
-devtools::install(
+remotes::install(
   pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
   upgrade = "never")
 
@@ -166,6 +168,7 @@ devtools::install(
 devtools::install(
   pkg = "E:/Chris_UM/Database/Zebrafish/GRCz11/annotation_resources/org.DRerio.GRCz11.Ensembl97.eg.db",
   upgrade = "never")
+
 
 ## Mouse
 devtools::install(
