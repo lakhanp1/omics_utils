@@ -1,13 +1,10 @@
-library(tidyverse)
-library(data.table)
-library(AnnotationForge)
-library(GenomicFeatures)
-library(BSgenome)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(AnnotationForge))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressPackageStartupMessages(library(BSgenome))
 
 
 rm(list = ls())
-
-source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/s01_topGO_functions.R")
 
 path <- "E:/Chris_UM/Database/A_Nidulans/annotation_resources/"
 setwd(path)
@@ -58,8 +55,7 @@ geneInfo <- dplyr::select(geneInfo, -ALIAS)
 
 
 ## kegg to ncbi map
-keggMap <- fread(file = "ani_ncbi-gene.list",
-                 sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
+keggMap <- suppressMessages(readr::read_tsv(file = "ani_ncbi-gene.list")) %>% 
   dplyr::mutate(geneId = gsub(pattern = "\\.2", replacement = "", x = KEGG_ID))
 
 
@@ -91,8 +87,7 @@ keggDf <- dplyr::bind_rows(
 
 geneTable <- dplyr::left_join(x = geneInfo, y = keggDf, by = c("GID" = "GID"))
 
-
-fwrite(x = geneTable, file = "A_nidulans_FGSC_A4.geneTable.tab", sep = "\t", col.names = T, quote = F)
+readr::write_tsv(x = geneTable, file = "A_nidulans_FGSC_A4.geneTable.tab")
 
 
 ##############################################################################
@@ -121,10 +116,7 @@ topGoMap <- dplyr::select(goDf, GID, GO) %>%
   as.data.frame()
 
 
-fwrite(x = topGoMap,
-       file = "geneid2go.ANidulans.topGO.map",
-       col.names = F, row.names = F,
-       sep = "\t", eol = "\n")
+readr::write_tsv(x = topGoMap, file = "geneid2go.ANidulans.topGO.map")
 
 
 ##############################################################################
@@ -149,14 +141,13 @@ makeOrgPackage(
 
 
 ## install package
-install.packages("E:/Chris_UM/Database/A_Nidulans/annotation_resources/org.Anidulans.FGSCA4.eg.db",
-                 repos = NULL, type = "source")
+install.packages("org.Anidulans.FGSCA4.eg.db", repos = NULL, type = "source")
 
 library(org.Anidulans.FGSCA4.eg.db)
 
 
 ##############################################################################
-file_gff <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_version_s10-m04-r03_features.gff"
+file_gff <- "../A_nidulans_FGSC_A4_version_s10-m04-r03_features.gff"
 
 metadata <- data.frame(
   name = "Resource URL",
@@ -203,9 +194,9 @@ GenomicFeatures::genes(txdbData)
 fiveUtrs <- fiveUTRsByTranscript(txdbData)
 
 ## install package
-install.packages("E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.FGSCA4.AspGD.GFF",
-                 repos = NULL, type = "source")
+install.packages("TxDb.Anidulans.FGSCA4.AspGD.GFF", repos = NULL, type = "source", verbose = T)
 
+library(TxDb.Anidulans.FGSCA4.AspGD.GFF)
 
 ##############################################################################
 file_gff2 <- "E:/Chris_UM/Database/A_Nidulans/A_nidulans_FGSC_A4_version_s10-m04-r03_features_tRNA_removed.gff"
@@ -251,6 +242,5 @@ makeTxDbPackage(
 forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 
 ## install package
-install.packages("E:/Chris_UM/Database/A_Nidulans/annotation_resources/BSgenome.Anidulans.FGSCA4.AspGD",
-                 repos = NULL, type = "source")
+install.packages("BSgenome.Anidulans.FGSCA4.AspGD", repos = NULL, type = "source")
 

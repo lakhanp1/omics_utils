@@ -1,7 +1,7 @@
-library(dplyr)
-library(data.table)
-library(AnnotationForge)
-library(clusterProfiler)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(AnnotationForge))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressPackageStartupMessages(library(BSgenome))
 
 
 
@@ -19,18 +19,16 @@ file_calbOrtho <- "E:/Chris_UM/Database/Candida_auris_B8441/functionalAnnotation
 
 ##############################################################################
 
-chrFeature <- data.table::fread(file = file_genes, header = T, sep = "\t",
-                                stringsAsFactors = FALSE, na.strings = "") %>%
+chrFeature <- suppressMessages(readr::read_tsv(file = file_genes)) %>%
   dplyr::rename(GID = geneId, POSITION = position, STRAND = strand, DESCRIPTION = description)
 
-blastxData <- data.table::fread(file = file_blastxSummary, header = T, sep = "\t",
-                                stringsAsFactors = FALSE, na.strings = "") %>% 
+blastxData <- suppressMessages(readr::read_tsv(file = file_blastxSummary)) %>% 
   dplyr::rename(GID = qseqid, BLASTX_SUMMARY = frequentWords) %>%
   dplyr::select(GID, BLASTX_SUMMARY) %>%
   tidyr::replace_na(list(BLASTX_SUMMARY = ""))
 
 
-ann <- data.table::fread(file = file_annotations, header = T, sep = "\t", stringsAsFactors = FALSE, na.strings = ".")
+ann <- suppressMessages(readr::read_tsv(file = file_annotations))
 
 pfamData <- dplyr::select(ann, gene_id, Pfam) %>%
   tidyr::unnest(Pfam = strsplit(x = Pfam, split = ";", fixed = T)) %>%
@@ -39,13 +37,13 @@ pfamData <- dplyr::select(ann, gene_id, Pfam) %>%
   dplyr::select(GID = gene_id, PFAM_ID, PFAM_TERM)
 
 
-orthologData <- fread(file = file_calbOrtho, header = T, sep = "\t", stringsAsFactors = FALSE, na.strings = "NA") %>%
+orthologData <- suppressMessages(readr::read_tsv(file = file_calbOrtho)) %>%
   dplyr::filter(hasOrtholog == TRUE) %>%
   dplyr::select(GID = CAuris_id, CGD_ORTHOLOG = CGD_ID, ORTHOLOG_SOURCE = ortho_source)
 
 
 ############################################################################## 
-goDf <- fread(file = file_geneToGo, sep = "\t", header = T, stringsAsFactors = F) %>%
+goDf <- suppressMessages(readr::read_tsvfread(file = file_geneToGo)) %>%
   dplyr::rename(GID = geneId, GO = GO_id) %>% 
   dplyr::mutate(EVIDENCE = "IEA") %>%
   dplyr::filter(!is.na(GO)) %>%
@@ -62,8 +60,7 @@ topGoMap <- dplyr::select(goDf, GID, GO) %>%
   as.data.frame()
 
 
-
-fwrite(x = topGoMap, file = "geneid2go.CAuris.topGO.map", sep = "\t", quote = F, col.names = F, row.names = F)
+readr::write_tsv(x = topGoMap, file = "geneid2go.CAuris.topGO.map")
 
 ############################################################################## 
 ## makeOrgPackage version is same as the CGD version

@@ -1,13 +1,10 @@
-library(dplyr)
-library(data.table)
-library(AnnotationForge)
-library(clusterProfiler)
-library(summarytools)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(AnnotationForge))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressPackageStartupMessages(library(BSgenome))
 
 
 rm(list = ls())
-
-source("E:/Chris_UM/GitHub/omics_util/04_GO_enrichment/topGO_functions.R")
 
 path <- "E:/Chris_UM/Database/C_albicans/SC5314_A21/annotation_resources"
 setwd(path)
@@ -104,5 +101,61 @@ install.packages("E:/Chris_UM/Database/C_albicans/SC5314_A21/annotation_resource
                  repos = NULL, type = "source")
 
 library(org.Calbicans.SC5314.eg.db)
+
+##############################################################################
+file_gff <- "../C_albicans_SC5314_A21_current_features.gff"
+
+metadata <- data.frame(
+  name = "Resource URL",
+  value = "http://www.candidagenome.org"
+)
+
+genomeSize <- suppressMessages(
+  readr::read_tsv(file = "../genome.size",
+                  col_names = c("chr", "length"))) %>% 
+  dplyr::mutate(isCircular = FALSE)
+
+seqInfo <- Seqinfo(
+  seqnames = genomeSize$chr,
+  seqlengths = genomeSize$length,
+  isCircular = genomeSize$isCircular,
+  genome = "Aspergillus_fumigatus_A1163")
+
+
+txdbData <- GenomicFeatures::makeTxDbFromGFF(
+  file = file_gff,
+  dataSource = "SC5314 A21 GFF",
+  organism = "Candida albicans",
+  metadata = metadata,
+  taxonomyId = 5476
+)
+
+makePackageName(txdbData)
+
+makeTxDbPackage(
+  txdb = txdbData,
+  version = "0.0.50",
+  maintainer = "Lakhansing Pardeshi <lakhanp@um.edu.mo>",
+  author = "Lakhansing Pardeshi Chris Lab",
+  destDir = ".",
+  pkgname = "TxDb.Calbicans.SC5314.CGD.GFF"
+)
+
+
+
+columns(txdbData)
+exons(txdbData)
+transcripts(txdbData, columns = c("TXID", "TXNAME", "TXTYPE"))
+genes(txdbData)
+fiveUtrs <- fiveUTRsByTranscript(txdbData)
+
+##############################################################################
+## create BSgenome package
+forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
+
+
+
+
+
 
 

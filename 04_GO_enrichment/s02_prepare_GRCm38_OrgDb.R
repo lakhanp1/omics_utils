@@ -1,8 +1,7 @@
-library(tidyverse)
-library(data.table)
-library(AnnotationForge)
-library(GenomicFeatures)
-library(xml2)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(AnnotationForge))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressPackageStartupMessages(library(BSgenome))
 
 rm(list = ls())
 

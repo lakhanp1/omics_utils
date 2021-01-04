@@ -1,6 +1,7 @@
-library(data.table)
-library(dplyr)
-library(tibble)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(AnnotationForge))
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressPackageStartupMessages(library(BSgenome))
 
 
 ## create Gene to GO map file by reading AspGd/CGD GO data file
