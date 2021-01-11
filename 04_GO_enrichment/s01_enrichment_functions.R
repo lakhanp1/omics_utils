@@ -1,15 +1,13 @@
 suppressPackageStartupMessages(library(topGO))
-suppressPackageStartupMessages(library(dplyr))
-suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(scales))
-suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(KEGGprofile))
 suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(tm))  # for text mining
 suppressPackageStartupMessages(library(SnowballC)) # for text stemming
 suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 suppressPackageStartupMessages(library(configr)) # word-cloud generator
-suppressPackageStartupMessages(library(AnnotationDbi)) # word-cloud generator
+suppressPackageStartupMessages(library(AnnotationDbi))
 
 
 ## This script has functions for using topGO package for GO enrichment
@@ -754,9 +752,10 @@ get_TxDb_sqlite <- function(org, yaml){
     path = file.path(config[[org]]$TxDb, "inst/extdata"), pattern = "*.sqlite", full.names = T
   )
   
-  if(length(file_sqlite) != ``) stop("Unique sqlite file not found")
+  if(length(file_sqlite) != 1) stop("Unique sqlite file not found")
   
-  txDb <- AnnotationDbi::loadDb(file = file_sqlite, packageName = basename(config[[org]]$TxDb))
+  # txDb <- AnnotationDbi::loadDb(file = file_sqlite, packageName = basename(config[[org]]$TxDb))
+  txDb <- suppressMessages(AnnotationDbi::loadDb(file = file_sqlite))
   
   return(txDb)
 }
