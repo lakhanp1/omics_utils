@@ -300,7 +300,7 @@ dev.off()
 
 ###########################################################################
 # ## GSEA
-# msigdbr_show_species()
+# msigdbr_species()
 # msig_df <- msigdbr(species = "Homo sapiens") %>% 
 #   dplyr::filter(gs_cat %in% c("H", "C2", "C5")) %>% 
 #   dplyr::filter(! gs_subcat %in% c("MF", "CC"))

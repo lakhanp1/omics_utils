@@ -19,6 +19,8 @@
 #' @param geneNameCol column from which gene name to use for marking. Default: NULL
 #' @param highlightGenesets A named list of gene IDs for highlighting on volcano plot. Default: NULL
 #' @param genesetColor A named vector of colors for each list member. Default: NULL
+#' @param pointSize point size in geom_point()
+#' @param pointAlpha point alpha in geom_point()
 #'
 #' @return A list object with following elements:
 #' \itemize{
@@ -33,6 +35,7 @@ volcano_plot <- function(
   df, title = "volcano plot",
   fdr_col, lfc_col, fdr_cut = 0.05, lfc_cut = 1,
   ylimit = 150, xlimit = c(-4, 4),
+  pointSize = 1, pointAlpha = 1,
   markGenes = NULL, geneNameCol = NULL,
   highlightGenesets = NULL, genesetColor = NULL){
   
@@ -80,21 +83,20 @@ volcano_plot <- function(
   }
   
   # Draw Volcano plot
-  pt <- ggplot(
+  pt_base <- ggplot(
     data = plotDf,
     mapping = aes(x = !! sym(lfc_col), y = log10FDR, text = geneId)
   )
   
-  pt <- pt +
+  
+  pt_volc <- pt_base +
     geom_point(
-      mapping = aes(color = category), alpha=0.7, size=1.75, shape = 19
+      mapping = aes(color = category), alpha = pointAlpha, size = pointSize, shape = 19
     ) +
     scale_color_manual(
       values = c("Significant Up" = "red", "Significant Down" = "green",
                  "Non-significant" = "black", "Significant" = "grey"), 
       name = "Significance")
-  
-  
   
   ## optionally, color only genes of interest
   if(is.list(highlightGenesets)){
@@ -112,10 +114,13 @@ volcano_plot <- function(
       dplyr::left_join(y = plotDf, by = "geneId")
     
     ## draw the points
-    pt <- pt +
-      geom_point(color = "grey", alpha = 0.8) +
-      geom_point(data = colorGeneDf,
-                 mapping = aes(color = colorGroup)) +
+    pt_volc <- pt_base +
+      geom_point(color = "grey", alpha = pointAlpha, size = pointSize, shape = 19) +
+      geom_point(
+        data = colorGeneDf,
+        mapping = aes(color = colorGroup),
+        alpha = pointAlpha, size = pointSize, shape = 19
+      ) +
       scale_color_manual(values = genesetColor)
     
   }
@@ -124,30 +129,31 @@ volcano_plot <- function(
   ## mark genes of interest with gene names
   if(!missing(markGenes) && !is.null(markGenes)){
     
-    pt <- pt +
+    pt_volc <- pt_volc +
       geom_text_repel(
         mapping = aes(label = geneLabel),
         segment.color = 'black',
         segment.size = 1, min.segment.length = 1,
         # xlim  = c(down_cut, up_cut),
+        max.overlaps = 5000,
         # ylim = c(-log10(fdr_cut), NA),
         size = 5) 
     
     tmpDf <- dplyr::filter(plotDf, geneId %in% markGenes)
     
     ## draw the points
-    pt <- pt +
+    pt_volc <- pt_volc +
       geom_point(
         data = tmpDf,
         color = "black",
-        size=1.75, shape = 1, stroke = 1.5
+        size = pointSize + 0.5, shape = 1, stroke = 1.5
       )
     
   }
   
   
   ## theme and plot annotations
-  pt <- pt +
+  pt_volc <- pt_volc +
     geom_hline(yintercept = -log10(fdr_cut), color = "black", linetype = "dashed") +
     geom_vline(xintercept = -lfc_cut, color = "black", linetype = "dashed") +
     geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
@@ -166,13 +172,14 @@ volcano_plot <- function(
       plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
       axis.text = element_text(size = 20),
       axis.title = element_text(face = "bold", size = 20),
+      panel.grid = element_blank(),
       legend.text = element_text(size = 15),
       plot.margin = unit(c(1,1,1,1),"cm"),
     )
   
   
   return(list(
-    plot = pt,
+    plot = pt_volc,
     data = plotDf
   ))
 }
