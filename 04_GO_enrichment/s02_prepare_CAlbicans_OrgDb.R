@@ -126,7 +126,8 @@ txdbData <- GenomicFeatures::makeTxDbFromGFF(
   dataSource = "SC5314 A21 GFF",
   organism = "Candida albicans",
   metadata = metadata,
-  taxonomyId = 5476
+  taxonomyId = 5476,
+  chrominfo = seqInfo
 )
 
 makePackageName(txdbData)
@@ -153,6 +154,9 @@ install.packages("TxDb.Calbicans.SC5314.CGD.GFF", repos = NULL, type = "source")
 ## create BSgenome package
 forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 
+## need to correct this package. something is wrong with DESCRIPTION file
+## install package
+install.packages("BSgenome.CAlbicans.SC5314_A21.CGD", repos = NULL, type = "source")
 
 
 

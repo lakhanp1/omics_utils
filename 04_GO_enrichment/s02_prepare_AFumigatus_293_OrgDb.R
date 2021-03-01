@@ -131,7 +131,8 @@ txdbData <- GenomicFeatures::makeTxDbFromGFF(
   dataSource = "Af293 AspGD GFF",
   organism = "Aspergillus fumigatus",
   metadata = afuMetadata,
-  taxonomyId = 746128
+  taxonomyId = 746128,
+  chrominfo = seqInfo
 )
 
 makePackageName(txdbData)

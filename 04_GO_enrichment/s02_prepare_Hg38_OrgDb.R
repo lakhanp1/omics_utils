@@ -25,22 +25,25 @@ genomeSize <- suppressMessages(
 seqInfo <- Seqinfo(seqnames = genomeSize$chr, seqlengths = genomeSize$length,
                    isCircular = genomeSize$isCircular, genome = "GRCh38p12.gencode30")
 
-txdbData <- GenomicFeatures::makeTxDbFromGFF(file = file_gff,
-                                             dataSource = "GENCODE.v30",
-                                             organism = "Homo sapiens",
-                                             metadata = metadata,
-                                             taxonomyId = 9606,
-                                             chrominfo = seqInfo)
+txdbData <- GenomicFeatures::makeTxDbFromGFF(
+  file = file_gff,
+  dataSource = "GENCODE.v30",
+  organism = "Homo sapiens",
+  metadata = metadata,
+  taxonomyId = 9606,
+  chrominfo = seqInfo
+)
 
 
 makePackageName(txdbData)
 
-makeTxDbPackage(txdb = txdbData,
-                version = "03.05.06",
-                maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
-                author = "Lakhansing Pardeshi Chris Lab",
-                destDir = ".",
-                pkgname = "TxDb.Hsapiens.GRCh38p12.gencodev30.basic"
+makeTxDbPackage(
+  txdb = txdbData,
+  version = "03.05.06",
+  maintainer = "Lakhansing Pardeshi <lakhanp@umac.mo>",
+  author = "Lakhansing Pardeshi Chris Lab",
+  destDir = ".",
+  pkgname = "TxDb.Hsapiens.GRCh38p12.gencodev30.basic"
 )
 
 
