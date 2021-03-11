@@ -19,8 +19,8 @@ if(!dir.exists(outDir)){
 }
 
 ## the denominator or WT in log2(fold_change) should be second
-col_compare <- "Condition"
-compare <- c("AN7820_sCopy_OE_minor_Xyl", "AN7820_sCopy_OE")
+col_compare <- "diffbind_condition"
+diffbindCompare <- c("high_Xylose", "low_Xylose")
 
 analysisName <- "AflR_diffbind"
 outPrefix <- paste(outDir, "/", analysisName, sep = "")
@@ -49,7 +49,10 @@ exptData <- get_sample_information(
   dataPath = TF_dataPath
 )
 
-exptData$bam <- paste(here::here("data"), "/bams/", exptData$sampleId, "_bt2.bam", sep = "")
+exptData <- dplyr::left_join(x = exptData, y = diffbindInfo, by = "sampleId") %>% 
+  dplyr::mutate(
+    bam = paste(here::here("data"), "/bams/", sampleId, "_bt2.bam", sep = "")
+  )
 
 exptDataList <- purrr::transpose(exptData) %>%
   purrr::set_names(nm = purrr::map(., "sampleId"))
@@ -64,7 +67,7 @@ tfCols <- sapply(
 diffbindInfo <- dplyr::select(
   exptData,
   SampleID = sampleId,
-  Condition = condition,
+  Condition = !!sym(col_compare),
   Replicate = rep,
   bamReads = bam,
   Peaks = peakFile,
@@ -76,30 +79,49 @@ if(is.null(diffbindInfo$pval_cutoff)){
   diffbindInfo$pval_cutoff <- 20
 }
 
-## ensure that reference level is same as compare[2] in the factor
+## ensure that reference level is same as diffbindCompare[2] in the factor
 diffbindInfo <- diffbindInfo %>% dplyr::mutate(
-  !!col_compare := forcats::fct_relevel(.f = !!sym(col_compare), compare[2], compare[1])
+  Condition := forcats::fct_relevel(.f = Condition, diffbindCompare[2], diffbindCompare[1])
 ) %>% 
-  dplyr::arrange(!!sym(col_compare))
+  dplyr::arrange(Condition)
 
 
-grp1 <- compare[1]        ## numerator
-grp2 <- compare[2]        ## denominator
-grp1Index <- which(diffbindInfo[[col_compare]] == grp1)
-grp2Index <- which(diffbindInfo[[col_compare]] == grp2)
-grp1Samples <- diffbindInfo$SampleID[grp1Index]
-grp2Samples <- diffbindInfo$SampleID[grp2Index]
+grp1 <- diffbindCompare[1]        ## numerator
+grp2 <- diffbindCompare[2]        ## denominator
+grp1Index <- which(exptData[[col_compare]] == grp1)
+grp2Index <- which(exptData[[col_compare]] == grp2)
+grp1Samples <- exptData$sampleId[grp1Index]
+grp2Samples <- exptData$sampleId[grp2Index]
 grp1SpecificOcc = paste(grp1, ":specific", sep = "")
 grp2SpecificOcc = paste(grp2, ":specific", sep = "")
 
-bestGrp1Id <- diffbindInfo$SampleID[diffbindInfo[[col_compare]] == grp1 & diffbindInfo$repRank == 1]
-bestGrp2Id <- diffbindInfo$SampleID[diffbindInfo[[col_compare]] == grp2 & diffbindInfo$repRank == 1]
+bestGrp1Id <- exptData$sampleId[exptData[[col_compare]] == grp1 & exptData$repRank == 1]
+bestGrp2Id <- exptData$sampleId[exptData[[col_compare]] == grp2 & exptData$repRank == 1]
 
 groupCols <- sapply(
   X = c("peakCall", "pvalGood"),
-  FUN = function(x){ structure(paste(x, ".", compare, sep = ""), names = compare) },
+  FUN = function(x){ structure(paste(x, ".", diffbindCompare, sep = ""), names = diffbindCompare) },
   simplify = F, USE.NAMES = T
 )
+
+
+geneDesc <- suppressMessages(
+  AnnotationDbi::select(x = orgDb, keys = keys(orgDb), columns = c("DESCRIPTION"), keytype = "GID")
+) %>% 
+  dplyr::rename(geneId = GID)
+
+smInfo <- suppressMessages(
+  AnnotationDbi::select(x = orgDb, keys = keys(orgDb, keytype = "SM_CLUSTER"),
+                        columns = c("GID", "SM_ID"), keytype = "SM_CLUSTER")) %>% 
+  dplyr::group_by(GID) %>% 
+  dplyr::mutate(SM_CLUSTER = paste(SM_CLUSTER, collapse = ";"),
+                SM_ID = paste(SM_ID, collapse = ";")) %>% 
+  dplyr::slice(1L) %>% 
+  dplyr::ungroup()
+
+geneInfo <- dplyr::left_join(x = geneDesc, y = smInfo, by = c("geneId" = "GID"))
+
+glimpse(geneInfo)
 
 ##################################################################################
 ## diffBind analysis
@@ -116,7 +138,7 @@ groupCols <- sapply(
 # 
 # contrastDba <- DiffBind::dba.contrast(
 #   DBA = normDba, design = "~Condition", minMembers = 2,
-#   contrast = c(col_compare, compare)
+#   contrast = c("Condition", diffbindCompare)
 # )
 # 
 # dba.show(contrastDba, bContrasts=TRUE)
@@ -230,12 +252,6 @@ dplyr::group_by(diffData, diffBind, peakOccupancy) %>%
 ## assign peak category based on diffbind and peakOccupancy
 diffData <- diffData %>% 
   dplyr::mutate(
-    # categoryDiffbind = dplyr::case_when(
-    #   diffBind == "up" | peakOccupancy == grp1SpecificOcc ~ paste(grp1, ":enriched", sep = ""),
-    #   diffBind == "down" | peakOccupancy == grp2SpecificOcc ~ paste(grp2, ":enriched", sep = ""),
-    #   diffBind == "noDiff" & peakOccupancy == "common" ~ "common",
-    #   TRUE ~ "NA"
-    # ),
     categoryDiffbind = dplyr::case_when(
       peakOccupancy == grp1SpecificOcc ~ grp1SpecificOcc,
       peakOccupancy == grp2SpecificOcc ~ grp2SpecificOcc,
@@ -259,25 +275,25 @@ readr::write_tsv(x = diffData, file = paste(outPrefix, ".all.tab", sep = ""))
 ##################################################################################
 ## diffbind report with target genes
 
-# 
+# ## annotate DiffBind regions
 # ## prepare txIds excluding rRNA and tRNA transcripts
-# geneInfo <- AnnotationDbi::select(x = orgDb,
+# geneInfo2 <- AnnotationDbi::select(x = orgDb,
 #                                   keys = keys(orgDb, keytype = "GID"),
 #                                   columns = c("GENE_NAME", "TYPE"),
 #                                   keytype = "GID") %>% 
 #   dplyr::rename(geneId = GID)
 # 
-# geneInfo %>% dplyr::filter(!grepl(pattern = "ORF\\|", x = TYPE, perl = TRUE)) %>% 
+# geneInfo2 %>% dplyr::filter(!grepl(pattern = "ORF\\|", x = TYPE, perl = TRUE)) %>% 
 #   dplyr::select(geneId, GENE_NAME, TYPE) %>%
 #   dplyr::count(TYPE)
 # 
-# geneInfo <- dplyr::filter(geneInfo, !grepl(pattern = "(rRNA|tRNA)\\|", x = TYPE, perl = TRUE))
+# geneInfo2 <- dplyr::filter(geneInfo2, !grepl(pattern = "(rRNA|tRNA)\\|", x = TYPE, perl = TRUE))
 # 
-# txInfo <- AnnotationDbi::select(x = txDb, keys = geneInfo$geneId,
+# txInfo <- AnnotationDbi::select(x = txDb, keys = geneInfo2$geneId,
 #                                 columns = "TXID", keytype = "GENEID")
 # 
-# ## annotate DiffBind regions
 # diffGrAn <- annotate_ranges(peaks = diffGr, txdb = txDb, promoterLength = 500, txIds = txInfo$TXID)
+#
 
 
 ## import peak annotation for sample1 and add new column with pval cutoff pass result
@@ -357,7 +373,8 @@ diffAnn <- diffAnn %>%
   )
 
 
-diffAnn <- diffAnn %>% dplyr::select(seqnames, start, end, name, geneId, peakPosition, everything())
+diffAnn <- diffAnn %>% dplyr::select(seqnames, start, end, name, geneId, peakPosition, everything()) %>% 
+  dplyr::left_join(y = geneInfo, by = "geneId")
 
 readr::write_tsv(x = diffAnn, file = paste(outPrefix, ".all.annotation.tab", sep = ""))
 
@@ -398,9 +415,10 @@ common <- dplyr::filter(
 finalDiffbind <- dplyr::bind_rows(tf1Specific, tf2Specific, common) %>% 
   dplyr::arrange(seqnames, start) %>% 
   dplyr::select(-starts_with("targetGene.")) %>% 
-  dplyr::select(seqnames, start, end, name, geneId, peakPosition, Fold, p.value, FDR, diffBind,
-                peakOccupancy, categoryDiffbind, starts_with("peakCall"), contains(bestGrp1Id),
-                contains(bestGrp2Id), everything(), -starts_with("Conc_")
+  dplyr::select(
+    seqnames, start, end, name, geneId, !!!colnames(geneInfo), peakPosition, Fold,
+    p.value, FDR, diffBind, peakOccupancy, categoryDiffbind, starts_with("peakCall"),
+    contains(bestGrp1Id), contains(bestGrp2Id), everything(), -starts_with("Conc_")
   )
 
 
