@@ -40,7 +40,8 @@ install.packages(
     "lazyeval", "dendsort", "dendextend", "dynamicTreeCut", "RColorBrewer",
     "hashmap", "reshape", "FactoMineR", "factoextra", "VennDiagram", "imputeTS",
     "summarytools", "UpSetR", "esquisse", "corrgram", "here", "matrixStats",
-    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm"
+    "NbClust", "DT", "msigdbr", "openxlsx", "ggbeeswarm", "PoiClaClu", "tm",
+    "wordcloud", "SnowballC", "gginnards"
   ),
   dependencies = T)
 
@@ -87,14 +88,14 @@ library(devtools)
 
 devtools::document(pkg = "E:/Chris_UM/GitHub/markPeaks")
 devtools::install("E:/Chris_UM/GitHub/markPeaks", upgrade = "never")
-# remotes::install_github(repo = "lakhanp1/markPeaks", ref = "dev")
+# remotes::install_github(repo = "lakhanp1/markPeaks", ref = "dev", upgrade = "never")
 
 # devtools::load_all(path = "E:/Chris_UM/GitHub/chipmine", reset = TRUE)
 devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
 devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
 # devtools::install("E:/Chris_UM/GitHub/chipmine")
-# remotes::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2")
-# remotes::install_github(repo = "lakhanp1/chipmine", ref = "1.6.0")
+# remotes::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2", upgrade = "never")
+# remotes::install_github(repo = "lakhanp1/chipmine", ref = "1.6.0", upgrade = "never")
 
 ##########################################################################
 ###############         Org.Db packages            #######################
@@ -109,9 +110,9 @@ remotes::install_github(
 remotes::install_github(
   "lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.FGSCA4.AspGD",
   upgrade = "never")
-remotes::install(
-  "E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.tRNA.removed",
-  upgrade = "never")
+# remotes::install(
+#   "E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.tRNA.removed",
+#   upgrade = "never")
 
 
 ## C. albicans
@@ -156,10 +157,10 @@ remotes::install_github(
 
 
 ## Human
-remotes::install(
+devtools::install(
   "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/TxDb.Hsapiens.GRCh38p12.gencodev30.basic",
   upgrade = "never")
-remotes::install(
+devtools::install(
   pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
   upgrade = "never")
 
@@ -177,11 +178,6 @@ devtools::install(
 devtools::install(
   pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/org.GRCm38p6.Ensembl100.eg.db",
   upgrade = "never")
-
-
-
-
-
 
 
 

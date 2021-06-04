@@ -156,7 +156,7 @@ forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
 
 ## need to correct this package. something is wrong with DESCRIPTION file
 ## install package
-install.packages("BSgenome.CAlbicans.SC5314_A21.CGD", repos = NULL, type = "source")
+install.packages("BSgenome.CAlbicans.SC5314.A21.CGD", repos = NULL, type = "source")
 
 
 
