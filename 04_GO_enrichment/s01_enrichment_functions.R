@@ -1,7 +1,7 @@
 suppressPackageStartupMessages(library(topGO))
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(scales))
-suppressPackageStartupMessages(library(KEGGprofile))
+# suppressPackageStartupMessages(library(KEGGprofile))
 suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(tm))  # for text mining
 suppressPackageStartupMessages(library(SnowballC)) # for text stemming
@@ -661,7 +661,7 @@ GO_terms_at_level <- function(ont, level){
   if(level > 1){
     for (i in 2:level) {
       
-      levelNodes <- mget(x = c(levelNodes), envir = goChild, ifnotfound = NA) %>% 
+      levelNodes <- AnnotationDbi::mget(x = c(levelNodes), envir = goChild, ifnotfound = NA) %>% 
         unlist() %>% 
         unique()
       
@@ -674,6 +674,62 @@ GO_terms_at_level <- function(ont, level){
 }
 
 ##################################################################################
+
+#' Build a geneset of GO terms from orgDb object
+#'
+#' @param orgdb org.db for mapping gene IDs to GO terms
+#' @param column org.db column name from which geneIds to extract for GO terms
+#' @param nodeSize minimun number of genes annotated to GO term
+#' 
+#' @inheritParams GO_terms_at_level
+#' 
+#' @return
+#' @export
+#'
+#' @examples
+orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize = 5){
+  ont <- match.arg(arg = ont, choices = c("BP", "CC", "MF"))
+  
+  if(!is.null(level)){
+    goIds <- GO_terms_at_level(ont = ont, level = level)
+  } else{
+    # AnnotationDbi::keys()
+    switch (
+      ont,
+      "BP" = {
+        rootNode <- "GO:0008150"
+        goOffspring <- GO.db::GOBPOFFSPRING
+      },
+      "MF" = {
+        rootNode <- "GO:0003674"
+        goOffspring <- GO.db::GOMFOFFSPRING
+      },
+      "CC" = {
+        rootNode <- "GO:0005575"
+        goOffspring <- GO.db::GOCCOFFSPRING
+      }
+    )
+    
+    goIds <- as.list(goOffspring)[[rootNode]]
+    
+  }
+  
+  geneToGo <- AnnotationDbi::select(
+    x = orgdb, keys = unique(goIds), 
+    columns = c(column, "GOALL"), keytype = "GOALL"
+  ) %>% 
+    dplyr::filter(!is.na(!!sym(column)))
+  
+  geneList <- split(x = geneToGo[[column]], f = geneToGo$GOALL) %>% 
+    purrr::discard(.p = ~ length(.x) < nodeSize)
+  
+  return(geneList)
+  
+}
+
+
+##################################################################################
+
 ## 
 #' find frequent words in the sentences
 #'
@@ -762,4 +818,10 @@ get_TxDb_sqlite <- function(org, yaml){
 
 
 ##################################################################################
+
+
+
+
+
+
 

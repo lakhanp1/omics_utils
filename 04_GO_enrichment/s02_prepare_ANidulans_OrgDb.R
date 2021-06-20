@@ -6,7 +6,7 @@ suppressPackageStartupMessages(library(BSgenome))
 
 rm(list = ls())
 
-path <- "E:/Chris_UM/Database/A_Nidulans/annotation_resources/"
+path <- "D:/work_lakhan/database/A_Nidulans/annotation_resources/"
 setwd(path)
 
 
@@ -155,7 +155,7 @@ metadata <- data.frame(
 )
 
 genomeSize <- suppressMessages(
-  readr::read_tsv(file = "E:/Chris_UM/Database/A_Nidulans/genome.size",
+  readr::read_tsv(file = "../genome.size",
                   col_names = c("chr", "length"))) %>% 
   dplyr::mutate(isCircular = FALSE)
 
