@@ -683,10 +683,10 @@ GO_terms_at_level <- function(ont, level){
 #' 
 #' @inheritParams GO_terms_at_level
 #' 
-#' @return
+#' @return A named list of genesets for various GO terms
 #' @export
 #'
-#' @examples
+#' @examples NA
 orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize = 5){
   ont <- match.arg(arg = ont, choices = c("BP", "CC", "MF"))
   
@@ -714,10 +714,11 @@ orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize =
     
   }
   
-  geneToGo <- AnnotationDbi::select(
+  geneToGo <- suppressMessages(
+    AnnotationDbi::select(
     x = orgdb, keys = unique(goIds), 
     columns = c(column, "GOALL"), keytype = "GOALL"
-  ) %>% 
+  )) %>% 
     dplyr::filter(!is.na(!!sym(column)))
   
   geneList <- split(x = geneToGo[[column]], f = geneToGo$GOALL) %>% 
@@ -727,6 +728,54 @@ orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize =
   
 }
 
+##################################################################################
+
+#' Perform GSEA on GO term genesets generated from org.db
+#'
+#' @param genelist ranked genelist for GSEA analysis
+#'
+#' @inheritParams orgdb_go_geneset
+#' 
+#' @return A data.table with fgsea result
+#' @export
+#'
+#' @examples NA
+go_fgsea <- function(genelist, orgdb, column, level = NULL, ont = "BP", nodeSize = 5){
+  
+  # build GO geneset from org.db
+  goGenesets <- orgdb_go_geneset(
+    orgdb = orgdb, column = column, level = level, ont = ont, nodeSize = nodeSize
+  )
+  
+  # run GSEA analysis
+  fgseaRes <- fgsea(pathways = goGenesets, stats = genelist)
+  
+  collapsedPathways <- collapsePathways(
+    fgseaRes = fgseaRes[order(pval)][pval <= 0.05],
+    pathways = goGenesets,
+    stats = genelist
+  )
+  
+  uniqueFgsea <- fgseaRes[pathway %in% collapsedPathways$mainPathways]
+  
+  ## build a GO table 
+  goTable <- suppressMessages(
+    AnnotationDbi::select(
+      x = GO.db,
+      keys = uniqueFgsea$pathway,
+      columns = c("GOID", "ONTOLOGY", "TERM"),
+      keytype = "GOID")
+  )
+  
+  uniqueFgsea <- dplyr::left_join(
+    x = uniqueFgsea, y = goTable, by = c("pathway" = "GOID")
+  ) %>% 
+    dplyr::filter(padj <= 0.05)
+  
+  return(
+    list("gsea" = uniqueFgsea, "goGeneset" = goGenesets)
+  )
+}
 
 ##################################################################################
 
