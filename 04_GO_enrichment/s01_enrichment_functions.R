@@ -1,13 +1,13 @@
 suppressPackageStartupMessages(library(topGO))
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(scales))
-# suppressPackageStartupMessages(library(KEGGprofile))
 suppressPackageStartupMessages(library(clusterProfiler))
 suppressPackageStartupMessages(library(tm))  # for text mining
 suppressPackageStartupMessages(library(SnowballC)) # for text stemming
 suppressPackageStartupMessages(library(wordcloud)) # word-cloud generator
 suppressPackageStartupMessages(library(configr)) # word-cloud generator
 suppressPackageStartupMessages(library(AnnotationDbi))
+suppressPackageStartupMessages(library(KEGGREST))
 
 
 ## This script has functions for using topGO package for GO enrichment
@@ -25,27 +25,28 @@ suppressPackageStartupMessages(library(AnnotationDbi))
 #' Default: "weight01"
 #' @param bgNodeLimit Any GO term with more than this number of genes in background is removed from the
 #' topGO output. Default: NULL i.e. no such limit is used.
-#' @param orgdb org.db for mapping gene names for gene IDs
-#' @param geneNameColumn gene name column from org.db
-#' @param keytype org.db keytype for input genes
-#' @param topgoColumn org.db keytype for topGO mapping file geneIds
+#' @param orgdb org.db for mapping geneIds to gene names
+#' @param genenameKeytype gene name column from org.db
+#' @param inKeytype org.db keytype for input genes
+#' @param topgoKeytype org.db keytype for topGO mapping file geneIds
 #'
 #' @return A topGO enrichment result table
 #' @export
 #'
 #' @examples topGO_enrichment(goMapFile = goToGeneFile, genes = genes)
 #' 
-topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
-                             algo = "weight01", bgNodeLimit = NULL,
-                             orgdb, keytype = "GID", topgoColumn = "GID", geneNameColumn){
+topGO_enrichment <- function(
+  goMapFile, genes, type = "BP", goNodeSize = 1, algo = "weight01",
+  bgNodeLimit = NULL, orgdb, inKeytype = "GID", topgoKeytype = "GID",
+  genenameKeytype){
   
   geneID2GO <- topGO::readMappings(file = goMapFile)
   geneNames <- names(geneID2GO)
   
   
-  if(keytype != topgoColumn){
+  if(inKeytype != topgoKeytype){
     genes <- suppressMessages(
-      AnnotationDbi::mapIds(x = orgdb, keys = genes, column = topgoColumn, keytype = keytype)
+      AnnotationDbi::mapIds(x = orgdb, keys = genes, column = topgoKeytype, keytype = inKeytype)
     )
   }
   
@@ -120,13 +121,13 @@ topGO_enrichment <- function(goMapFile, genes, type = "BP", goNodeSize = 1,
     ## extract gene names
     mappedNames <- suppressMessages(
       AnnotationDbi::select(
-        x = orgdb, keys = genes, keytype = topgoColumn, columns = geneNameColumn)
+        x = orgdb, keys = genes, keytype = topgoKeytype, columns = genenameKeytype)
     ) %>% 
       dplyr::mutate(
-        !!sym(geneNameColumn) := if_else(
-          condition = is.na(!!sym(geneNameColumn)),
-          true = !!sym(topgoColumn),
-          false = !!sym(geneNameColumn)
+        !!sym(genenameKeytype) := if_else(
+          condition = is.na(!!sym(genenameKeytype)),
+          true = !!sym(topgoKeytype),
+          false = !!sym(genenameKeytype)
         )
       ) %>% 
       tibble::deframe()
@@ -300,8 +301,6 @@ enrichment_scatter <- function(df, title, pvalCol = "pvalue", termCol = "Term",
 ##################################################################################
 
 
-
-
 #' Perform GO enrichment using topGO and scatter plot
 #'
 #' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
@@ -430,13 +429,13 @@ clusterProfiler_groupGO <- function(genes, orgdb, goLevel = 3, type = "BP", ...)
 #' @param genes A vector of gene Ids
 #' @param goTerms GO term ID vector
 #' @param orgdb an org.db object
-#' @param keytype keytype in org.db for the input genes
+#' @param inKeytype keytype in org.db for the input genes
 #'
 #' @return A dataframe with GO term to gene mapping statistics
 #' @export
 #'
 #' @examples NA
-GO_map <- function(genes, goTerms, orgdb, keytype){
+GO_map <- function(genes, goTerms, orgdb, inKeytype){
   
   # Ontology(goTerms[1])
   # AnnotationDbi::get(goTerms[1], GO.db::GOBPOFFSPRING)
@@ -454,13 +453,13 @@ GO_map <- function(genes, goTerms, orgdb, keytype){
   ontStats <- suppressMessages(
     AnnotationDbi::select(
       x = orgdb,
-      keys = AnnotationDbi::keys(x = orgdb, keytype = keytype),
-      keytype = keytype,
+      keys = AnnotationDbi::keys(x = orgdb, keytype = inKeytype),
+      keytype = inKeytype,
       columns = c("GOALL", "ONTOLOGYALL")
     )
   ) %>% 
     dplyr::group_by(ONTOLOGYALL) %>% 
-    dplyr::summarise(n = n_distinct(!!sym(keytype))) %>% 
+    dplyr::summarise(n = n_distinct(!!sym(inKeytype))) %>% 
     dplyr::filter(!is.na(ONTOLOGYALL))
   
   
@@ -471,10 +470,10 @@ GO_map <- function(genes, goTerms, orgdb, keytype){
   goData <- suppressMessages(
     AnnotationDbi::select(
       x = orgdb,
-      keys = goTerms, columns = c(keytype),
+      keys = goTerms, columns = c(inKeytype),
       keytype = "GOALL"
     )) %>% 
-    dplyr::rename(geneId = !!sym(keytype))
+    dplyr::rename(geneId = !!sym(inKeytype))
   
   ## build summary table
   summaryDf <- dplyr::group_by(goData, GOALL) %>% 
@@ -574,7 +573,7 @@ GO_terms_at_level <- function(ont, level){
 #' Build a geneset of GO terms from orgDb object
 #'
 #' @param orgdb org.db for mapping gene IDs to GO terms
-#' @param column org.db column name from which geneIds to extract for GO terms
+#' @param outKeytype org.db column name from which geneIds to extract for GO terms
 #' @param nodeSize minimun number of genes annotated to GO term
 #' 
 #' @inheritParams GO_terms_at_level
@@ -583,7 +582,7 @@ GO_terms_at_level <- function(ont, level){
 #' @export
 #'
 #' @examples NA
-orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize = 5){
+get_go_geneset <- function(orgdb, outKeytype, level = NULL, ont = "BP", nodeSize = 5){
   ont <- match.arg(arg = ont, choices = c("BP", "CC", "MF"))
   
   if(!is.null(level)){
@@ -612,12 +611,12 @@ orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize =
   
   geneToGo <- suppressMessages(
     AnnotationDbi::select(
-    x = orgdb, keys = unique(goIds), 
-    columns = c(column, "GOALL"), keytype = "GOALL"
-  )) %>% 
-    dplyr::filter(!is.na(!!sym(column)))
+      x = orgdb, keys = unique(goIds), 
+      columns = c(outKeytype, "GOALL"), keytype = "GOALL"
+    )) %>% 
+    dplyr::filter(!is.na(!!sym(outKeytype)))
   
-  geneList <- split(x = geneToGo[[column]], f = geneToGo$GOALL) %>% 
+  geneList <- split(x = geneToGo[[outKeytype]], f = geneToGo$GOALL) %>% 
     purrr::discard(.p = ~ length(.x) < nodeSize)
   
   return(geneList)
@@ -626,51 +625,218 @@ orgdb_go_geneset <- function(orgdb, column, level = NULL, ont = "BP", nodeSize =
 
 ##################################################################################
 
+#' Gene set from KEGG pathway database
+#'
+#' @param keggOrg KEGG organism code
+#' @param orgdb org.db for mapping gene IDs to GO terms. Default: NULL
+#' @param keggKeytype KEGG database geneId keytype from org.db
+#' @param outKeytype Output column type from org.db
+#'
+#' @return A list of genesets belonging to different pathways
+#' @export
+#'
+#' @examples
+get_kegg_geneset <- function(keggOrg, orgdb = NULL, keggKeytype = NULL, outKeytype = NULL){
+  
+  pathways <- tibble::enframe(KEGGREST::keggLink("pathway", keggOrg)) %>% 
+    dplyr::rename(keggGeneId = name, pathwayId = value) %>% 
+    dplyr::mutate(
+      keggGeneId = stringr::str_replace(
+        string = keggGeneId, pattern = "\\w+:", replacement = ""
+      )
+    )
+  
+  if(!is.null(orgdb)){
+    idMap <- suppressMessages(
+      AnnotationDbi::select(
+        x = orgdb, keys = pathways$keggGeneId, column = outKeytype, keytype = keggKeytype
+      )
+    )
+    
+    pathways <- dplyr::left_join(
+      x = pathways, y = idMap, by = c("keggGeneId" = keggKeytype)
+    ) %>% 
+      dplyr::filter(!is.na(!!sym(outKeytype))) %>% 
+      dplyr::select(keggGeneId = !!sym(outKeytype), pathwayId)
+    
+  }
+  
+  pathwayList <- split(pathways$keggGeneId, pathways$pathwayId)
+  
+  pathDesc <- tibble::enframe(keggList(database = "pathway", organism = keggOrg)) %>% 
+    dplyr::rename(pathwayId = name, description = value)
+  
+  return(
+    list(pathwayList = pathwayList, pathDesc = pathDesc)
+  )
+  
+}
+
+##################################################################################
+
+#' Run fgsea steps to get collapsed list of pathways
+#'
+#' @param pathways Gene set list
+#' @param stats named vector
+#' @param ... Other arguments to \code{fgsea()}
+#'
+#' @return data.table object
+#' @export
+#'
+#' @examples NA
+fgsea_steps <- function(pathways, stats, ...){
+  # run GSEA analysis
+  fgseaRes <- fgsea::fgsea(pathways = pathways, stats = stats, ...)
+  
+  collapsedPathways <- fgsea::collapsePathways(
+    fgseaRes = fgseaRes[order(pval)][pval <= 0.05],
+    pathways = pathways,
+    stats = stats
+  )
+  
+  uniqueFgsea <- fgseaRes[pathway %in% collapsedPathways$mainPathways]
+  
+  return(uniqueFgsea)
+}
+
+
+##################################################################################
+#' KEGG overrepresentation using \code{fgsea::fora()}
+#'
+#' @param genes Genes for which KEGG overrepresentation analysis to perform
+#' @param keggOrg KEGG organism code
+#' @param orgdb org.db for mapping gene IDs
+#' @param inKeytype org.db keytype for the input \code{genes}
+#' @param keggKeytype org.db keytype for KEGG geneId column
+#' @param genenameKeytype org.db keytype for gene name column
+#' @param pvalueCutoff P-value cutoff to filter results. Default: 0.05
+#' @param ... Other arguments to \code{fgsea::fora()}
+#'
+#' @return
+#' @export
+#'
+#' @examples
+fgsea_kegg_overrepresentation <- function(
+  genes, keggOrg, orgdb, inKeytype, keggKeytype,
+  genenameKeytype = NULL, pvalueCutoff = 0.05, ...){
+  
+  keggSet <- get_kegg_geneset(
+    keggOrg = keggOrg, orgdb = orgdb,
+    keggKeytype = keggKeytype, outKeytype = inKeytype
+  )
+  
+  keggUniverse <- unique(unlist(keggSet$pathwayList))
+  # keggUniverse = AnnotationDbi::keys(x = orgdb, keytype = inKeytype),
+  
+  genes <- intersect(keggUniverse, genes)
+  
+  if(length(genes) == 0){
+    warning("No matching input genes to the universal geneset")
+    return(NULL)
+  }
+  
+  enrichRes <- fgsea::fora(
+    pathways = keggSet$pathwayList, genes = genes,
+    universe = keggUniverse,
+    ...
+  )
+  
+  keggDesc <- dplyr::select(enrichRes, pathway) %>% 
+    dplyr::left_join(y = keggSet$pathDesc, by = c("pathway" = "pathwayId"))
+  
+  resultDf <- dplyr::filter(enrichRes, overlap != 0, pval <= pvalueCutoff) %>% 
+    dplyr::left_join(y = keggDesc, by = "pathway") %>% 
+    dplyr::select(pathway, description, everything())
+  
+  if(nrow(resultDf) == 0){
+    return(NULL)
+  }
+  
+  if(!is.null(genenameKeytype)){
+    resultDf <- dplyr::mutate(
+      resultDf,
+      geneNames = fgsea::mapIdsList(
+        x = orgdb, keys = overlapGenes, column = genenameKeytype, keytype = inKeytype
+      )
+    ) 
+  }
+  
+  return(resultDf)
+}
+
+##################################################################################
 #' Perform GSEA on GO term genesets generated from org.db
 #'
-#' @param genelist ranked genelist for GSEA analysis
-#'
-#' @inheritParams orgdb_go_geneset
+#' @param genelist A ranked named vector for GSEA analysis
+#' @param orgdb org.db for mapping gene IDs
+#' @param inKeytype org.db keytype for input \code{genelist}
+#' @param level GO tree level
+#' @param ont Either BP, CC or MF. Default: BP
+#' @param nodeSize Minimum node size to include GO terms in enrichment analysis
+#' @param keggOrg KEGG organism code
+#' @param keggKeytype org.db keytype for KEGG geneId column
+#' @param genenameKeytype org.db keytype for gene name column
+#' @param pvalueCutoff P-value cutoff to filter results. Default: 0.05
+#' @param ... Other arguments \code{fgsea::fgsea} function
 #' 
 #' @return A data.table with fgsea result
 #' @export
 #'
 #' @examples NA
-go_fgsea <- function(genelist, orgdb, column, level = NULL, ont = "BP", nodeSize = 5){
+fgsea_orgdb_GO_KEGG <- function(
+  genelist, orgdb, inKeytype, level = NULL, ont = "BP", nodeSize = 5, keggOrg = NULL,
+  keggKeytype = NULL, genenameKeytype = NULL, pvalueCutoff = 0.05, ...){
   
   # build GO geneset from org.db
-  goGenesets <- orgdb_go_geneset(
-    orgdb = orgdb, column = column, level = level, ont = ont, nodeSize = nodeSize
+  goGenesets <- get_go_geneset(
+    orgdb = orgdb, outKeytype = inKeytype, level = level, ont = ont, nodeSize = nodeSize
   )
   
-  # run GSEA analysis
-  fgseaRes <- fgsea(pathways = goGenesets, stats = genelist)
-  
-  collapsedPathways <- collapsePathways(
-    fgseaRes = fgseaRes[order(pval)][pval <= 0.05],
-    pathways = goGenesets,
-    stats = genelist
-  )
-  
-  uniqueFgsea <- fgseaRes[pathway %in% collapsedPathways$mainPathways]
+  gseaGo <- fgsea_steps(pathways = goGenesets, stats = genelist, ...)
   
   ## build a GO table 
-  goTable <- suppressMessages(
+  pathDesc <- suppressMessages(
     AnnotationDbi::select(
       x = GO.db,
-      keys = uniqueFgsea$pathway,
+      keys = gseaGo$pathway,
       columns = c("GOID", "ONTOLOGY", "TERM"),
       keytype = "GOID")
-  )
-  
-  uniqueFgsea <- dplyr::left_join(
-    x = uniqueFgsea, y = goTable, by = c("pathway" = "GOID")
   ) %>% 
-    dplyr::filter(padj <= 0.05)
+    dplyr::filter(!is.na(TERM)) %>% 
+    dplyr::select(pathway = GOID, pathway_type = ONTOLOGY, description = TERM)
   
-  return(
-    list("gsea" = uniqueFgsea, "goGeneset" = goGenesets)
-  )
+  gseaKegg <- NULL
+  
+  if(!is.null(keggOrg)){
+    
+    keggSet <- get_kegg_geneset(
+      keggOrg = keggOrg, orgdb = orgdb, keggKeytype = keggKeytype, outKeytype = inKeytype
+    )
+    
+    gseaKegg <- fgsea_steps(pathways = keggSet$pathwayList, stats = genelist, ...)
+    
+    keggDesc <- dplyr::select(gseaKegg, pathway) %>% 
+      dplyr::left_join(y = keggSet$pathDesc, by = c("pathway" = "pathwayId")) %>% 
+      dplyr::mutate(pathway_type = "KEGG")
+    
+    pathDesc <- dplyr::bind_rows(pathDesc, keggDesc)
+    
+  }
+  
+  resultDf <- dplyr::bind_rows(gseaGo, gseaKegg) %>% 
+    dplyr::left_join(y = pathDesc, by = "pathway") %>% 
+    dplyr::filter(padj <= pvalueCutoff)
+  
+  if(!is.null(genenameKeytype)){
+    resultDf <- dplyr::mutate(
+      resultDf,
+      leadingEdgeNames = fgsea::mapIdsList(
+        x = orgdb, keys = leadingEdge, column = genenameKeytype, keytype = inKeytype
+      )
+    ) 
+  }
+  
+  return(resultDf)
 }
 
 ##################################################################################
