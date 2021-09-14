@@ -574,7 +574,7 @@ GO_terms_at_level <- function(ont, level){
 #'
 #' @param orgdb org.db for mapping gene IDs to GO terms
 #' @param outKeytype org.db column name from which geneIds to extract for GO terms
-#' @param nodeSize minimun number of genes annotated to GO term
+#' @param minNodeSize minimun number of genes annotated to GO term
 #' 
 #' @inheritParams GO_terms_at_level
 #' 
@@ -582,7 +582,8 @@ GO_terms_at_level <- function(ont, level){
 #' @export
 #'
 #' @examples NA
-get_go_geneset <- function(orgdb, outKeytype, level = NULL, ont = "BP", nodeSize = 5){
+get_go_geneset <- function(orgdb, outKeytype, level = NULL, ont = "BP", minNodeSize = 5,
+                           maxNodeSize = 500){
   ont <- match.arg(arg = ont, choices = c("BP", "CC", "MF"))
   
   if(!is.null(level)){
@@ -617,7 +618,8 @@ get_go_geneset <- function(orgdb, outKeytype, level = NULL, ont = "BP", nodeSize
     dplyr::filter(!is.na(!!sym(outKeytype)))
   
   geneList <- split(x = geneToGo[[outKeytype]], f = geneToGo$GOALL) %>% 
-    purrr::discard(.p = ~ length(.x) < nodeSize)
+    purrr::discard(.p = ~ length(.x) < minNodeSize) %>% 
+    purrr::discard(.p = ~ length(.x) > maxNodeSize)
   
   return(geneList)
   
@@ -757,7 +759,9 @@ fgsea_kegg_overrepresentation <- function(
       resultDf,
       geneNames = fgsea::mapIdsList(
         x = orgdb, keys = overlapGenes, column = genenameKeytype, keytype = inKeytype
-      )
+      ),
+      richness = as.numeric(sprintf(fmt = "%.3f", (overlap / size)) ),
+      inputSize = length(genes)
     ) 
   }
   
@@ -772,7 +776,7 @@ fgsea_kegg_overrepresentation <- function(
 #' @param inKeytype org.db keytype for input \code{genelist}
 #' @param level GO tree level
 #' @param ont Either BP, CC or MF. Default: BP
-#' @param nodeSize Minimum node size to include GO terms in enrichment analysis
+#' @param minNodeSize Minimum node size to include GO terms in enrichment analysis
 #' @param keggOrg KEGG organism code
 #' @param keggKeytype org.db keytype for KEGG geneId column
 #' @param genenameKeytype org.db keytype for gene name column
@@ -784,12 +788,14 @@ fgsea_kegg_overrepresentation <- function(
 #'
 #' @examples NA
 fgsea_orgdb_GO_KEGG <- function(
-  genelist, orgdb, inKeytype, level = NULL, ont = "BP", nodeSize = 5, keggOrg = NULL,
-  keggKeytype = NULL, genenameKeytype = NULL, pvalueCutoff = 0.05, ...){
+  genelist, orgdb, inKeytype, level = NULL, ont = "BP", minNodeSize = 5, keggOrg = NULL,
+  maxNodeSize = 500, keggKeytype = NULL, genenameKeytype = NULL, pvalueCutoff = 0.05, ...){
   
   # build GO geneset from org.db
   goGenesets <- get_go_geneset(
-    orgdb = orgdb, outKeytype = inKeytype, level = level, ont = ont, nodeSize = nodeSize
+    orgdb = orgdb, outKeytype = inKeytype, level = level,
+    ont = ont, minNodeSize = minNodeSize,
+    maxNodeSize = maxNodeSize
   )
   
   gseaGo <- fgsea_steps(pathways = goGenesets, stats = genelist, ...)
@@ -825,7 +831,12 @@ fgsea_orgdb_GO_KEGG <- function(
   
   resultDf <- dplyr::bind_rows(gseaGo, gseaKegg) %>% 
     dplyr::left_join(y = pathDesc, by = "pathway") %>% 
-    dplyr::filter(padj <= pvalueCutoff)
+    dplyr::filter(pval <= pvalueCutoff) %>% 
+    dplyr::arrange(pval)
+  
+  if(nrow(resultDf) == 0){
+    return(NULL)
+  }
   
   if(!is.null(genenameKeytype)){
     resultDf <- dplyr::mutate(

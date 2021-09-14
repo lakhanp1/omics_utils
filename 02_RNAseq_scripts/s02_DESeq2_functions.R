@@ -251,7 +251,8 @@ get_diff_info <- function(degInfoFile, dataPath){
     deseq2_shrink = paste(dataPath, "/", comparison, "/", comparison, ".DESeq2_shrunken.tab", sep = ""),
     deg = paste(dataPath, "/", comparison, "/", comparison, ".DEG_all.txt", sep = ""),
     topGO = paste(dataPath, "/", comparison, "/", comparison, ".topGO.tab", sep = ""),
-    keggProfile = paste(dataPath, "/", comparison, "/", comparison, ".keggProfile.tab", sep = ""),
+    kegg = paste(dataPath, "/", comparison, "/", comparison, ".KEGG_fora.tab", sep = ""),
+    fgsea = paste(dataPath, "/", comparison, "/", comparison, ".GO_KEGG_fgsea.tab", sep = ""),
     clusterProfiler_GO = paste(dataPath, "/", comparison, "/", comparison, ".clusterProfiler.GO.tab", sep = ""),
     clusterProfiler_kegg = paste(dataPath, "/", comparison, "/", comparison, ".clusterProfiler.kegg.tab", sep = "")
   )
