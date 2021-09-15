@@ -17,18 +17,16 @@ suppressPackageStartupMessages(library(KEGGREST))
 #' 
 #' This function performs GO enrichment using Fisher's exact test on gene counts using \code{topGO} package.
 #'
-#' @param goMapFile gene to GO term assignment file
 #' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
+#' @param orgdb org.db for extracting GO associations and mapping geneIds to gene names
 #' @param type GO type to use for enrichment. One of BP, MF, CC. Default: BP
 #' @param goNodeSize default: 1
 #' @param algo One of the algorithm for topGO: "classic", "elim", "weight", "weight01", "lea", "parentchild".
 #' Default: "weight01"
 #' @param bgNodeLimit Any GO term with more than this number of genes in background is removed from the
 #' topGO output. Default: NULL i.e. no such limit is used.
-#' @param orgdb org.db for mapping geneIds to gene names
 #' @param genenameKeytype gene name column from org.db
 #' @param inKeytype org.db keytype for input genes
-#' @param topgoKeytype org.db keytype for topGO mapping file geneIds
 #'
 #' @return A topGO enrichment result table
 #' @export
@@ -36,20 +34,21 @@ suppressPackageStartupMessages(library(KEGGREST))
 #' @examples topGO_enrichment(goMapFile = goToGeneFile, genes = genes)
 #' 
 topGO_enrichment <- function(
-  goMapFile, genes, type = "BP", goNodeSize = 1, algo = "weight01",
-  bgNodeLimit = NULL, orgdb, inKeytype = "GID", topgoKeytype = "GID",
-  genenameKeytype){
+  genes, orgdb, type = "BP", goNodeSize = 1, algo = "weight01",
+  bgNodeLimit = NULL, inKeytype = "GID", genenameKeytype){
   
-  geneID2GO <- topGO::readMappings(file = goMapFile)
-  geneNames <- names(geneID2GO)
+  # geneID2GO <- topGO::readMappings(file = goMapFile)
   
-  
-  if(inKeytype != topgoKeytype){
-    genes <- suppressMessages(
-      AnnotationDbi::mapIds(x = orgdb, keys = genes, column = topgoKeytype, keytype = inKeytype)
+  ## use org.db object to extract gene->GO list
+  geneID2GO <- suppressMessages(
+    AnnotationDbi::mapIds(
+      x = orgdb, keys = keys(x = orgdb, keytype = inKeytype),
+      column = "GOALL", keytype = inKeytype,
+      multiVals = list
     )
-  }
+  )
   
+  geneNames <- names(geneID2GO)
   genes <- unique(genes)
   
   geneList <- factor(as.integer(geneNames %in% genes))
@@ -117,16 +116,16 @@ topGO_enrichment <- function(
   )
   
   ## optionally get gene names from orgdb
-  if(!missing(orgdb)){
+  if(!missing(genenameKeytype)){
     ## extract gene names
     mappedNames <- suppressMessages(
       AnnotationDbi::select(
-        x = orgdb, keys = genes, keytype = topgoKeytype, columns = genenameKeytype)
+        x = orgdb, keys = genes, keytype = inKeytype, columns = genenameKeytype)
     ) %>% 
       dplyr::mutate(
         !!sym(genenameKeytype) := if_else(
           condition = is.na(!!sym(genenameKeytype)),
-          true = !!sym(topgoKeytype),
+          true = !!sym(inKeytype),
           false = !!sym(genenameKeytype)
         )
       ) %>% 
@@ -303,7 +302,7 @@ enrichment_scatter <- function(df, title, pvalCol = "pvalue", termCol = "Term",
 
 #' Perform GO enrichment using topGO and scatter plot
 #'
-#' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
+#' @param genes a vector of geneIds
 #' @param goToGeneFile gene to GO term assignment file
 #' @param goTitle title for the scatter plot
 #' @param plotOut output file name for the scatter plot
@@ -315,7 +314,7 @@ enrichment_scatter <- function(df, title, pvalCol = "pvalue", termCol = "Term",
 #' @examples NA
 go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
   
-  goData <- topGO_enrichment(goMapFile = goToGeneFile, genes = genes, ...)
+  goData <- topGO_enrichment(orgdb = orgdb, genes = genes, ...)
   topGoScatter <- enrichment_scatter(df = goData, title = goTitle)
   
   # draw Heatmap and add the annotation name decoration
@@ -338,7 +337,7 @@ go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
 ## function to generate the plot and write the matrix. can also be called inside dplyr::do()
 #' Title
 #'
-#' @param genes a vector of geneIds. These geneIds should be present in the first column of goMapFile
+#' @param genes a vector of geneIds
 #' @param title title for the scatter plot
 #' @param outPrefix output file name prefix the scatter plot and topGO result table
 #' @param mapFile gene to GO term assignment file
@@ -350,7 +349,7 @@ go_and_scatterPlot <- function(genes, goToGeneFile, goTitle, plotOut, ...){
 #' @examples NA
 topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
   
-  goData <- topGO_enrichment(goMapFile = mapFile, genes = genes, ...)
+  goData <- topGO_enrichment(orgdb = orgdb, genes = genes, ...)
   
   if(nrow(goData) == 0){
     return(data.frame(height = NA, width = NA, title = NA, res = NA, png = NA, stringsAsFactors = F))
