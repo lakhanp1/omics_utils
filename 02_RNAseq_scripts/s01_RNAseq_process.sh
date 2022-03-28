@@ -1,5 +1,10 @@
 #!/bin/bash
 
+## RNAseq pipeline script: hisat2 maping -> samtools indexing -> stringtie
+
+set -e
+set -u
+set -o pipefail
 
 ##----------------------------------------------------------------
 ## argument parsing
@@ -33,7 +38,6 @@ while true ; do
 	*) echo "Internal error!" >&2; exit 1;;
 	esac
 done
-
 
 
 if [ -z "$index" ]; then
@@ -78,6 +82,14 @@ function error_exit
 
 export -f error_exit
 
+function process_start
+{
+	startTime=`date "+%T %Y/%m/%d"`
+	printf "Started at $startTime: $1\n" 1>&2
+}
+
+export -f process_start
+
 ## check if tools are installed
 for tool in hisat2 stringtie samtools
 do
@@ -114,22 +126,24 @@ while IFS=$'\t' read -r sampleId read1 read2 ; do
 	done
 
 	outDir=$sampleId
-
-	mkdir ${outDir}
+	[ ! -d ${outDir} ] && mkdir ${outDir}
 
 	## align using HiSAT2
-	hisat2 -p 4 --summary-file hisat.summary  -x ${index} -1 ${read1} -2 ${read2} |
-	samtools view -bS - |
+	process_start hisat2
+	hisat2 -p 4 --summary-file ${outDir}/hisat.summary  -x ${index} -1 ${read1} -2 ${read2} | \
+	samtools view -bS - | \
 	samtools sort  -O bam -o ${outDir}/${sampleId}_hisat2.bam
 
 	error_exit $?
 
 	## mapping stats
+	process_start samtools_index
 	samtools index ${outDir}/${sampleId}_hisat2.bam
 	error_exit $?
 	samtools flagstat ${outDir}/${sampleId}_hisat2.bam > ${outDir}/alignment.stats
 
 	## run StringTie
+	process_start stringtie
 	stringtie ${outDir}/${sampleId}_hisat2.bam -p 4 -e -B -G ${gtf} -o ${outDir}/stringTie_${sampleId}/${sampleId}.gtf
 	error_exit $?
 
