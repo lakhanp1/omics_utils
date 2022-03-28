@@ -1,0 +1,4 @@
+sample1	s1.1.R1.fastq.gz,s1.2.R1.fastq.gz	s1.1.R2.fastq.gz,s1.2.R2.fastq.gz
+sample2	s2R1.fastq.gz	s2R2.fastq.gz
+sample3	s3R1.fastq.gz	s3R2.fastq.gz
+sample4	s4R1.fastq.gz	s4R2.fastq.gz
