@@ -650,7 +650,7 @@ get_kegg_geneset <- function(keggOrg, orgdb = NULL, keggKeytype = NULL, outKeyty
   if(!is.null(orgdb)){
     idMap <- suppressMessages(
       AnnotationDbi::select(
-        x = orgdb, keys = pathways$keggGeneId, column = outKeytype, keytype = keggKeytype
+        x = orgdb, keys = unique(pathways$keggGeneId), column = outKeytype, keytype = keggKeytype
       )
     )
     
@@ -747,7 +747,8 @@ fgsea_kegg_overrepresentation <- function(
   
   resultDf <- dplyr::filter(enrichRes, overlap != 0, pval <= pvalueCutoff) %>% 
     dplyr::left_join(y = keggDesc, by = "pathway") %>% 
-    dplyr::select(pathway, description, everything())
+    dplyr::select(pathway, description, everything()) %>% 
+    tibble::as_tibble()
   
   if(nrow(resultDf) == 0){
     return(NULL)
@@ -848,6 +849,50 @@ fgsea_orgdb_GO_KEGG <- function(
   
   return(resultDf)
 }
+
+##################################################################################
+
+#' Prepare GSEA Enrichment plot data
+#' 
+#' This function is copied from fgsea::plotEnrichment() to extract the data for 
+#' generating custom ggplot.
+#'
+#' @param geneset gene set to plot
+#' @param stats Gene-level statistics
+#' @param gseaParam GSEA parameter. Default = 1
+#'
+#' @return A data frame
+#' @export
+#'
+#' @examples NA
+gsea_plot_data <- function(geneset, stats, gseaParam = 1){
+  
+  rnk <- rank(-stats)
+  ord <- order(rnk)
+  statsAdj <- stats[ord]
+  statsAdj <- sign(statsAdj) * (abs(statsAdj)^gseaParam)
+  statsAdj <- statsAdj/max(abs(statsAdj))
+  
+  pathway <- unname(as.vector(na.omit(match(geneset, names(statsAdj)))))
+  pathway <- sort(pathway)
+  gseaRes <- calcGseaStat(stats = statsAdj, selectedStats = pathway, 
+                          returnAllExtremes = TRUE)
+  
+  bottoms <- gseaRes$bottoms
+  tops <- gseaRes$tops
+  n <- length(statsAdj)
+  xs <- as.vector(rbind(pathway - 1, pathway))
+  ys <- as.vector(rbind(bottoms, tops))
+  toPlot <- data.frame(x = c(0, xs, n + 1), y = c(0, ys, 0))
+  
+  return(list(
+    df = toPlot,
+    genes = tibble::tibble(x = pathway),
+    top = max(tops), bottom = min(bottoms))
+  )
+  
+}
+
 
 ##################################################################################
 
