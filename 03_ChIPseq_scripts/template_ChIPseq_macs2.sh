@@ -1,6 +1,6 @@
 
 ##macs2:START
-conf_macs2_g=$(yq r /home/lakhanp/database/reference_genomes.yaml ${conf_orgId}.macs2_g)
+conf_macs2_g=$(yq eval .${conf_orgId}.macs2_g /home/lakhanp/database/reference_genomes.yaml )
 
 if [ -f "${control}" ]
 then

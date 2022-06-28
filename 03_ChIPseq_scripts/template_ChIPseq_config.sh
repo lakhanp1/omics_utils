@@ -35,6 +35,15 @@ while true ; do
 	esac
 done
 
+if [ -z "$orgId" ]; then
+	printf "Error: Missing --org argument\n" 1>&2
+	exit 1
+fi
+
+if [ -z "$file_config" ]; then
+	printf "Error: Missing --conf argument\n" 1>&2
+	exit 1
+fi
 
 ## check if config file exists
 if [ ! -f "${file_config}" ]; then
@@ -43,8 +52,8 @@ if [ ! -f "${file_config}" ]; then
 fi
 
 ## get reference variables for organism of interest
-chrSize=$(yq r ${file_config} ${orgId}.chrSize)
-file_polIIFeatures=$(yq r ${file_config} ${orgId}.polII_cds)
+chrSize=$(yq eval .${orgId}.chrSize ${file_config})
+file_polIIFeatures=$(yq eval .${orgId}.polII_cds ${file_config})
 
 
 if [ $chrSize == "null" ]; then

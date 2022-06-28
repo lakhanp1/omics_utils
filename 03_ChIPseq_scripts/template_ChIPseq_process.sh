@@ -26,7 +26,7 @@ error_exit $?
 
 ##Pol-II expression value
 if [ -f "${conf_polIIFeatures}" ]; then
-	perl /home/lakhanp/scripts/miaoScripts/zqWinSGR-v2.pl -feature_file ${conf_polIIFeatures} -socre_file SAMPLE_ID_normalized.bdg -chrom_column 1 -start_column 2 -end_column 3  -direction_column 6 -bin_count 1 -output_folder $PWD -outout_name SAMPLE_ID_polii_expr.tab
+	perl $CODE_DIR/miaoScripts/zqWinSGR-v2.pl -feature_file ${conf_polIIFeatures} -socre_file SAMPLE_ID_normalized.bdg -chrom_column 1 -start_column 2 -end_column 3  -direction_column 6 -bin_count 1 -output_folder $PWD -outout_name SAMPLE_ID_polii_expr.tab
 	error_exit $?
 fi
 
