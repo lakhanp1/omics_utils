@@ -6,6 +6,8 @@ suppressPackageStartupMessages(library(BSgenome))
 
 rm(list = ls())
 
+source("D:/work_lakhan/github/omics_utils/04_GO_enrichment/s01_enrichment_functions.R")
+
 path <- "D:/work_lakhan/database/A_Nidulans/annotation_resources/"
 setwd(path)
 

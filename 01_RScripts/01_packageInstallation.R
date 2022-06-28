@@ -32,7 +32,7 @@
 
 rm(list = ls())
 
-chooseCRANmirror(graphics = FALSE, ind = 18)
+chooseCRANmirror(graphics = FALSE, ind = 0)
 
 install.packages(
   pkgs = c(
@@ -63,7 +63,7 @@ BiocManager::install(
 
 BiocManager::install(
   pkgs = c(
-    "DESeq2", "tximport", "topGO", "DiffBind", "regioneR",
+    "DESeq2", "tximport", "topGO", "DiffBind", "regioneR", "ggtree",
     "ballgown", "pathview", "DO.db", "KEGGprofile", "preprocessCore", "GO.db",
     "clusterProfiler", "apeglm", "Gviz", "ggbio", "KEGGREST", "KEGG.db"
   )
@@ -86,17 +86,18 @@ remotes::install_github("jokergoo/EnrichedHeatmap")
 ## install my own packages
 library(devtools)
 
-devtools::document(pkg = "E:/Chris_UM/GitHub/markPeaks")
-devtools::install("E:/Chris_UM/GitHub/markPeaks", upgrade = "never")
 # remotes::install_github(repo = "lakhanp1/markPeaks", ref = "dev", upgrade = "never")
+devtools::document(pkg = "D:/work_lakhan/github/markPeaks")
+devtools::install("D:/work_lakhan/github/markPeaks", upgrade = "never")
 
-# devtools::load_all(path = "E:/Chris_UM/GitHub/chipmine", reset = TRUE)
-devtools::document(pkg = "E:/Chris_UM/GitHub/chipmine")
-devtools::install("E:/Chris_UM/GitHub/chipmine", upgrade = "never")
-# devtools::install("E:/Chris_UM/GitHub/chipmine")
-# remotes::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2", upgrade = "never")
-# remotes::install_github(repo = "lakhanp1/chipmine", ref = "1.6.0", upgrade = "never")
 
+
+# remotes::install_github(repo = "lakhanp1/chipmine", ref = "KERS_paper", upgrade = "never")
+remotes::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2", upgrade = "never")
+# devtools::load_all(path = "D:/work_lakhan/github/chipmine", reset = TRUE)
+# devtools::document(pkg = "D:/work_lakhan/github/chipmine")
+# devtools::install("D:/work_lakhan/github/chipmine", upgrade = "never")
+# devtools::install("D:/work_lakhan/github/chipmine", upgrade = "never")
 ##########################################################################
 ###############         Org.Db packages            #######################
 ##########################################################################
@@ -111,7 +112,7 @@ remotes::install_github(
   "lakhanp1/fungal_resources/A_nidulans/BSgenome.Anidulans.FGSCA4.AspGD",
   upgrade = "never")
 # remotes::install(
-#   "E:/Chris_UM/Database/A_Nidulans/annotation_resources/TxDb.Anidulans.tRNA.removed",
+#   "D:/work_lakhan/database/A_Nidulans/annotation_resources/TxDb.Anidulans.tRNA.removed",
 #   upgrade = "never")
 
 
@@ -158,25 +159,25 @@ remotes::install_github(
 
 ## Human
 devtools::install(
-  "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/TxDb.Hsapiens.GRCh38p12.gencodev30.basic",
+  "D:/work_lakhan/database/Human/GRCh38p12.gencode30/annotation_resources/TxDb.Hsapiens.GRCh38p12.gencodev30.basic",
   upgrade = "never")
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
+  pkg = "D:/work_lakhan/database/Human/GRCh38p12.gencode30/annotation_resources/org.HSapiens.gencodev30.eg.db",
   upgrade = "never")
 
 
 ## Zebrafish GRCz11
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Zebrafish/GRCz11/annotation_resources/org.DRerio.GRCz11.Ensembl97.eg.db",
+  pkg = "D:/work_lakhan/database/Zebrafish/GRCz11/annotation_resources/org.DRerio.GRCz11.Ensembl97.eg.db",
   upgrade = "never")
 
 
 ## Mouse
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/TxDb.GRCm38p6.Ensembl100",
+  pkg = "D:/work_lakhan/database/Mouse/GRCm38.99/annotation_resources/TxDb.GRCm38p6.Ensembl100",
   upgrade = "never")
 devtools::install(
-  pkg = "E:/Chris_UM/Database/Mouse/GRCm38.99/annotation_resources/org.GRCm38p6.Ensembl100.eg.db",
+  pkg = "D:/work_lakhan/database/Mouse/GRCm38.99/annotation_resources/org.GRCm38p6.Ensembl100.eg.db",
   upgrade = "never")
 
 

@@ -6,7 +6,9 @@ suppressPackageStartupMessages(library(BSgenome))
 
 rm(list = ls())
 
-path <- "E:/Chris_UM/Database/C_albicans/SC5314_A21/annotation_resources"
+source("D:/work_lakhan/github/omics_utils/04_GO_enrichment/s01_enrichment_functions.R")
+
+path <- "D:/work_lakhan/database/C_albicans/SC5314_A21/annotation_resources"
 setwd(path)
 
 
@@ -42,8 +44,6 @@ ncbiData <- dplyr::select(caGenes, GID, NCBI_ID) %>%
 
 ##############################################################################
 ## GO data
-
-goCols <- c("DB", "DB_Object_ID", "DB_Object_Symbol", "Qualifier", "GO", "Reference", "EVIDENCE", "WithOrFrom", "Aspect", "Name", "Synonym", "DB_Object_Type", "taxon", "Date", "Assigned_by")
 
 goAssociations <- read_gaf(file = file_goAssociation)
 
@@ -152,14 +152,11 @@ install.packages("TxDb.Calbicans.SC5314.CGD.GFF", repos = NULL, type = "source")
 
 ##############################################################################
 ## create BSgenome package
-forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = ".")
+forgeBSgenomeDataPkg(x = "BSgenome.seed", seqs_srcdir = "../")
 
 ## need to correct this package. something is wrong with DESCRIPTION file
 ## install package
 install.packages("BSgenome.CAlbicans.SC5314.A21.CGD", repos = NULL, type = "source")
-
-
-
 
 
 
