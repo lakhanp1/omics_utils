@@ -48,6 +48,8 @@ install.packages(
 #Time series data imputation
 install.packages("imputeTS", dependencies = T)
 
+##########################################################################
+
 install.packages("BiocManager")
 BiocManager::install()
 
@@ -82,22 +84,23 @@ remotes::install_github("jokergoo/EnrichedHeatmap")
 # BiocManager::install("ComplexHeatmap")
 # BiocManager::install("EnrichedHeatmap")
 
-
+##########################################################################
 ## install my own packages
 library(devtools)
 
-# remotes::install_github(repo = "lakhanp1/markPeaks", ref = "dev", upgrade = "never")
-devtools::document(pkg = "D:/work_lakhan/github/markPeaks")
-devtools::install("D:/work_lakhan/github/markPeaks", upgrade = "never")
+workDir <- Sys.getenv("CODE_DIR")
 
+# remotes::install_github(repo = "lakhanp1/markPeaks", ref = "dev", upgrade = "never")
+devtools::document(pkg = file.path(workDir, "markPeaks"))
+devtools::install(file.path(workDir, "markPeaks"), upgrade = "never")
 
 
 # remotes::install_github(repo = "lakhanp1/chipmine", ref = "KERS_paper", upgrade = "never")
 remotes::install_github(repo = "lakhanp1/chipmine", ref = "dev_v2", upgrade = "never")
-# devtools::load_all(path = "D:/work_lakhan/github/chipmine", reset = TRUE)
-# devtools::document(pkg = "D:/work_lakhan/github/chipmine")
-# devtools::install("D:/work_lakhan/github/chipmine", upgrade = "never")
-# devtools::install("D:/work_lakhan/github/chipmine", upgrade = "never")
+# devtools::load_all(path = file.path(workDir, "chipmine"), reset = TRUE)
+# devtools::document(pkg = file.path(workDir, "chipmine"))
+# devtools::install(file.path(workDir, "chipmine"), upgrade = "never")
+# devtools::install(file.path(workDir, "chipmine"), upgrade = "never")
 ##########################################################################
 ###############         Org.Db packages            #######################
 ##########################################################################
