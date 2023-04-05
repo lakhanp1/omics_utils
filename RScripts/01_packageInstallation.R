@@ -45,6 +45,9 @@ install.packages(
   ),
   dependencies = T)
 
+## data mining and summary
+install.packages(pkgs = c("skimr"))
+
 #Time series data imputation
 install.packages("imputeTS", dependencies = T)
 
