@@ -198,7 +198,7 @@ enrichment_bar <- function(df, title, pvalCol = "pvalue", termCol = "Term",
   
   ggBar <- ggplot(data = goData, mapping = aes(x = !!sym(termCol), y = !!sym(logPvalCol))) +
     geom_bar(mapping = aes(fill = !!sym(colorCol)), stat='identity') +
-    geom_text(mapping = aes(y = !!sym(logPvalCol), label = !!sym(countCol)), hjust = 1.2) +
+    geom_text(mapping = aes(y = !!sym(logPvalCol), label = !!sym(countCol)), hjust = 0) +
     labs(title = title, y = "-log10(p-value)") +
     coord_flip() +
     # scale_y_discrete(expand = expand_scale(add = c(0, 1))) +
@@ -268,30 +268,26 @@ enrichment_scatter <- function(df, title, pvalCol = "pvalue", termCol = "Term",
   
   ## ggplot object
   goScatter <- ggplot(data = goData) +
-    geom_point(mapping = aes(x = !! as.name(xVar),
-                             y = !! as.name(termCol), 
-                             size = !! as.name(sizeVar),
-                             color = !! as.name(logPvalCol))) +
-    scale_color_gradientn(name = "p-value",
-                          values = rescale(c(1, 2.5, scaleLim, max(goData[[logPvalCol]], scaleLim+0.1))),
-                          colours = c("green", "red", "blue", "darkblue"),
-                          breaks = brk,
-                          labels = scaleLabels,
-                          guide = guide_colorbar(barheight = 10, draw.llim = FALSE, order = 1),
-                          oob = squish,
-                          limits = c(1, scaleLim + 1)
+    geom_point(
+      mapping = aes(
+        x = !! as.name(xVar), y = !! as.name(termCol), 
+        size = !! as.name(sizeVar), color = !! as.name(logPvalCol)
+      )
+    ) +
+    scale_color_gradientn(
+      name = "p-value",
+      values = rescale(c(1, 2.5, scaleLim, max(goData[[logPvalCol]], scaleLim+0.1))),
+      colours = c("green", "red", "blue", "darkblue"),
+      breaks = brk,
+      labels = scaleLabels,
+      guide = guide_colorbar(barheight = 10, draw.llim = FALSE, order = 1),
+      oob = squish,
+      limits = c(1, scaleLim + 1)
     ) +
     scale_size_continuous(limits = c(0, max( goData[[sizeVar]] )),
                           range = c(1, 15)) +
     labs(title = title) +
-    theme_bw() +
-    theme(plot.title = element_text(hjust = 0.8, size = 16, face = "bold"),
-          axis.text.x = element_text(size = 14),
-          axis.text.y = element_text(size = 14),
-          axis.title.y = element_blank(),
-          axis.title.x = element_text(face = "bold"),
-          legend.text = element_text(size = 14),
-          legend.title = element_text(size = 14, face = "bold"))
+    theme_bw(base_size = 16) 
   
   return(goScatter)
   
@@ -370,13 +366,16 @@ topGO_and_plot_asDf <- function(genes, title, outPrefix, mapFile, ...){
   
   fwrite(x = goData, file = tabFile, sep = "\t", col.names = T, quote = F)
   
-  return(data.frame(height = ht, 
-                    width = wd, 
-                    res = rs, 
-                    count = nrow(goData), 
-                    title = title, 
-                    png = pngFile,
-                    stringsAsFactors = F))
+  return(
+    data.frame(
+      height = ht, 
+      width = wd, 
+      res = rs, 
+      count = nrow(goData), 
+      title = title, 
+      png = pngFile,
+      stringsAsFactors = F)
+  )
 }
 
 
@@ -442,19 +441,17 @@ GO_map <- function(genes, goTerms, orgdb, inKeytype){
   ## build a GO table 
   goTable <- suppressMessages(
     AnnotationDbi::select(
-      x = GO.db,
-      keys = goTerms,
-      columns = c("GOID", "ONTOLOGY", "TERM"),
-      keytype = "GOID"))
+      x = GO.db, keys = goTerms, keytype = "GOID",
+      columns = c("GOID", "ONTOLOGY", "TERM")
+    )
+  )
   
   
   ## get the total number of genes annotated for each ONTOLOGY category
   ontStats <- suppressMessages(
     AnnotationDbi::select(
-      x = orgdb,
-      keys = AnnotationDbi::keys(x = orgdb, keytype = inKeytype),
-      keytype = inKeytype,
-      columns = c("GOALL", "ONTOLOGYALL")
+      x = orgdb, keytype = inKeytype, columns = c("GOALL", "ONTOLOGYALL"),
+      keys = AnnotationDbi::keys(x = orgdb, keytype = inKeytype)
     )
   ) %>% 
     dplyr::group_by(ONTOLOGYALL) %>% 
@@ -468,10 +465,9 @@ GO_map <- function(genes, goTerms, orgdb, inKeytype){
   ## true for GO column
   goData <- suppressMessages(
     AnnotationDbi::select(
-      x = orgdb,
-      keys = goTerms, columns = c(inKeytype),
-      keytype = "GOALL"
-    )) %>% 
+      x = orgdb, keys = goTerms, columns = c(inKeytype), keytype = "GOALL"
+    )
+  ) %>% 
     dplyr::rename(geneId = !!sym(inKeytype))
   
   ## build summary table
@@ -1057,7 +1053,7 @@ simplify_gsea <- function(obj, orgGo){
   cat("Done...\n")
   
   return(obj)
-
+  
 }
 
 
