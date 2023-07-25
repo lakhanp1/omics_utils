@@ -638,8 +638,11 @@ get_kegg_geneset <- function(keggOrg, orgdb = NULL, keggKeytype = NULL, outKeyty
   pathways <- tibble::enframe(KEGGREST::keggLink("pathway", keggOrg)) %>% 
     dplyr::rename(keggGeneId = name, pathwayId = value) %>% 
     dplyr::mutate(
-      keggGeneId = stringr::str_replace(
-        string = keggGeneId, pattern = "\\w+:", replacement = ""
+      dplyr::across(
+        .cols = c(keggGeneId, pathwayId), 
+        .fns = ~ stringr::str_replace(
+          string = .x, pattern = "\\w+:", replacement = ""
+        )
       )
     )
   
@@ -660,9 +663,25 @@ get_kegg_geneset <- function(keggOrg, orgdb = NULL, keggKeytype = NULL, outKeyty
   
   pathwayList <- split(pathways$keggGeneId, pathways$pathwayId)
   
-  pathDesc <- tibble::enframe(keggList(database = "pathway", organism = keggOrg)) %>% 
-    dplyr::rename(pathwayId = name, description = value)
   
+  orgName <- stringr::str_replace(
+    string = KEGGREST::keggInfo("dre"),
+    pattern = "^\\w+\\s+(.*) KEGG Genes Database.*(\n.*)*",
+    replacement = "\\1"
+  )
+  
+  pathDesc <- tibble::enframe(
+    KEGGREST::keggList(database = "pathway", organism = keggOrg)
+  ) %>% 
+    dplyr::rename(pathwayId = name, description = value) %>% 
+    dplyr::mutate(
+      description = stringi::stri_replace(
+        str = description,
+        fixed = paste(' -', orgName),
+        replacement = ""
+      )
+    )
+
   return(
     list(pathwayList = pathwayList, pathDesc = pathDesc)
   )
