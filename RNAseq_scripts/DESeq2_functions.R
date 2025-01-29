@@ -156,17 +156,17 @@ volcano_plot <- function(
     geom_vline(xintercept = lfc_cut, color = "black", linetype = "dashed") +
     scale_x_continuous(name = "log2(fold change)", limits = xlimit, expand = expansion(mult = 0.02)) +
     scale_y_continuous(name = "-log10(q-value)", limits = c(0, ylimit), expand = expansion(mult = 0.02)) +
-    guides(color = guide_legend(nrow = 2, byrow = T, override.aes = list(size = 5))) +
     labs(
       title = stringr::str_wrap(title),
       subtitle = subTitle
     ) +
-    theme_bw(base_size = 14) +
+    theme_bw(base_size = 13) +
+    guides(color = guide_legend(override.aes = list(size = 5))) +
     theme(
       legend.background = element_rect(colour = "black"),
       legend.position = "bottom",
       panel.grid = element_blank(),
-      plot.margin = unit(c(1,1,1,1),"cm"),
+      plot.margin = unit(c(1,1,1,1),"cm")
     )
   
   
