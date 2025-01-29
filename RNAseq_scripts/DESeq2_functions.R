@@ -122,7 +122,6 @@ volcano_plot <- function(
         alpha = pointAlpha, size = pointSize, shape = 19
       ) +
       scale_color_manual(values = genesetColor)
-    
   }
   
   
@@ -148,9 +147,7 @@ volcano_plot <- function(
         color = "red",
         size = pointSize + 0.5, shape = 1, stroke = 1.5
       )
-    
   }
-  
   
   ## theme and plot annotations
   pt_volc <- pt_volc +
@@ -164,16 +161,11 @@ volcano_plot <- function(
       title = stringr::str_wrap(title),
       subtitle = subTitle
     ) +
-    theme_bw() +
+    theme_bw(base_size = 14) +
     theme(
       legend.background = element_rect(colour = "black"),
-      legend.title = element_text(face = "bold", size = 16),
       legend.position = "bottom",
-      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-      axis.text = element_text(size = 20),
-      axis.title = element_text(face = "bold", size = 20),
       panel.grid = element_blank(),
-      legend.text = element_text(size = 15),
       plot.margin = unit(c(1,1,1,1),"cm"),
     )
   
