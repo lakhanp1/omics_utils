@@ -119,7 +119,7 @@ volcano_plot <- function(
       geom_point(
         data = colorGeneDf,
         mapping = aes(color = colorGroup),
-        alpha = pointAlpha, size = pointSize, shape = 19
+        alpha = pointAlpha, size = pointSize + 0.5, shape = 19
       ) +
       scale_color_manual(values = genesetColor)
   }
