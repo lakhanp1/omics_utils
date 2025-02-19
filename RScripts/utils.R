@@ -31,7 +31,7 @@ prefix_config_paths <- function(conf, dir = "."){
   )
   
   ## update dir for next child nodes
-  conf[["dir"]] <- dir
+  conf[["path"]] <- dir
   
   return(conf)
 }
