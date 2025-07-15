@@ -17,7 +17,7 @@ prefix_config_paths <- function(conf, dir = "."){
   
   ## append dir to files
   if(!is.null(conf[["files"]])){
-    conf[["files"]] <- purrr::discard(.x = conf[["files"]], .p = is.null) %>% 
+    conf[["files"]] <- purrr::discard(.x = conf[["files"]], .p = is.null) |> 
       purrr::map(
       .f = ~ paste(dir, "/", .x, sep = "")
     )
